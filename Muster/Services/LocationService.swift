@@ -5,81 +5,232 @@ import Combine
 @MainActor
 final class LocationService: NSObject, ObservableObject {
 
-    // MARK: - Published state
-
     @Published private(set) var lastLocation: CLLocation? = nil
     @Published private(set) var authorization: CLAuthorizationStatus = .notDetermined
     @Published private(set) var accuracyAuthorization: CLAccuracyAuthorization = .reducedAccuracy
-    @Published private(set) var isUpdating: Bool = false
     @Published private(set) var lastError: String? = nil
+    @Published private(set) var isUpdating: Bool = false
 
-    // MARK: - Private
+    @Published private(set) var adminDesiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyBest
+    @Published private(set) var adminDistanceFilter: CLLocationDistance = kCLLocationAccuracyNearestTenMeters
+    @Published private(set) var adminBackgroundUpdatesEnabled: Bool = false
+    @Published private(set) var adminPausesAutomatically: Bool = true
+    @Published private(set) var adminHeadingUpdatesEnabled: Bool = false
 
-    private let manager: CLLocationManager = CLLocationManager()
+    // True device heading (0 = North). nil until available.
+    @Published private(set) var headingDegrees: Double? = nil
 
-    // MARK: - Init
+    private let manager = CLLocationManager()
+
+    // Accepted breadcrumb / smoothing state
+    private var lastAcceptedLocation: CLLocation? = nil
+    private var smoothedHeadingDegrees: Double? = nil
+
+    // Filtering + tuning
+    private let minHorizontalAccuracy: CLLocationAccuracy = 0
+    private let maxHorizontalAccuracy: CLLocationAccuracy = 40
+
+    // Increased slightly to suppress tiny visual jitter / GPS wobble.
+    private let minLocationDeltaMeters: CLLocationDistance = 4.0
+
+    private let stationarySpeedThreshold: CLLocationSpeed = 0.7
+    private let lowSpeedThreshold: CLLocationSpeed = 1.5
+    private let lowSpeedMinDeltaMeters: CLLocationDistance = 5.0
+    private let maxReasonableSpeedMetersPerSecond: CLLocationSpeed = 40.0   // ~144 km/h GPS spike filter
+    private let staleGapStartsFreshTrackAfter: TimeInterval = 20.0
+    private let maxLocationAgeSeconds: TimeInterval = 15.0
+
+    // Slightly smoother / calmer heading for map display.
+    private let headingSmoothingFactor: Double = 0.10
+    private let headingDeadbandDegrees: Double = 3.0
 
     override init() {
         super.init()
 
         manager.delegate = self
+        manager.activityType = .automotiveNavigation
+        manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        manager.distanceFilter = 5
 
-        // Best for mustering map tracking (tweak if needed)
-        manager.activityType = .fitness
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 2.0          // meters between updates
+        // Background recording support
+        manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
-        manager.allowsBackgroundLocationUpdates = false // keep false unless you truly need background
+        manager.showsBackgroundLocationIndicator = true
 
-        // Seed current state
         authorization = manager.authorizationStatus
         accuracyAuthorization = manager.accuracyAuthorization
     }
 
     // MARK: - Public API
 
-    /// Call this when the map view appears (or when a session starts).
-    func start() {
-        lastError = nil
-
-        authorization = manager.authorizationStatus
-        accuracyAuthorization = manager.accuracyAuthorization
-
-        switch authorization {
+    func requestPermission() {
+        switch manager.authorizationStatus {
         case .notDetermined:
-            // ✅ This is what makes iOS show "While Using the App"
             manager.requestWhenInUseAuthorization()
 
-        case .restricted, .denied:
-            // User must change in Settings
-            lastError = "Location permission is off. Enable it in Settings → Tepari → Location."
+        case .authorizedWhenInUse:
+            // Ask for Always so breadcrumbs can continue in background.
+            manager.requestAlwaysAuthorization()
 
-        case .authorizedWhenInUse, .authorizedAlways:
-            beginUpdating()
+        case .authorizedAlways, .restricted, .denied:
+            break
 
         @unknown default:
-            lastError = "Unknown location authorization state."
+            break
         }
     }
 
-    /// Call this when leaving the map / ending session to save battery.
+    func start() {
+        lastError = nil
+
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let servicesEnabled = CLLocationManager.locationServicesEnabled()
+                let headingAvailable = CLLocationManager.headingAvailable()
+
+                DispatchQueue.main.async {
+                    guard let self else { return }
+
+                    guard servicesEnabled else {
+                        self.isUpdating = false
+                        self.lastError = "Location Services are disabled."
+                        return
+                    }
+
+                    if headingAvailable {
+                        self.manager.startUpdatingHeading()
+                    }
+
+                    self.manager.startUpdatingLocation()
+                    self.isUpdating = true
+                }
+            }
+
+        case .notDetermined:
+            requestPermission()
+
+        case .denied:
+            isUpdating = false
+            lastError = "Location access denied. Enable location permissions in Settings."
+
+        case .restricted:
+            isUpdating = false
+            lastError = "Location access is restricted on this device."
+
+        @unknown default:
+            isUpdating = false
+            lastError = "Unknown location authorization status."
+        }
+    }
+
     func stop() {
         manager.stopUpdatingLocation()
+        manager.stopUpdatingHeading()
         isUpdating = false
     }
 
-    /// Optional helper if you want to prompt for Precise again (iOS may not show a prompt depending on state).
-    func requestTemporaryPreciseAuthorization(purposeKey: String) {
-        // Requires NSLocationTemporaryUsageDescriptionDictionary in Info.plist
+    func requestTemporaryFullAccuracy(purposeKey: String) {
+        guard manager.accuracyAuthorization == .reducedAccuracy else { return }
         manager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: purposeKey)
+    }
+
+    func forceRefreshNow() {
+        manager.requestLocation()
     }
 
     // MARK: - Private helpers
 
-    private func beginUpdating() {
-        guard !isUpdating else { return }
-        isUpdating = true
-        manager.startUpdatingLocation()
+    private func accept(_ location: CLLocation) {
+        lastAcceptedLocation = location
+        lastLocation = location
+    }
+
+    private func isFreshEnough(_ location: CLLocation) -> Bool {
+        abs(location.timestamp.timeIntervalSinceNow) <= maxLocationAgeSeconds
+    }
+
+    private func shouldAccept(_ newLocation: CLLocation) -> Bool {
+        // Reject invalid / poor accuracy fixes
+        if newLocation.horizontalAccuracy < minHorizontalAccuracy { return false }
+        if newLocation.horizontalAccuracy > maxHorizontalAccuracy { return false }
+
+        // Reject stale cached fixes
+        if !isFreshEnough(newLocation) { return false }
+
+        guard let last = lastAcceptedLocation else { return true }
+
+        let distance = newLocation.distance(from: last)
+        let dt = newLocation.timestamp.timeIntervalSince(last.timestamp)
+
+        // If the app was backgrounded / updates paused / there is a long gap,
+        // accept the new point as a fresh continuation and do not reject it.
+        if dt > staleGapStartsFreshTrackAfter {
+            return true
+        }
+
+        // Guard against zero / negative timestamps
+        if dt <= 0 {
+            return false
+        }
+
+        // Ignore duplicates / tiny jitter
+        if distance < minLocationDeltaMeters {
+            return false
+        }
+
+        // Ignore obvious GPS teleport spikes
+        let inferredSpeed = distance / dt
+        if inferredSpeed > maxReasonableSpeedMetersPerSecond {
+            return false
+        }
+
+        let reportedSpeed = max(newLocation.speed, 0)
+
+        // When nearly stationary, be stricter so breadcrumbs stay clean.
+        if reportedSpeed < stationarySpeedThreshold, distance < 6 {
+            return false
+        }
+
+        // Extra low-speed cleanup: if moving very slowly and the jump is tiny,
+        // it is usually GPS wobble rather than real travel.
+        if reportedSpeed < lowSpeedThreshold, distance < lowSpeedMinDeltaMeters {
+            return false
+        }
+
+        return true
+    }
+
+    private func normalizeDegrees(_ degrees: Double) -> Double {
+        var value = degrees.truncatingRemainder(dividingBy: 360)
+        if value < 0 { value += 360 }
+        return value
+    }
+
+    private func shortestAngleDelta(from: Double, to: Double) -> Double {
+        var delta = (to - from).truncatingRemainder(dividingBy: 360)
+        if delta > 180 { delta -= 360 }
+        if delta < -180 { delta += 360 }
+        return delta
+    }
+
+    private func smoothHeading(_ rawDegrees: Double) -> Double {
+        let normalized = normalizeDegrees(rawDegrees)
+
+        guard let current = smoothedHeadingDegrees else {
+            smoothedHeadingDegrees = normalized
+            return normalized
+        }
+
+        let delta = shortestAngleDelta(from: current, to: normalized)
+
+        if abs(delta) < headingDeadbandDegrees {
+            return current
+        }
+
+        let next = normalizeDegrees(current + (delta * headingSmoothingFactor))
+        smoothedHeadingDegrees = next
+        return next
     }
 }
 
@@ -87,39 +238,71 @@ final class LocationService: NSObject, ObservableObject {
 
 extension LocationService: CLLocationManagerDelegate {
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorization = manager.authorizationStatus
-        accuracyAuthorization = manager.accuracyAuthorization
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            self.authorization = manager.authorizationStatus
+            self.accuracyAuthorization = manager.accuracyAuthorization
 
-        switch authorization {
-        case .authorizedWhenInUse, .authorizedAlways:
-            lastError = nil
-            beginUpdating()
+            switch manager.authorizationStatus {
+            case .authorizedAlways, .authorizedWhenInUse:
+                self.lastError = nil
 
-        case .denied, .restricted:
-            stop()
-            lastError = "Location permission is off. Enable it in Settings → Tepari → Location."
+            case .denied:
+                self.isUpdating = false
+                self.lastError = "Location access denied. Enable location permissions in Settings."
 
-        case .notDetermined:
-            // waiting on user prompt
-            break
+            case .restricted:
+                self.isUpdating = false
+                self.lastError = "Location access is restricted on this device."
 
-        @unknown default:
-            break
+            case .notDetermined:
+                break
+
+            @unknown default:
+                self.isUpdating = false
+                self.lastError = "Unknown location authorization status."
+            }
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let loc = locations.last else { return }
-
-        // Filter junk readings if needed
-        if loc.horizontalAccuracy < 0 { return }
-
-        lastLocation = loc
-        lastError = nil
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        Task { @MainActor in
+            guard let newestAcceptable = locations.last(where: { self.shouldAccept($0) }) else { return }
+            self.accept(newestAcceptable)
+        }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        lastError = error.localizedDescription
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            let nsError = error as NSError
+
+            // Ignore transient "location unknown"
+            if nsError.domain == kCLErrorDomain,
+               nsError.code == CLError.locationUnknown.rawValue {
+                return
+            }
+
+            self.lastError = error.localizedDescription
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        Task { @MainActor in
+            guard newHeading.headingAccuracy >= 0 else { return }
+
+            // Prefer true heading when available, else magnetic
+            let rawHeading: Double
+            if newHeading.trueHeading >= 0 {
+                rawHeading = newHeading.trueHeading
+            } else {
+                rawHeading = newHeading.magneticHeading
+            }
+
+            self.headingDegrees = self.smoothHeading(rawHeading)
+        }
+    }
+
+    nonisolated func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool {
+        false
     }
 }

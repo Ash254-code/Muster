@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5ED6BE452F5B7A8E008BDAFF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5ED6BE442F5B7A8E008BDAFF /* WidgetKit.framework */; };
+		5ED6BE472F5B7A8E008BDAFF /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5ED6BE462F5B7A8E008BDAFF /* SwiftUI.framework */; };
+		5ED6BE562F5B7A91008BDAFF /* MusterLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ED6BE422F5B7A8E008BDAFF /* MusterLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5E5195622F5829E900E0D9C1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +27,36 @@
 			remoteGlobalIDString = 5E51954F2F5829E600E0D9C1;
 			remoteInfo = Muster;
 		};
+		5ED6BE542F5B7A91008BDAFF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5E5195482F5829E600E0D9C1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5ED6BE412F5B7A8D008BDAFF;
+			remoteInfo = MusterLiveActivityExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5ED6BE5B2F5B7A91008BDAFF /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5ED6BE562F5B7A91008BDAFF /* MusterLiveActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5E5195502F5829E600E0D9C1 /* Muster.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Muster.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E5195612F5829E900E0D9C1 /* MusterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MusterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E51956B2F5829E900E0D9C1 /* MusterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MusterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5ED6BE422F5B7A8E008BDAFF /* MusterLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MusterLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5ED6BE442F5B7A8E008BDAFF /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		5ED6BE462F5B7A8E008BDAFF /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -37,6 +67,20 @@
 			);
 			target = 5E51954F2F5829E600E0D9C1 /* Muster */;
 		};
+		5ED6BE5A2F5B7A91008BDAFF /* Exceptions for "MusterLiveActivity" folder in "MusterLiveActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5ED6BE412F5B7A8D008BDAFF /* MusterLiveActivityExtension */;
+		};
+		5ED6BE5F2F5B7BCD008BDAFF /* Exceptions for "Muster" folder in "MusterLiveActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				GoToMarkerAttributes.swift,
+			);
+			target = 5ED6BE412F5B7A8D008BDAFF /* MusterLiveActivityExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +88,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				5E5195732F5829E900E0D9C1 /* Exceptions for "Muster" folder in "Muster" target */,
+				5ED6BE5F2F5B7BCD008BDAFF /* Exceptions for "Muster" folder in "MusterLiveActivityExtension" target */,
 			);
 			path = Muster;
 			sourceTree = "<group>";
@@ -56,6 +101,14 @@
 		5E51956E2F5829E900E0D9C1 /* MusterUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MusterUITests;
+			sourceTree = "<group>";
+		};
+		5ED6BE482F5B7A8E008BDAFF /* MusterLiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5ED6BE5A2F5B7A91008BDAFF /* Exceptions for "MusterLiveActivity" folder in "MusterLiveActivityExtension" target */,
+			);
+			path = MusterLiveActivity;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +135,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5ED6BE3F2F5B7A8D008BDAFF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5ED6BE472F5B7A8E008BDAFF /* SwiftUI.framework in Frameworks */,
+				5ED6BE452F5B7A8E008BDAFF /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +153,8 @@
 				5E5195522F5829E600E0D9C1 /* Muster */,
 				5E5195642F5829E900E0D9C1 /* MusterTests */,
 				5E51956E2F5829E900E0D9C1 /* MusterUITests */,
+				5ED6BE482F5B7A8E008BDAFF /* MusterLiveActivity */,
+				5ED6BE432F5B7A8E008BDAFF /* Frameworks */,
 				5E5195512F5829E600E0D9C1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +165,18 @@
 				5E5195502F5829E600E0D9C1 /* Muster.app */,
 				5E5195612F5829E900E0D9C1 /* MusterTests.xctest */,
 				5E51956B2F5829E900E0D9C1 /* MusterUITests.xctest */,
+				5ED6BE422F5B7A8E008BDAFF /* MusterLiveActivityExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5ED6BE432F5B7A8E008BDAFF /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5ED6BE442F5B7A8E008BDAFF /* WidgetKit.framework */,
+				5ED6BE462F5B7A8E008BDAFF /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,10 +189,12 @@
 				5E51954C2F5829E600E0D9C1 /* Sources */,
 				5E51954D2F5829E600E0D9C1 /* Frameworks */,
 				5E51954E2F5829E600E0D9C1 /* Resources */,
+				5ED6BE5B2F5B7A91008BDAFF /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5ED6BE552F5B7A91008BDAFF /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5E5195522F5829E600E0D9C1 /* Muster */,
@@ -176,6 +252,28 @@
 			productReference = 5E51956B2F5829E900E0D9C1 /* MusterUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		5ED6BE412F5B7A8D008BDAFF /* MusterLiveActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5ED6BE572F5B7A91008BDAFF /* Build configuration list for PBXNativeTarget "MusterLiveActivityExtension" */;
+			buildPhases = (
+				5ED6BE3E2F5B7A8D008BDAFF /* Sources */,
+				5ED6BE3F2F5B7A8D008BDAFF /* Frameworks */,
+				5ED6BE402F5B7A8D008BDAFF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5ED6BE482F5B7A8E008BDAFF /* MusterLiveActivity */,
+			);
+			name = MusterLiveActivityExtension;
+			packageProductDependencies = (
+			);
+			productName = MusterLiveActivityExtension;
+			productReference = 5ED6BE422F5B7A8E008BDAFF /* MusterLiveActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -183,8 +281,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					5E51954F2F5829E600E0D9C1 = {
 						CreatedOnToolsVersion = 26.2;
@@ -196,6 +294,9 @@
 					5E51956A2F5829E900E0D9C1 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 5E51954F2F5829E600E0D9C1;
+					};
+					5ED6BE412F5B7A8D008BDAFF = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -216,6 +317,7 @@
 				5E51954F2F5829E600E0D9C1 /* Muster */,
 				5E5195602F5829E900E0D9C1 /* MusterTests */,
 				5E51956A2F5829E900E0D9C1 /* MusterUITests */,
+				5ED6BE412F5B7A8D008BDAFF /* MusterLiveActivityExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +338,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5E5195692F5829E900E0D9C1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5ED6BE402F5B7A8D008BDAFF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +375,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5ED6BE3E2F5B7A8D008BDAFF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +395,11 @@
 			target = 5E51954F2F5829E600E0D9C1 /* Muster */;
 			targetProxy = 5E51956C2F5829E900E0D9C1 /* PBXContainerItemProxy */;
 		};
+		5ED6BE552F5B7A91008BDAFF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5ED6BE412F5B7A8D008BDAFF /* MusterLiveActivityExtension */;
+			targetProxy = 5ED6BE542F5B7A91008BDAFF /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -288,15 +409,22 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Muster/Muster.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UX6Z4ZY692;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Muster/Info.plist;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Muster needs access to Apple Music so the media button can play, pause, and skip your music.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app communicates with external radio devices.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Muster needs location access in the background so your position continues updating while working.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Muster uses your location to show your position on the map and track your movement during mustering.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -304,8 +432,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = GP.Muster;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -322,15 +451,22 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Muster/Muster.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UX6Z4ZY692;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Muster/Info.plist;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Muster needs access to Apple Music so the media button can play, pause, and skip your music.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app communicates with external radio devices.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Muster needs location access in the background so your position continues updating while working.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Muster uses your location to show your position on the map and track your movement during mustering.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -338,8 +474,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = GP.Muster;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -409,6 +546,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -466,6 +604,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -523,7 +662,7 @@
 				DEVELOPMENT_TEAM = UX6Z4ZY692;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = GP.MusterUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -543,7 +682,7 @@
 				DEVELOPMENT_TEAM = UX6Z4ZY692;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = GP.MusterUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -552,6 +691,66 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Muster;
+			};
+			name = Release;
+		};
+		5ED6BE582F5B7A91008BDAFF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UX6Z4ZY692;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MusterLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MusterLiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster.liveactivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5ED6BE592F5B7A91008BDAFF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UX6Z4ZY692;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MusterLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MusterLiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp.muster.liveactivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -590,6 +789,15 @@
 			buildConfigurations = (
 				5E51957D2F5829E900E0D9C1 /* Debug */,
 				5E51957E2F5829E900E0D9C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5ED6BE572F5B7A91008BDAFF /* Build configuration list for PBXNativeTarget "MusterLiveActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5ED6BE582F5B7A91008BDAFF /* Debug */,
+				5ED6BE592F5B7A91008BDAFF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
