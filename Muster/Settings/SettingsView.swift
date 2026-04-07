@@ -84,7 +84,7 @@ struct SettingsView: View {
                     NavigationLink {
                         TPMSDashboardHostView()
                     } label: {
-                        Label("TPMS", systemImage: "gauge.with.dots.needle.67percent")
+                        Label("TPMS", systemImage: "tirepressure")
                     }
 
                     NavigationLink {
