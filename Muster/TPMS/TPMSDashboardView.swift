@@ -106,18 +106,6 @@ struct TPMSDashboardView: View {
         return Array(spares.prefix(spareCount))
     }
 
-    private var statusText: String {
-        let alertCount = (roadTyres + spareTyres).filter(\.isAlerting).count
-        if alertCount > 0 {
-            return "\(alertCount) alert" + (alertCount == 1 ? "" : "s")
-        }
-        return "All tyres normal"
-    }
-
-    private var statusColor: Color {
-        (roadTyres + spareTyres).contains(where: \.isAlerting) ? .red : .green
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -192,21 +180,6 @@ struct TPMSDashboardView: View {
                     systemImage: resolvedVehicleMode == .car ? "car.fill" : "motorcycle"
                 )
             }
-
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 9, height: 9)
-
-                Text(statusText)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(statusColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -306,23 +279,30 @@ struct TPMSDashboardView: View {
         let isAlerting = tyre?.isAlerting ?? false
         let isConnected = tyre?.isConnected ?? false
 
+        let backgroundColor: Color = {
+            if !isConnected { return Color(.systemBackground).opacity(0.92) }
+            return isAlerting ? Color.red.opacity(0.14) : Color.green.opacity(0.14)
+        }()
+
+        let borderColor: Color = {
+            if !isConnected { return Color.primary.opacity(0.08) }
+            return isAlerting ? Color.red.opacity(0.50) : Color.green.opacity(0.50)
+        }()
+
+        let valueColor: Color = {
+            if !isConnected { return .primary }
+            return isAlerting ? .red : .green
+        }()
+
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Text(tyre?.position.title ?? "Not Set")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                Circle()
-                    .fill(isAlerting ? .red : (isConnected ? .green : .secondary.opacity(0.4)))
-                    .frame(width: 8, height: 8)
-            }
+            Text(tyre?.position.title ?? "Not Set")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
             Text(tyre?.pressurePSI.map { "\($0) psi" } ?? "-- psi")
                 .font(.headline.weight(.bold))
-                .foregroundStyle(isAlerting ? .red : .primary)
+                .foregroundStyle(valueColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
@@ -341,11 +321,11 @@ struct TPMSDashboardView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isAlerting ? Color.red.opacity(0.10) : Color(.systemBackground).opacity(0.92))
+                .fill(backgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isAlerting ? Color.red.opacity(0.45) : Color.primary.opacity(0.08), lineWidth: 1)
+                .stroke(borderColor, lineWidth: 1)
         )
     }
 
@@ -550,66 +530,35 @@ struct TPMSDashboardView: View {
 
     private var motorbikeSilhouetteModern: some View {
         ZStack {
-            // Wheels
-            Group {
-                Circle()
-                    .stroke(Color.primary.opacity(0.26), lineWidth: 6)
-                    .frame(width: 34, height: 34)
-                    .offset(x: -20, y: 60)
-
-                Circle()
-                    .stroke(Color.primary.opacity(0.26), lineWidth: 6)
-                    .frame(width: 34, height: 34)
-                    .offset(x: 20, y: 60)
-            }
-
-            // Frame / chassis
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.16))
-                .frame(width: 56, height: 8)
-                .offset(y: 44)
-
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.16))
-                .frame(width: 40, height: 8)
-                .rotationEffect(.degrees(-35))
-                .offset(x: -5, y: 32)
-
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.14))
-                .frame(width: 30, height: 7)
-                .rotationEffect(.degrees(35))
-                .offset(x: 10, y: 32)
-
-            // Body / seat
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.16))
-                .frame(width: 30, height: 18)
-                .offset(x: -2, y: 18)
-
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.14))
-                .frame(width: 24, height: 7)
-                .offset(x: -8, y: 8)
-
-            // Front fork + handlebar
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.16))
-                .frame(width: 7, height: 26)
-                .rotationEffect(.degrees(30))
-                .offset(x: 24, y: 34)
-
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.14))
-                .frame(width: 20, height: 6)
-                .rotationEffect(.degrees(-20))
-                .offset(x: 24, y: 14)
-
-            // Rider helmet hint so the silhouette reads as "motorbike"
             Circle()
-                .fill(Color.primary.opacity(0.13))
-                .frame(width: 14, height: 14)
-                .offset(x: -6, y: -2)
+                .stroke(Color.primary.opacity(0.18), lineWidth: 7)
+                .frame(width: 40, height: 40)
+                .offset(y: -62)
+
+            Circle()
+                .stroke(Color.primary.opacity(0.18), lineWidth: 7)
+                .frame(width: 40, height: 40)
+                .offset(y: 62)
+
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.12))
+                .frame(width: 22, height: 110)
+
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.10))
+                .frame(width: 14, height: 44)
+
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.12))
+                .frame(width: 46, height: 8)
+                .rotationEffect(.degrees(-24))
+                .offset(x: 12, y: -32)
+
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.10))
+                .frame(width: 38, height: 8)
+                .rotationEffect(.degrees(24))
+                .offset(x: -8, y: 18)
         }
     }
 }
