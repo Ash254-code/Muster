@@ -28,6 +28,8 @@ private let kTopLeftPillMetricKey = "top_left_pill_metric"
 private let kTopRightPillMetricKey = "top_right_pill_metric"
 
 private let kMediaButtonEnabledKey = "media_button_enabled" // Bool
+private let kXRSRadioTrailsEnabledKey = "xrs_radio_trails_enabled" // Bool
+private let kXRSRadioTrailColorKey = "xrs_radio_trail_color" // String
 
 struct MapMainView: View {
 
@@ -161,6 +163,8 @@ struct MapMainView: View {
     // Long-press marker actions
     @State private var longPressedSessionMarker: MusterMarker? = nil
     @State private var longPressedMapMarker: MapMarker? = nil
+    @State private var showLongPressedSessionMarkerDialog = false
+    @State private var showLongPressedMapMarkerDialog = false
 
     // Editing / moving session marker
     @State private var editingSessionMarker: MusterMarker? = nil
@@ -217,6 +221,8 @@ struct MapMainView: View {
     @AppStorage(kAdminRightControlsBottomGapKey) private var rightControlsBottomGap: Double = 96
     
     @AppStorage(kMediaButtonEnabledKey) private var mediaButtonEnabled: Bool = true
+    @AppStorage(kXRSRadioTrailsEnabledKey) private var xrsRadioTrailsEnabled: Bool = true
+    @AppStorage(kXRSRadioTrailColorKey) private var xrsRadioTrailColorRaw: String = "blue"
     
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
@@ -227,6 +233,7 @@ struct MapMainView: View {
     @State private var showRadioDebug = false
     @State private var fitRadiosNonce: Int = 0
     @State private var showRadioList = false
+    @State private var showTPMSDashboard = false
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -269,6 +276,19 @@ struct MapMainView: View {
         }
     }
 
+    private var shouldShowXRSTrailsOnMap: Bool {
+        xrsRadioTrailsEnabled && activeSession?.isActive == true
+    }
+
+    private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
+        guard shouldShowXRSTrailsOnMap else { return [] }
+
+        return xrsContacts.compactMap { contact in
+            let trail = app.xrs.trailPoints(for: contact.name)
+            let coords = trail.map(\.coordinate)
+            return coords.count >= 2 ? coords : nil
+        }
+    }
     private var leftPillMetric: TopSidePillMetric {
         TopSidePillMetric(rawValue: topLeftPillMetricRaw) ?? .weather
     }
@@ -608,6 +628,9 @@ private var selectedMapModeOption: MapModeOption {
             .sheet(isPresented: $showImportFilterSheet) {
                 importFilterSheet
             }
+            .sheet(isPresented: $showTPMSDashboard) {
+                tpmsDashboardSheet
+            }
             .fullScreenCover(isPresented: $showPreviousMusters) {
                 previousMustersCover
             }
@@ -616,14 +639,14 @@ private var selectedMapModeOption: MapModeOption {
             }
             .confirmationDialog(
                 longPressedSessionMarker?.displayTitle ?? "Marker",
-                isPresented: longPressedSessionMarkerPresented,
+                isPresented: $showLongPressedSessionMarkerDialog,
                 titleVisibility: .visible,
                 actions: longPressedSessionMarkerDialogActions,
                 message: longPressedSessionMarkerDialogMessage
             )
             .confirmationDialog(
                 longPressedMapMarker?.displayTitle ?? "Marker",
-                isPresented: longPressedMapMarkerPresented,
+                isPresented: $showLongPressedMapMarkerDialog,
                 titleVisibility: .visible,
                 actions: longPressedMapMarkerDialogActions,
                 message: longPressedMapMarkerDialogMessage
@@ -658,6 +681,8 @@ private var selectedMapModeOption: MapModeOption {
             .onAppear {
                 longPressedSessionMarker = nil
                 longPressedMapMarker = nil
+                showLongPressedSessionMarkerDialog = false
+                showLongPressedMapMarkerDialog = false
 
                 editingSessionMarker = nil
                 editingSessionMarkerName = ""
@@ -954,6 +979,8 @@ private var selectedMapModeOption: MapModeOption {
             markers: sessionMarkers,
             mapMarkers: currentMapMarkers,
             xrsContacts: xrsContacts,
+            xrsTrailGroups: xrsTrailGroups,
+            xrsTrailColorRaw: xrsRadioTrailColorRaw,
             importedBoundaries: importedBoundaries,
             importedTracks: importedTracks,
             importedMarkers: importedMarkers,
@@ -1015,45 +1042,39 @@ private var selectedMapModeOption: MapModeOption {
                     startGoTo(marker)
                 }
             },
+            onTapImportedMarker: { marker in
+                DispatchQueue.main.async {
+                    startGoTo(marker)
+                }
+            },
             onLongPressSessionMarker: { marker in
                 DispatchQueue.main.async {
                     movingMapMarker = nil
                     longPressedMapMarker = nil
+                    showLongPressedMapMarkerDialog = false
                     editingMapMarker = nil
                     showEditMapMarkerAlert = false
 
                     longPressedSessionMarker = marker
+                    showLongPressedSessionMarkerDialog = true
                 }
             },
             onLongPressMapMarker: { marker in
                 DispatchQueue.main.async {
                     movingSessionMarker = nil
                     longPressedSessionMarker = nil
+                    showLongPressedSessionMarkerDialog = false
                     editingSessionMarker = nil
                     showEditSessionMarkerAlert = false
 
                     longPressedMapMarker = marker
+                    showLongPressedMapMarkerDialog = true
                 }
             }
         )
         .ignoresSafeArea()
     }
 
-    // MARK: - Presented bindings
-
-    private var longPressedSessionMarkerPresented: Binding<Bool> {
-        Binding(
-            get: { longPressedSessionMarker != nil },
-            set: { if !$0 { longPressedSessionMarker = nil } }
-        )
-    }
-
-    private var longPressedMapMarkerPresented: Binding<Bool> {
-        Binding(
-            get: { longPressedMapMarker != nil },
-            set: { if !$0 { longPressedMapMarker = nil } }
-        )
-    }
 
     // MARK: - Sheets / covers
 
@@ -1096,44 +1117,12 @@ private var selectedMapModeOption: MapModeOption {
     // MARK: - Dialog actions
 
     @ViewBuilder
-    private func longPressedSessionMarkerDialogActions() -> some View {
-        Button("Edit") {
-            guard let marker = longPressedSessionMarker else { return }
-            editingSessionMarker = marker
-            editingSessionMarkerName = marker.displayTitle
-            longPressedSessionMarker = nil
-            showEditSessionMarkerAlert = true
-        }
-
-        Button("Move") {
-            guard let marker = longPressedSessionMarker else { return }
-            movingSessionMarker = marker
-            movingMapMarker = nil
-            longPressedSessionMarker = nil
-        }
-
-        Button("Delete", role: .destructive) {
-            guard let marker = longPressedSessionMarker else { return }
-            deleteSessionMarker(marker)
-            longPressedSessionMarker = nil
-        }
-
-        Button("Cancel", role: .cancel) {
-            longPressedSessionMarker = nil
-        }
-    }
-
-    @ViewBuilder
-    private func longPressedSessionMarkerDialogMessage() -> some View {
-        Text("Edit, move, or delete this session marker.")
-    }
-
-    @ViewBuilder
     private func longPressedMapMarkerDialogActions() -> some View {
         Button("Edit") {
             guard let marker = longPressedMapMarker else { return }
             editingMapMarker = marker
             editingMapMarkerName = marker.displayTitle
+            showLongPressedMapMarkerDialog = false
             longPressedMapMarker = nil
             showEditMapMarkerAlert = true
         }
@@ -1142,19 +1131,58 @@ private var selectedMapModeOption: MapModeOption {
             guard let marker = longPressedMapMarker else { return }
             movingMapMarker = marker
             movingSessionMarker = nil
+            showLongPressedMapMarkerDialog = false
             longPressedMapMarker = nil
         }
 
         Button("Delete", role: .destructive) {
             guard let marker = longPressedMapMarker else { return }
             deletePermanentMapMarker(marker)
+            showLongPressedMapMarkerDialog = false
             longPressedMapMarker = nil
         }
 
         Button("Cancel", role: .cancel) {
+            showLongPressedMapMarkerDialog = false
             longPressedMapMarker = nil
         }
     }
+    @ViewBuilder
+    private func longPressedSessionMarkerDialogActions() -> some View {
+        Button("Edit") {
+            guard let marker = longPressedSessionMarker else { return }
+            editingSessionMarker = marker
+            editingSessionMarkerName = marker.displayTitle
+            showLongPressedSessionMarkerDialog = false
+            longPressedSessionMarker = nil
+            showEditSessionMarkerAlert = true
+        }
+
+        Button("Move") {
+            guard let marker = longPressedSessionMarker else { return }
+            movingSessionMarker = marker
+            movingMapMarker = nil
+            showLongPressedSessionMarkerDialog = false
+            longPressedSessionMarker = nil
+        }
+
+        Button("Delete", role: .destructive) {
+            guard let marker = longPressedSessionMarker else { return }
+            deleteSessionMarker(marker)
+            showLongPressedSessionMarkerDialog = false
+            longPressedSessionMarker = nil
+        }
+
+        Button("Cancel", role: .cancel) {
+            showLongPressedSessionMarkerDialog = false
+            longPressedSessionMarker = nil
+        }
+    }
+    @ViewBuilder
+    private func longPressedSessionMarkerDialogMessage() -> some View {
+        Text("Edit, move, or delete this session marker.")
+    }
+
 
     @ViewBuilder
     private func longPressedMapMarkerDialogMessage() -> some View {
@@ -2399,6 +2427,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         }
         .presentationDetents([.medium, .large])
     }
+    private var tpmsDashboardSheet: some View {
+        TPMSDashboardHostView()
+    }
     
     private var expandedPanelContent: some View {
         let km = kilometresForDayText
@@ -2409,31 +2440,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         let hasTrack = activeSession?.hasTrack == true
 
         let prevMusters = "\(previousMusterCount)"
-        let prevTracks = app.muster.showPreviousTracksOnMap ? "Shown" : "Hidden"
-        let trackPoints = "\(trackPointCount)"
-        let permanentMarkers = "\(permanentMarkerCount)"
         let radios = "\(xrsRadioCount)"
 
         return VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                quickStat(title: "Km For Day", value: km)
-
-                quickStatButton(
-                    title: "Map Filter",
-                    value: filter
-                ) {
-                    showImportFilterSheet = true
-                }
-
-                quickStatButton(
-                    title: "Track View",
-                    value: trackShort
-                ) {
-                    cycleActiveTrackAppearanceMode()
-                }
-            }
-            .padding(.horizontal, 14)
-
             HStack(spacing: 10) {
                 bottomActionButton(
                     title: isActive ? "Stop" : "Start",
@@ -2463,6 +2472,26 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             }
             .padding(.horizontal, 14)
 
+            HStack(spacing: 12) {
+                quickStat(title: "Km For Day", value: km)
+
+                quickStatButton(
+                    title: "TPMS",
+                    value: "Open"
+                ) {
+                    panelDetent = .collapsed
+                    showTPMSDashboard = true
+                }
+
+                quickStatButton(
+                    title: "Track View",
+                    value: trackShort
+                ) {
+                    cycleActiveTrackAppearanceMode()
+                }
+            }
+            .padding(.horizontal, 14)
+
             VStack(spacing: 10) {
                 panelButtonRow(
                     title: "Current Track",
@@ -2482,8 +2511,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     showPreviousMusters = true
                 }
 
-           
                 panelRow(title: "XRS radios", value: radios, systemImage: "antenna.radiowaves.left.and.right")
+
+                panelButtonRow(
+                    title: "Map Filter",
+                    value: filter,
+                    systemImage: "line.3.horizontal.decrease.circle"
+                ) {
+                    panelDetent = .collapsed
+                    showImportFilterSheet = true
+                }
             }
             .padding(.horizontal, 14)
 
@@ -2719,6 +2756,29 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             coordinate: marker.coordinate,
             title: marker.displayTitle,
             subtitle: marker.templateDescription
+        )
+
+        GoToLiveActivityManager.shared.start(
+            markerName: marker.displayTitle,
+            coordinate: marker.coordinate
+        )
+
+        app.muster.clearActiveSheepTarget()
+    }
+
+    private func startGoTo(_ marker: ImportedMarker) {
+        smartETA.reset()
+        gotoTarget = nil
+        activeRadioGoToContactID = nil
+
+        let trimmedNote = marker.note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedMarkerType = marker.markerType?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackSubtitle = (trimmedMarkerType?.isEmpty == false) ? (trimmedMarkerType ?? marker.category.title) : marker.category.title
+        
+        manualGoToTarget = ManualGoToTarget(
+            coordinate: marker.coordinate,
+            title: marker.displayTitle,
+            subtitle: trimmedNote?.isEmpty == false ? (trimmedNote ?? fallbackSubtitle) : fallbackSubtitle
         )
 
         GoToLiveActivityManager.shared.start(

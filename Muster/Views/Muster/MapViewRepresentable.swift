@@ -13,6 +13,8 @@ struct MapViewRepresentable: UIViewRepresentable {
     let markers: [MusterMarker]
     let mapMarkers: [MapMarker]
     let xrsContacts: [XRSRadioContact]
+    let xrsTrailGroups: [[CLLocationCoordinate2D]]
+    let xrsTrailColorRaw: String
 
     let importedBoundaries: [ImportedBoundary]
     let importedTracks: [ImportedTrack]
@@ -45,6 +47,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let onLongPressAtCoordinate: (CLLocationCoordinate2D) -> Void
     let onTapSessionMarker: (MusterMarker) -> Void
     let onTapMapMarker: (MapMarker) -> Void
+    let onTapImportedMarker: (ImportedMarker) -> Void
     let onLongPressSessionMarker: (MusterMarker) -> Void
     let onLongPressMapMarker: (MapMarker) -> Void
 
@@ -193,6 +196,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: map,
             contacts: xrsContacts
         )
+        context.coordinator.updateXRSTrails(
+            map: map,
+            trailGroups: xrsTrailGroups,
+            colorRaw: xrsTrailColorRaw
+        )
         context.coordinator.updateImportedMarkers(
             map: map,
             importedMarkers: importedMarkers
@@ -219,7 +227,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self, metersPerPoint: $metersPerPoint)
     }
-    
+
     private func applyMapStyle(_ map: MKMapView) {
         switch mapStyleRaw {
         case "satellite":
@@ -245,12 +253,14 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var previousTrackPolylines: [HistoricalPolyline] = []
         private var importedTrackPolylines: [ImportedTrackPolyline] = []
         private var importedBoundaryPolygons: [ImportedBoundaryPolygon] = []
+        private var xrsTrailPolylines: [XRSTrailPolyline] = []
         private var destinationLine: MKPolyline?
         private var ringOverlays: [MKCircle] = []
 
         private var previousTrackSignature: String = ""
         private var importedTrackSignature: String = ""
         private var importedBoundarySignature: String = ""
+        private var xrsTrailSignature: String = ""
         private var ringsSignature: String = ""
 
         private var hasTriggeredDestinationArrival = false
@@ -285,6 +295,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var suppressFollowCameraUntil: CFTimeInterval = 0
 
         private var lastAppliedOrientationRaw: String = ""
+        private var lastAppliedMapStyleRaw: String = ""
         private var lastAppliedHeadsUpPitchDegrees: Double = -1
         private var lastAppliedHeadsUpUserVerticalOffset: Double = -1
         private var lastAppliedHeadsUpBottomObstructionHeight: Double = -1
@@ -308,6 +319,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             self.parent = parent
             self.metersPerPoint = metersPerPoint
             self.lastAppliedOrientationRaw = parent.orientationRaw
+            self.lastAppliedMapStyleRaw = parent.mapStyleRaw
             self.lastAppliedHeadsUpPitchDegrees = parent.headsUpPitchDegrees
             self.lastAppliedHeadsUpUserVerticalOffset = min(max(parent.headsUpUserVerticalOffset.rounded(), 0), 10)
             self.lastAppliedHeadsUpBottomObstructionHeight = max(0, parent.headsUpBottomObstructionHeight)
@@ -324,22 +336,31 @@ struct MapViewRepresentable: UIViewRepresentable {
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
+            if gestureRecognizer === longPressGesture || otherGestureRecognizer === longPressGesture {
+                return true
+            }
             return false
         }
-        
+
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             guard let map = observedMap else { return true }
+
             let point = touch.location(in: map)
 
-            let bottomBlockedZone: CGFloat = 160
-            if point.y > map.bounds.height - bottomBlockedZone {
-                return false
+            if annotationView(at: point, in: map) != nil {
+                return gestureRecognizer === longPressGesture
+            }
+
+            if gestureRecognizer === longPressGesture {
+                let bottomBlockedZone: CGFloat = 160
+                if point.y > map.bounds.height - bottomBlockedZone {
+                    return false
+                }
             }
 
             return true
         }
-        
-        
+
         func attachMapView(_ map: MKMapView) {
             observedMap = map
             lastKnownMapHeightPoints = map.bounds.height
@@ -458,6 +479,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 }
             }
         }
+
         func applyCameraModeIfNeeded(
             map: MKMapView,
             userLocation: CLLocation?
@@ -467,15 +489,20 @@ struct MapViewRepresentable: UIViewRepresentable {
             let snappedBottomObstructionHeight = normalizedHeadsUpBottomObstructionHeight()
 
             let orientationChanged = parent.orientationRaw != lastAppliedOrientationRaw
+            let mapStyleChanged = parent.mapStyleRaw != lastAppliedMapStyleRaw
             let presetPitchChanged = presetPitch != lastPresetPitchDegrees
             let verticalOffsetChanged = snappedVerticalOffset != lastAppliedHeadsUpUserVerticalOffset
             let bottomObstructionChanged = snappedBottomObstructionHeight != lastAppliedHeadsUpBottomObstructionHeight
 
-            guard orientationChanged || presetPitchChanged || verticalOffsetChanged || bottomObstructionChanged else { return }
+            guard orientationChanged || mapStyleChanged || presetPitchChanged || verticalOffsetChanged || bottomObstructionChanged else {
+                return
+            }
 
             lastAppliedOrientationRaw = parent.orientationRaw
-            lastAppliedHeadsUpUserVerticalOffset = snappedVerticalOffset
-            lastAppliedHeadsUpBottomObstructionHeight = snappedBottomObstructionHeight
+            lastAppliedMapStyleRaw = parent.mapStyleRaw
+            lastAppliedHeadsUpPitchDegrees = presetPitch
+            lastAppliedHeadsUpUserVerticalOffset = normalizedHeadsUpUserVerticalOffset()
+            lastAppliedHeadsUpBottomObstructionHeight = normalizedHeadsUpBottomObstructionHeight()
 
             if presetPitchChanged {
                 userHasManuallyAdjustedPitch = false
@@ -519,10 +546,15 @@ struct MapViewRepresentable: UIViewRepresentable {
                 heading: heading,
                 distance: currentPreservedDistance(from: map),
                 pitch: pitchToApply,
-                snap: false
+                snap: mapStyleChanged
             )
 
-            beginCameraAnimation(duration: 0.30)
+            if mapStyleChanged {
+                applyDrivingCameraIfPossible()
+                syncCameraStateFromMap(map)
+            } else {
+                beginCameraAnimation(duration: 0.30)
+            }
         }
 
         func updateFollowTarget(
@@ -635,20 +667,23 @@ struct MapViewRepresentable: UIViewRepresentable {
                 if let annotationView = annotationView(at: point, in: map) {
                     if let sessionView = annotationView as? SessionMarkerAnnotationView {
                         sessionView.suppressTapTemporarily()
-                    }
-                    if let mapView = annotationView as? MapMarkerAnnotationView {
-                        mapView.suppressTapTemporarily()
+                    } else if let mapMarkerView = annotationView as? MapMarkerAnnotationView {
+                        mapMarkerView.suppressTapTemporarily()
                     }
 
                     if let ann = annotationView.annotation as? SessionMarkerAnnotation {
                         map.deselectAnnotation(ann, animated: false)
-                        parent.onLongPressSessionMarker(ann.marker)
+                        DispatchQueue.main.async {
+                            self.parent.onLongPressSessionMarker(ann.marker)
+                        }
                         return
                     }
 
                     if let ann = annotationView.annotation as? MapMarkerAnnotation {
                         map.deselectAnnotation(ann, animated: false)
-                        parent.onLongPressMapMarker(ann.marker)
+                        DispatchQueue.main.async {
+                            self.parent.onLongPressMapMarker(ann.marker)
+                        }
                         return
                     }
                 }
@@ -666,6 +701,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 break
             }
         }
+
         private func signature(for sessions: [MusterSession]) -> String {
             sessions.map {
                 "\($0.id.uuidString):\($0.points.count)"
@@ -688,6 +724,18 @@ struct MapViewRepresentable: UIViewRepresentable {
             .joined(separator: "|")
         }
 
+        private func signature(forXRSTrails trailGroups: [[CLLocationCoordinate2D]], colorRaw: String) -> String {
+            trailGroups.enumerated().map { index, group in
+                let points = group.map { point in
+                    "\(String(format: "%.6f", point.latitude)),\(String(format: "%.6f", point.longitude))"
+                }
+                .joined(separator: ";")
+
+                return "\(index):\(points)"
+            }
+            .joined(separator: "|") + "|color:\(colorRaw)"
+        }
+
         private func signature(
             for centerLocation: CLLocation?,
             ringCount: Int,
@@ -699,6 +747,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             let spacing = String(format: "%.1f", spacingM)
             return "\(lat),\(lon)|\(ringCount)|\(spacing)"
         }
+
         private func annotationView(at point: CGPoint, in map: MKMapView) -> MKAnnotationView? {
             let hitView = map.hitTest(point, with: nil)
             return annotationView(from: hitView)
@@ -943,7 +992,6 @@ struct MapViewRepresentable: UIViewRepresentable {
             let mapDistance = max(80, map.camera.centerCoordinateDistance)
             let storedDistance = max(80, lastKnownCameraDistance)
 
-
             if abs(storedDistance - mapDistance) > 1 {
                 return storedDistance
             }
@@ -1000,10 +1048,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             let pitchValue = Double(pitch)
             let verticalSetting = normalizedHeadsUpUserVerticalOffset()
 
-            // 0 = centre, 10 = lower on screen
             let verticalProgress = verticalSetting / 10.0
 
-            // Keep behaviour much more consistent across 0 / 45 / 80
             let maxForwardOffsetMultiplier: Double
             switch pitchValue {
             case ..<1:
@@ -1015,7 +1061,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             let requestedForwardOffset = logicalDistance * maxForwardOffsetMultiplier * verticalProgress
-            
+
             let maxSafeForwardOffset: CLLocationDistance
             switch pitchValue {
             case ..<1:
@@ -1041,6 +1087,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             return (styledCenter, max(80, logicalDistance))
         }
+
         private func keepUserLocationViewOnTop(in map: MKMapView) {
             guard
                 let annotation = userLocationAnnotation,
@@ -1050,6 +1097,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             view.layer.zPosition = 10000
             map.bringSubviewToFront(view)
         }
+
         private func offsetCoordinate(
             _ coordinate: CLLocationCoordinate2D,
             meters: CLLocationDistance,
@@ -1322,12 +1370,15 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             activeBreadcrumbChunkStartSegmentIndex = nil
         }
+
         private func resetOverlaySignatures() {
             previousTrackSignature = ""
             importedTrackSignature = ""
             importedBoundarySignature = ""
+            xrsTrailSignature = ""
             ringsSignature = ""
         }
+
         private func isBreadcrumbAppendCompatible(points: [TrackPoint]) -> Bool {
             guard lastRenderedActiveBreadcrumbCount > 0 else { return false }
             guard lastRenderedActiveBreadcrumbCount <= points.count else { return false }
@@ -1437,6 +1488,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 map.addOverlays(rebuiltActiveSegments, level: .aboveLabels)
             }
         }
+
         private func chunkStartSegmentIndex(forTotalPoints pointCount: Int) -> Int {
             let totalSegments = max(0, pointCount - 1)
             guard totalSegments > 0 else { return 1 }
@@ -1582,6 +1634,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                     view.onTap = { [weak self] marker in
                         self?.parent.onTapSessionMarker(marker)
                     }
+                    view.onLongPress = { [weak self] marker in
+                        self?.parent.onLongPressSessionMarker(marker)
+                    }
                 }
             }
         }
@@ -1618,6 +1673,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                         view.configure(with: updated)
                         view.onTap = { [weak self] marker in
                             self?.parent.onTapMapMarker(marker)
+                        }
+                        view.onLongPress = { [weak self] marker in
+                            self?.parent.onLongPressMapMarker(marker)
                         }
                     }
                 }
@@ -1691,7 +1749,44 @@ struct MapViewRepresentable: UIViewRepresentable {
                 }
             }
         }
+        func updateXRSTrails(
+            map: MKMapView,
+            trailGroups: [[CLLocationCoordinate2D]],
+            colorRaw: String
+        ) {
+            let newSignature = signature(forXRSTrails: trailGroups, colorRaw: colorRaw)
+            guard newSignature != xrsTrailSignature else { return }
+            xrsTrailSignature = newSignature
 
+            if !xrsTrailPolylines.isEmpty {
+                map.removeOverlays(xrsTrailPolylines)
+                xrsTrailPolylines.removeAll()
+            }
+
+            guard !trailGroups.isEmpty else { return }
+
+            let strokeColor = xrsTrailColor(from: colorRaw)
+
+            var newOverlays: [XRSTrailPolyline] = []
+
+            for group in trailGroups {
+                guard group.count >= 2 else { continue }
+
+                for index in 1..<group.count {
+                    var coords = [group[index - 1], group[index]]
+                    let polyline = XRSTrailPolyline(coordinates: &coords, count: 2)
+                    polyline.strokeColor = strokeColor
+                    newOverlays.append(polyline)
+                }
+            }
+
+            xrsTrailPolylines = newOverlays
+
+            if !newOverlays.isEmpty {
+                map.addOverlays(newOverlays, level: .aboveLabels)
+            }
+        }
+        
         func updateRings(
             map: MKMapView,
             centerLocation: CLLocation?,
@@ -1758,6 +1853,15 @@ struct MapViewRepresentable: UIViewRepresentable {
                 return renderer
             }
 
+            if let polyline = overlay as? XRSTrailPolyline {
+                let renderer = MKPolylineRenderer(polyline: polyline)
+                renderer.strokeColor = polyline.strokeColor
+                renderer.lineWidth = 6
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+                return renderer
+            }
+
             if let polyline = overlay as? HistoricalPolyline {
                 let r = MKPolylineRenderer(polyline: polyline)
                 r.strokeColor = UIColor(red: 0.07, green: 0.14, blue: 0.30, alpha: 0.85)
@@ -1811,8 +1915,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             if let circle = overlay as? MKCircle {
                 let r = MKCircleRenderer(circle: circle)
-                r.strokeColor = UIColor.black.withAlphaComponent(0.25)
-                r.lineWidth = 3
+                r.strokeColor = UIColor.systemBlue.withAlphaComponent(0.95)
+                r.lineWidth = 2.5
                 r.fillColor = .clear
                 return r
             }
@@ -1855,6 +1959,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                 view.onTap = { [weak self] marker in
                     self?.parent.onTapSessionMarker(marker)
                 }
+                view.onLongPress = { [weak self] marker in
+                    self?.parent.onLongPressSessionMarker(marker)
+                }
                 return view
             }
 
@@ -1867,6 +1974,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                 view.configure(with: ann.marker)
                 view.onTap = { [weak self] marker in
                     self?.parent.onTapMapMarker(marker)
+                }
+                view.onLongPress = { [weak self] marker in
+                    self?.parent.onLongPressMapMarker(marker)
                 }
                 return view
             }
@@ -1888,6 +1998,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
                 view.annotation = ann
                 view.configure(with: ann.marker)
+                view.onTap = { [weak self] marker in
+                    self?.parent.onTapImportedMarker(marker)
+                }
                 return view
             }
 
@@ -1910,12 +2023,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             if let ann = view.annotation as? ImportedMarkerAnnotation {
-                DispatchQueue.main.async {
+                DispatchQueue.main.async { [parent] in
                     mapView.deselectAnnotation(ann, animated: false)
+                    parent.onTapImportedMarker(ann.marker)
                 }
+                return
             }
         }
-        
+
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             let rect = mapView.visibleMapRect
             let p1 = MKMapPoint(x: rect.minX, y: rect.midY)
@@ -2035,6 +2150,22 @@ struct MapViewRepresentable: UIViewRepresentable {
             let stored = UserDefaults.standard.double(forKey: kSheepPinExpirySecondsKey)
             return stored > 0 ? stored : 3600
         }
+        private func xrsTrailColor(from raw: String) -> UIColor {
+            switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "red":
+                return .systemRed
+            case "green":
+                return .systemGreen
+            case "orange":
+                return .systemOrange
+            case "yellow":
+                return .systemYellow
+            case "white":
+                return .white
+            default:
+                return .systemBlue
+            }
+        }
         private func colorFromHex(_ hex: String?, fallback: UIColor) -> UIColor {
             guard let hex else { return fallback }
 
@@ -2104,6 +2235,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             let to = CLLocation(latitude: b.coordinate.latitude, longitude: b.coordinate.longitude)
             return from.distance(from: to) / dt
         }
+
         private func elevationGradientColor(
             for elevation: Double?,
             minElevation: Double?,
@@ -2151,6 +2283,9 @@ final class HistoricalPolyline: MKPolyline {
     var sessionID: UUID?
 }
 
+final class XRSTrailPolyline: MKPolyline {
+    var strokeColor: UIColor = .systemBlue
+}
 final class ImportedTrackPolyline: MKPolyline {
     var trackID: UUID?
     var trackName: String?
@@ -2161,6 +2296,7 @@ final class ImportedBoundaryPolygon: MKPolygon {
     var boundaryName: String?
     var boundary: ImportedBoundary?
 }
+
 final class UserLocationAnnotation: NSObject, MKAnnotation {
     dynamic var coordinate: CLLocationCoordinate2D
     var isHeadsUp: Bool
@@ -2221,6 +2357,7 @@ final class XRSRadioAnnotation: NSObject, MKAnnotation {
         self.coordinate = contact.coordinate
         super.init()
     }
+
     var title: String? { contact.name }
     var subtitle: String? { contact.status }
 }
@@ -2302,8 +2439,10 @@ final class UserLocationAnnotationView: MKAnnotationView {
 final class SessionMarkerAnnotationView: MKMarkerAnnotationView {
 
     var onTap: ((MusterMarker) -> Void)?
+    var onLongPress: ((MusterMarker) -> Void)?
 
     private var tapGesture: UITapGestureRecognizer!
+    private var longPressGesture: UILongPressGestureRecognizer!
     private var suppressTapUntil: Date = .distantPast
 
     private let sheepCountBadgeBackground = UIView()
@@ -2333,8 +2472,18 @@ final class SessionMarkerAnnotationView: MKMarkerAnnotationView {
 
         if tapGesture == nil {
             tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+            tapGesture.cancelsTouchesInView = false
             addGestureRecognizer(tapGesture)
         }
+
+        if longPressGesture == nil {
+            longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
+            longPressGesture.minimumPressDuration = 0.55
+            longPressGesture.cancelsTouchesInView = false
+            addGestureRecognizer(longPressGesture)
+        }
+
+        tapGesture.require(toFail: longPressGesture)
     }
 
     private func setupSheepCountBadge() {
@@ -2402,17 +2551,27 @@ final class SessionMarkerAnnotationView: MKMarkerAnnotationView {
         guard let ann = annotation as? SessionMarkerAnnotation else { return }
         onTap?(ann.marker)
     }
+
+    @objc
+    private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        suppressTapTemporarily()
+        guard let ann = annotation as? SessionMarkerAnnotation else { return }
+        onLongPress?(ann.marker)
+    }
 }
 
 final class MapMarkerAnnotationView: MKAnnotationView {
 
     var onTap: ((MapMarker) -> Void)?
+    var onLongPress: ((MapMarker) -> Void)?
 
     private let emojiLabel = UILabel()
     private let titleBackground = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
     private let titleLabel = UILabel()
 
     private var tapGesture: UITapGestureRecognizer!
+    private var longPressGesture: UILongPressGestureRecognizer!
     private var suppressTapUntil: Date = .distantPast
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
@@ -2479,7 +2638,15 @@ final class MapMarkerAnnotationView: MKAnnotationView {
         ])
 
         tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        tapGesture.cancelsTouchesInView = false
         addGestureRecognizer(tapGesture)
+
+        longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
+        longPressGesture.minimumPressDuration = 0.55
+        longPressGesture.cancelsTouchesInView = false
+        addGestureRecognizer(longPressGesture)
+
+        tapGesture.require(toFail: longPressGesture)
     }
 
     func configure(with marker: MapMarker) {
@@ -2499,6 +2666,14 @@ final class MapMarkerAnnotationView: MKAnnotationView {
         guard Date() >= suppressTapUntil else { return }
         guard let ann = annotation as? MapMarkerAnnotation else { return }
         onTap?(ann.marker)
+    }
+
+    @objc
+    private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        suppressTapTemporarily()
+        guard let ann = annotation as? MapMarkerAnnotation else { return }
+        onLongPress?(ann.marker)
     }
 }
 
@@ -2604,7 +2779,13 @@ final class XRSRadioAnnotationView: MKAnnotationView {
         onTap?(ann.contact)
     }
 }
+
 final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
+
+    var onTap: ((ImportedMarker) -> Void)?
+
+    private var tapGesture: UITapGestureRecognizer!
+    private var suppressTapUntil: Date = .distantPast
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -2628,6 +2809,13 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
         clusteringIdentifier = nil
         displayPriority = .defaultHigh
         animatesWhenAdded = false
+        isUserInteractionEnabled = true
+
+        if tapGesture == nil {
+            tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+            tapGesture.cancelsTouchesInView = false
+            addGestureRecognizer(tapGesture)
+        }
     }
 
     func configure(with marker: ImportedMarker) {
@@ -2651,6 +2839,14 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
             glyphImage = nil
         }
     }
+
+    @objc
+    private func handleTap() {
+        guard Date() >= suppressTapUntil else { return }
+        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
+        onTap?(ann.marker)
+    }
+
     private func tintColor(for category: ImportCategory) -> UIColor {
         switch category {
         case .boundaries:
@@ -2666,7 +2862,6 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
         }
     }
 }
-
 private extension Notification.Name {
     static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
 }

@@ -4,6 +4,8 @@ import Combine
 
 private let kXRSRadioMarkerLimitKey = "xrs_radio_marker_limit"      // Int
 private let kXRSRadioExpiryMinutesKey = "xrs_radio_expiry_minutes"  // Int
+private let kXRSRadioTrailsEnabledKey = "xrs_radio_trails_enabled"  // Bool
+private let kXRSRadioTrailExpiryMinutesKey = "xrs_radio_trail_expiry_minutes" // Int
 
 struct XRSRadioContact: Identifiable, Hashable {
     var id: UUID
@@ -23,10 +25,22 @@ struct XRSRadioContact: Identifiable, Hashable {
     }
 }
 
+struct XRSRadioTrailPoint: Identifiable, Hashable {
+    var id: UUID = UUID()
+    var lat: Double
+    var lon: Double
+    var timestamp: Date
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+}
+
 @MainActor
 final class XRSRadioStore: ObservableObject {
 
     @Published private(set) var contacts: [UUID: XRSRadioContact] = [:]
+    @Published private(set) var trails: [String: [XRSRadioTrailPoint]] = [:]
     @Published var isConnected: Bool = false
 
     private var latestContactIDByUser: [String: UUID] = [:]
@@ -41,6 +55,20 @@ final class XRSRadioStore: ObservableObject {
         let value = UserDefaults.standard.integer(forKey: kXRSRadioExpiryMinutesKey)
         let minutes = value == 0 ? 120 : value
         let normalized = min(max(minutes, 15), 600)
+        return TimeInterval(normalized * 60)
+    }
+
+    private var trailsEnabled: Bool {
+        if UserDefaults.standard.object(forKey: kXRSRadioTrailsEnabledKey) == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: kXRSRadioTrailsEnabledKey)
+    }
+
+    private var trailExpirySeconds: TimeInterval {
+        let value = UserDefaults.standard.integer(forKey: kXRSRadioTrailExpiryMinutesKey)
+        let minutes = value == 0 ? 360 : value
+        let normalized = min(max(minutes, 15), 1440)
         return TimeInterval(normalized * 60)
     }
 
@@ -62,7 +90,15 @@ final class XRSRadioStore: ObservableObject {
         }
         contactIDsByUser[userKey] = ids
 
+        appendTrailPointIfNeeded(
+            userKey: userKey,
+            latitude: contact.lat,
+            longitude: contact.lon,
+            timestamp: contact.updatedAt
+        )
+
         enforceMarkerLimits()
+        removeStaleTrailPoints()
     }
 
     func updateContact(
@@ -125,8 +161,16 @@ final class XRSRadioStore: ObservableObject {
         latestContactIDByUser[userKey] = latestID
         contactIDsByUser[userKey] = ids
 
+        appendTrailPointIfNeeded(
+            userKey: userKey,
+            latitude: latitude,
+            longitude: longitude,
+            timestamp: now
+        )
+
         enforceMarkerLimit(for: userKey)
         removeStaleContacts()
+        removeStaleTrailPoints()
     }
 
     func removeStaleContacts(olderThan seconds: TimeInterval? = nil) {
@@ -154,18 +198,65 @@ final class XRSRadioStore: ObservableObject {
         enforceMarkerLimits()
     }
 
+    func removeStaleTrailPoints(olderThan seconds: TimeInterval? = nil) {
+        let cutoff = Date().addingTimeInterval(-(seconds ?? trailExpirySeconds))
+
+        trails = trails.reduce(into: [:]) { partialResult, entry in
+            let filtered = entry.value.filter { $0.timestamp > cutoff }
+            if !filtered.isEmpty {
+                partialResult[entry.key] = filtered
+            }
+        }
+    }
+
+    func clearTrails() {
+        trails.removeAll()
+    }
+
     var allContacts: [XRSRadioContact] {
         Array(contacts.values).sorted { lhs, rhs in
             lhs.updatedAt < rhs.updatedAt
         }
     }
 
+    func trailPoints(for name: String) -> [XRSRadioTrailPoint] {
+        trails[normalizedUserKey(name)] ?? []
+    }
+
     func load() {
         removeStaleContacts()
+        removeStaleTrailPoints()
         enforceMarkerLimits()
     }
 
     func save() { }
+
+    private func appendTrailPointIfNeeded(
+        userKey: String,
+        latitude: Double,
+        longitude: Double,
+        timestamp: Date
+    ) {
+        guard trailsEnabled else { return }
+
+        var points = trails[userKey] ?? []
+
+        if let last = points.last,
+           last.lat == latitude,
+           last.lon == longitude {
+            return
+        }
+
+        points.append(
+            XRSRadioTrailPoint(
+                lat: latitude,
+                lon: longitude,
+                timestamp: timestamp
+            )
+        )
+
+        trails[userKey] = points
+    }
 
     private func enforceMarkerLimits() {
         for userKey in contactIDsByUser.keys {

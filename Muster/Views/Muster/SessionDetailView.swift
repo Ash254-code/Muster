@@ -17,7 +17,12 @@ struct SessionDetailView: View {
     @State private var metersPerPoint: Double = 1.0
     @State private var showArrivedBanner = false
     @State private var fitRadiosNonce: Int = 0
-    
+
+    @State private var selectedSessionMarker: MusterMarker?
+    @State private var selectedMapMarker: MapMarker?
+    @State private var showSessionMarkerActions = false
+    @State private var showMapMarkerActions = false
+
     // Persisted ring + orientation settings
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
@@ -45,6 +50,11 @@ struct SessionDetailView: View {
             markers: session?.markers ?? [],
             mapMarkers: app.muster.mapMarkers,
             xrsContacts: app.xrs.allContacts,
+            xrsTrailGroups: app.xrs.allContacts.compactMap { contact in
+                let coords = app.xrs.trailPoints(for: contact.name).map(\.coordinate)
+                return coords.count >= 2 ? coords : nil
+            },
+            xrsTrailColorRaw: UserDefaults.standard.string(forKey: "xrs_radio_trail_color") ?? "blue",
             importedBoundaries: app.muster.visibleImportedBoundaries,
             importedTracks: app.muster.visibleImportedTracks,
             importedMarkers: app.muster.visibleImportedMarkers,
@@ -81,12 +91,21 @@ struct SessionDetailView: View {
                 gotoTarget = marker
             },
             onTapMapMarker: { _ in },
-            onLongPressSessionMarker: { _ in },
-            onLongPressMapMarker: { _ in }
+            onTapImportedMarker: { _ in },
+            onLongPressSessionMarker: { marker in
+                selectedMapMarker = nil
+                selectedSessionMarker = marker
+                showSessionMarkerActions = true
+            },
+            onLongPressMapMarker: { marker in
+                selectedSessionMarker = nil
+                selectedMapMarker = marker
+                showMapMarkerActions = true
+            }
         )
         .ignoresSafeArea()
     }
-    
+
     private var overlayLayer: some View {
         VStack(spacing: 10) {
             GlassPill {
@@ -227,6 +246,42 @@ struct SessionDetailView: View {
             .environmentObject(app)
             .presentationDetents([.medium])
         }
+        .confirmationDialog(
+            selectedSessionMarker?.displayTitle ?? "Marker",
+            isPresented: $showSessionMarkerActions,
+            titleVisibility: .visible
+        ) {
+            Button("Go to") {
+                if let marker = selectedSessionMarker {
+                    gotoTarget = marker
+                }
+            }
+
+            Button("Delete", role: .destructive) {
+                guard let marker = selectedSessionMarker else { return }
+                deleteSessionMarker(marker)
+                selectedSessionMarker = nil
+            }
+
+            Button("Cancel", role: .cancel) {
+                selectedSessionMarker = nil
+            }
+        }
+        .confirmationDialog(
+            selectedMapMarker?.displayTitle ?? "Marker",
+            isPresented: $showMapMarkerActions,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let marker = selectedMapMarker else { return }
+                deleteMapMarker(marker)
+                selectedMapMarker = nil
+            }
+
+            Button("Cancel", role: .cancel) {
+                selectedMapMarker = nil
+            }
+        }
         .onAppear {
             location.start()
             if session?.isActive == true {
@@ -328,5 +383,22 @@ struct SessionDetailView: View {
             Label(title, systemImage: system)
         }
         .buttonStyle(GlassButtonStyle())
+    }
+
+    // =========================================================
+    // MARK: - Marker deletion helpers
+    // =========================================================
+
+    private func deleteSessionMarker(_ marker: MusterMarker) {
+        guard var session = session else { return }
+        session.markers.removeAll { $0.id == marker.id }
+
+        if let index = app.muster.sessions.firstIndex(where: { $0.id == session.id }) {
+            app.muster.sessions[index] = session
+        }
+    }
+
+    private func deleteMapMarker(_ marker: MapMarker) {
+        app.muster.mapMarkers.removeAll { $0.id == marker.id }
     }
 }

@@ -32,6 +32,8 @@ private let kSheepPinIconKey = "sheep_pin_icon"              // String
 // XRS radio keys
 private let kXRSRadioMarkerLimitKey = "xrs_radio_marker_limit"      // Int
 private let kXRSRadioExpiryMinutesKey = "xrs_radio_expiry_minutes"  // Int
+private let kXRSRadioTrailsEnabledKey = "xrs_radio_trails_enabled"  // Bool
+private let kXRSRadioTrailColorKey = "xrs_radio_trail_color"        // String
 
 // Admin battery / thermal keys
 private let kAdminBatteryDiagnosticsEnabledKey = "admin_battery_diagnostics_enabled"
@@ -53,6 +55,11 @@ private let kAdminEstimatedDistanceFilterKey = "admin_estimated_distance_filter_
 
 private let kMediaButtonEnabledKey = "media_button_enabled" // Bool
 
+private let kTPMSEnabledKey = "tpms_enabled"               // Bool
+private let kTPMSLowPressureKey = "tpms_low_pressure"     // Double
+private let kTPMSHighPressureKey = "tpms_high_pressure"   // Double
+private let kTPMSAlertsEnabledKey = "tpms_alerts_enabled" // Bool
+
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
@@ -62,27 +69,22 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("General") {
-                    NavigationLink("Units") {
-                        PlaceholderSettingsDetail(title: "Units")
+                    NavigationLink("Settings") {
+                        AppSettingsView()
                     }
 
-                    NavigationLink("Appearance") {
-                        AppearanceSettingsView()
-                    }
-
-                    NavigationLink("Bluetooth") {
+                    NavigationLink("XRS Radio") {
                         BluetoothSettingsView()
                     }
 
-                    NavigationLink("Media") {
-                        MediaSettingsView()
+                    NavigationLink("TPMS") {
+                        TPMSDashboardHostView()
                     }
 
                     NavigationLink("Group Tracking") {
                         GroupTrackingSettingsView()
                     }
                 }
-
                 Section("Map") {
                     NavigationLink("Map & Rings") {
                         RingsSettingsView()
@@ -106,8 +108,8 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Imports") {
-                    NavigationLink("Imported Files") {
+                Section("Import and Export") {
+                    NavigationLink("Import") {
                         ImportExportView()
                             .environmentObject(app)
                     }
@@ -170,10 +172,29 @@ private struct GroupTrackingSettingsView: View {
     }
 }
 
+// =========================================================
+// MARK: - Settings
+// =========================================================
 
-// =========================================================
-// MARK: - Appearance
-// =========================================================
+private struct AppSettingsView: View {
+    var body: some View {
+        Form {
+            NavigationLink("Appearance") {
+                AppearanceSettingsView()
+            }
+
+            NavigationLink("Units") {
+                UnitsSettingsView()
+            }
+
+            NavigationLink("Media") {
+                MediaSettingsView()
+            }
+        }
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 
 private struct AppearanceSettingsView: View {
     @AppStorage(kAppearanceModeKey) private var appearanceMode: String = "system"
@@ -198,6 +219,42 @@ private struct AppearanceSettingsView: View {
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+private struct UnitsSettingsView: View {
+    var body: some View {
+        PlaceholderSettingsDetail(title: "Units")
+    }
+}
+struct TPMSDashboardHostView: View {
+    @StateObject private var tpmsStore = TPMSStore()
+    @StateObject private var tpmsBluetoothHolder = TPMSBluetoothManagerHolder()
+
+    var body: some View {
+        TPMSDashboardView()
+            .environmentObject(tpmsStore)
+            .environmentObject(resolvedBluetoothManager)
+            .onAppear {
+                if tpmsBluetoothHolder.manager == nil {
+                    tpmsBluetoothHolder.manager = TPMSBluetoothManager(tpmsStore: tpmsStore)
+                }
+            }
+    }
+
+    private var resolvedBluetoothManager: TPMSBluetoothManager {
+        if let manager = tpmsBluetoothHolder.manager {
+            return manager
+        }
+
+        let manager = TPMSBluetoothManager(tpmsStore: tpmsStore)
+        tpmsBluetoothHolder.manager = manager
+        return manager
+    }
+}
+
+@MainActor
+private final class TPMSBluetoothManagerHolder: ObservableObject {
+    @Published var manager: TPMSBluetoothManager?
 }
 
 // =========================================================
@@ -1006,11 +1063,50 @@ private struct SheepPinSettingsView: View {
 
 private struct RadioSettingsView: View {
 
+    private enum RadioTrailColorOption: String, CaseIterable, Identifiable {
+        case blue
+        case red
+        case green
+        case orange
+        case yellow
+        case white
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .blue: return "Blue"
+            case .red: return "Red"
+            case .green: return "Green"
+            case .orange: return "Orange"
+            case .yellow: return "Yellow"
+            case .white: return "White"
+            }
+        }
+
+        var swatch: Color {
+            switch self {
+            case .blue: return .blue
+            case .red: return .red
+            case .green: return .green
+            case .orange: return .orange
+            case .yellow: return .yellow
+            case .white: return .white
+            }
+        }
+    }
+
     @AppStorage(kXRSRadioMarkerLimitKey) private var markerLimit: Int = 1
     @AppStorage(kXRSRadioExpiryMinutesKey) private var expiryMinutes: Int = 120
+    @AppStorage(kXRSRadioTrailsEnabledKey) private var trailsEnabled: Bool = true
+    @AppStorage(kXRSRadioTrailColorKey) private var trailColorRaw: String = RadioTrailColorOption.blue.rawValue
 
     private let markerLimitOptions = Array(1...10)
     private let expiryOptions = Array(stride(from: 15, through: 600, by: 15))
+
+    private var selectedTrailColor: RadioTrailColorOption {
+        RadioTrailColorOption(rawValue: trailColorRaw) ?? .blue
+    }
 
     var body: some View {
         Form {
@@ -1046,24 +1142,67 @@ private struct RadioSettingsView: View {
                     }
                 }
 
-                Text("Radio markers older than \(expiryLabel) will be removed automatically once XRSRadioStore is wired to these settings.")
+                Text("Radio markers older than \(expiryLabel) will be removed automatically.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: {
                 Text("Expiry")
             }
 
+            Section {
+                Toggle("Show Radio Trails", isOn: $trailsEnabled)
+
+                Text("Shows a joined trail of recent radio locations on the map. Radio trails will only be shown in the current muster track context.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Trails")
+            }
+
+            Section {
+                Picker("Trail Colour", selection: $trailColorRaw) {
+                    ForEach(RadioTrailColorOption.allCases) { option in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(option.swatch)
+                                .frame(width: 14, height: 14)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(.secondary.opacity(option == .white ? 0.45 : 0.15), lineWidth: 1)
+                                )
+
+                            Text(option.title)
+                        }
+                        .tag(option.rawValue)
+                    }
+                }
+
+                HStack {
+                    Text("Current trail colour")
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(selectedTrailColor.swatch)
+                            .frame(width: 14, height: 14)
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(.secondary.opacity(selectedTrailColor == .white ? 0.45 : 0.15), lineWidth: 1)
+                            )
+
+                        Text(selectedTrailColor.title)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Trail Appearance")
+            }
+
             Section("Current selection") {
                 LabeledContent("Markers per user", value: "\(markerLimit)")
                 LabeledContent("Visibility time", value: expiryLabel)
+                LabeledContent("Trails", value: trailsEnabled ? "On" : "Off")
+                LabeledContent("Trail colour", value: selectedTrailColor.title)
             }
-
-            Section("Later additions") {
-                Text("Show radio trails")
-                Text("Radio label size")
-                Text("Radio freshness fade timing")
-            }
-            .foregroundStyle(.secondary)
         }
         .navigationTitle("Radio")
         .navigationBarTitleDisplayMode(.inline)
@@ -1075,6 +1214,11 @@ private struct RadioSettingsView: View {
         }
         .onChange(of: expiryMinutes) { _, newValue in
             expiryMinutes = normalizedExpiryMinutes(newValue)
+        }
+        .onChange(of: trailColorRaw) { _, newValue in
+            if RadioTrailColorOption(rawValue: newValue) == nil {
+                trailColorRaw = RadioTrailColorOption.blue.rawValue
+            }
         }
     }
 
@@ -1101,27 +1245,12 @@ private struct RadioSettingsView: View {
     private func normalizeValues() {
         markerLimit = normalizedMarkerLimit(markerLimit)
         expiryMinutes = normalizedExpiryMinutes(expiryMinutes)
-    }
-}
 
-private struct MediaSettingsView: View {
-    @AppStorage(kMediaButtonEnabledKey) private var mediaButtonEnabled: Bool = true
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("Show media button on map", isOn: $mediaButtonEnabled)
-            } footer: {
-                Text("Shows a media control pill on the left side of the map. The top half skips forward and the bottom half plays or pauses audio.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+        if RadioTrailColorOption(rawValue: trailColorRaw) == nil {
+            trailColorRaw = RadioTrailColorOption.blue.rawValue
         }
-        .navigationTitle("Media")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
-
 // =========================================================
 // MARK: - Rings + Map Settings
 // =========================================================
@@ -1742,6 +1871,673 @@ private final class AdminBatteryDiagnosticsStore: ObservableObject {
     }
 }
 
+// =========================================================
+// MARK: - TPMS
+// =========================================================
+
+struct TPMSSettingsView: View {
+    @EnvironmentObject private var tpmsStore: TPMSStore
+    @EnvironmentObject private var tpmsBluetooth: TPMSBluetoothManager
+
+    @AppStorage(kTPMSEnabledKey) private var tpmsEnabled: Bool = false
+    @AppStorage(kTPMSAlertsEnabledKey) private var alertsEnabled: Bool = true
+    @AppStorage(kTPMSLowPressureKey) private var lowPressure: Double = 26
+    @AppStorage(kTPMSHighPressureKey) private var highPressure: Double = 44
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Enable TPMS", isOn: $tpmsEnabled)
+                Toggle("Enable pressure alerts", isOn: $alertsEnabled)
+            } footer: {
+                Text("Turn tyre pressure monitoring and alert popups on or off.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Paired sensors", value: "\(tpmsStore.pairedSensorCount) / \(tpmsStore.maxSensors)")
+
+                HStack {
+                    Text("Bluetooth")
+                    Spacer()
+                    Text(tpmsBluetooth.isBluetoothPoweredOn ? "On" : "Off")
+                        .foregroundStyle(tpmsBluetooth.isBluetoothPoweredOn ? .green : .secondary)
+                }
+
+                NavigationLink("Manage Sensors") {
+                    TPMSSensorListView(
+                        lowPressure: lowPressure,
+                        highPressure: highPressure,
+                        alertsEnabled: alertsEnabled
+                    )
+                    .environmentObject(tpmsStore)
+                    .environmentObject(tpmsBluetooth)
+                }
+                .disabled(!tpmsEnabled)
+
+                NavigationLink("Pair New Sensor") {
+                    TPMSPairingView()
+                        .environmentObject(tpmsStore)
+                        .environmentObject(tpmsBluetooth)
+                }
+                .disabled(!tpmsEnabled || tpmsStore.pairedSensorCount >= tpmsStore.maxSensors)
+            } header: {
+                Text("Sensors")
+            } footer: {
+                Text("Pair up to 6 sensors, assign them to wheel positions, and rotate them by changing positions later.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                NavigationLink("Live Sensor Log") {
+                    TPMSLogView()
+                        .environmentObject(tpmsBluetooth)
+                }
+            } header: {
+                Text("Debug")
+            }
+            Section {
+                HStack {
+                    Text("Low pressure alarm")
+                    Spacer()
+                    Text("\(Int(lowPressure)) psi")
+                        .foregroundStyle(.secondary)
+                }
+
+                Slider(value: $lowPressure, in: 10...60, step: 1)
+
+                HStack {
+                    Text("High pressure alarm")
+                    Spacer()
+                    Text("\(Int(highPressure)) psi")
+                        .foregroundStyle(.secondary)
+                }
+
+                Slider(value: $highPressure, in: 20...90, step: 1)
+            } header: {
+                Text("Alert Thresholds")
+            } footer: {
+                Text("These are global pressure alarm points for all paired sensors.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                if let activeAlert = tpmsStore.activeAlert {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(activeAlert.message)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.red)
+
+                        Text("Pressure: \(String(format: "%.1f", activeAlert.pressurePSI)) psi")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("Clear Active Alert") {
+                        tpmsStore.clearActiveAlert()
+                    }
+                } else {
+                    Text("No active TPMS alerts.")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Live Alert State")
+            }
+
+            Section {
+                Button("Trigger Test Low Alert") {
+                    triggerTestAlert(low: true)
+                }
+                .disabled(tpmsStore.sensors.isEmpty || !tpmsEnabled)
+
+                Button("Trigger Test High Alert") {
+                    triggerTestAlert(low: false)
+                }
+                .disabled(tpmsStore.sensors.isEmpty || !tpmsEnabled)
+
+                Button("Normalize First Sensor") {
+                    normalizeFirstSensor()
+                }
+                .disabled(tpmsStore.sensors.isEmpty || !tpmsEnabled)
+            } header: {
+                Text("Testing")
+            } footer: {
+                Text("These buttons simulate live readings so the alert flow can be tested before real Bluetooth decoding is wired up.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("TPMS")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            normalizeThresholds()
+        }
+        .onChange(of: lowPressure) { _, _ in
+            normalizeThresholds()
+        }
+        .onChange(of: highPressure) { _, _ in
+            normalizeThresholds()
+        }
+        .alert(
+            tpmsStore.activeAlert?.message ?? "TPMS Alert",
+            isPresented: Binding(
+                get: { tpmsStore.activeAlert != nil && alertsEnabled && tpmsEnabled },
+                set: { newValue in
+                    if !newValue {
+                        tpmsStore.clearActiveAlert()
+                    }
+                }
+            )
+        ) {
+            Button("OK") {
+                tpmsStore.clearActiveAlert()
+            }
+        } message: {
+            if let activeAlert = tpmsStore.activeAlert {
+                Text("Current pressure: \(String(format: "%.1f", activeAlert.pressurePSI)) psi")
+            }
+        }
+    }
+
+    private func normalizeThresholds() {
+        lowPressure = min(max(lowPressure.rounded(), 10), 60)
+        highPressure = min(max(highPressure.rounded(), 20), 90)
+
+        if highPressure <= lowPressure {
+            highPressure = min(lowPressure + 1, 90)
+        }
+    }
+
+    private func triggerTestAlert(low: Bool) {
+        guard let firstSensor = tpmsStore.sensors.first else { return }
+
+        let pressure = low ? max(lowPressure - 4, 1) : min(highPressure + 4, 120)
+
+        tpmsStore.ingestMockReading(
+            sensorID: firstSensor.sensorID,
+            pressurePSI: pressure,
+            lowThresholdPSI: lowPressure,
+            highThresholdPSI: highPressure,
+            alertsEnabled: alertsEnabled && tpmsEnabled
+        )
+    }
+
+    private func normalizeFirstSensor() {
+        guard let firstSensor = tpmsStore.sensors.first else { return }
+
+        let safeMidpoint = ((lowPressure + highPressure) / 2.0).rounded()
+
+        tpmsStore.ingestMockReading(
+            sensorID: firstSensor.sensorID,
+            pressurePSI: safeMidpoint,
+            lowThresholdPSI: lowPressure,
+            highThresholdPSI: highPressure,
+            alertsEnabled: alertsEnabled && tpmsEnabled
+        )
+    }
+}
+
+private struct TPMSSensorListView: View {
+    @EnvironmentObject private var tpmsStore: TPMSStore
+    @EnvironmentObject private var tpmsBluetooth: TPMSBluetoothManager
+
+    let lowPressure: Double
+    let highPressure: Double
+    let alertsEnabled: Bool
+
+    var body: some View {
+        List {
+            if tpmsStore.sensors.isEmpty {
+                Section {
+                    Text("No TPMS sensors paired yet.")
+                        .foregroundStyle(.secondary)
+                } footer: {
+                    Text("Go back and use Pair New Sensor to add your first tyre pressure sensor.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section("Sensors") {
+                    ForEach(tpmsStore.sensors) { sensor in
+                        NavigationLink {
+                            TPMSSensorDetailView(
+                                sensorID: sensor.id,
+                                lowPressure: lowPressure,
+                                highPressure: highPressure,
+                                alertsEnabled: alertsEnabled
+                            )
+                            .environmentObject(tpmsStore)
+                            .environmentObject(tpmsBluetooth)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(sensor.displayName)
+                                        .font(.body.weight(.semibold))
+
+                                    Spacer()
+
+                                    Text(sensor.assignedPosition.shortTitle)
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(.thinMaterial, in: Capsule())
+                                }
+
+                                HStack(spacing: 12) {
+                                    Text(sensor.sensorID)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+
+                                    if let pressure = sensor.pressurePSI {
+                                        Text("\(String(format: "%.1f", pressure)) psi")
+                                            .font(.caption)
+                                            .foregroundStyle(pressureColor(pressure))
+                                    } else {
+                                        Text("No pressure yet")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                    .onDelete(perform: deleteSensors)
+                }
+
+                Section {
+                    Button("Clear All TPMS Sensors", role: .destructive) {
+                        tpmsStore.clearAllSensors()
+                    }
+                }
+            }
+        }
+        .navigationTitle("Manage Sensors")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !tpmsStore.sensors.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
+            }
+        }
+    }
+
+    private func deleteSensors(at offsets: IndexSet) {
+        let sensorsToDelete = offsets.map { tpmsStore.sensors[$0] }
+        for sensor in sensorsToDelete {
+            tpmsStore.removeSensor(id: sensor.id)
+        }
+    }
+
+    private func pressureColor(_ pressure: Double) -> Color {
+        if pressure < lowPressure { return .red }
+        if pressure > highPressure { return .orange }
+        return .secondary
+    }
+}
+
+private struct TPMSSensorDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var tpmsStore: TPMSStore
+    @EnvironmentObject private var tpmsBluetooth: TPMSBluetoothManager
+
+    let sensorID: UUID
+    let lowPressure: Double
+    let highPressure: Double
+    let alertsEnabled: Bool
+
+    @State private var selectedPosition: TPMSWheelPosition = .frontLeft
+
+    private var sensor: TPMSSensor? {
+        tpmsStore.sensors.first(where: { $0.id == sensorID })
+    }
+
+    var body: some View {
+        Form {
+            if let sensor {
+                Section("Sensor") {
+                    LabeledContent("Name", value: sensor.displayName)
+                    LabeledContent("Sensor ID", value: sensor.sensorID)
+                    LabeledContent("Assigned", value: sensor.assignedPosition.title)
+
+                    if let pressure = sensor.pressurePSI {
+                        LabeledContent("Pressure", value: "\(String(format: "%.1f", pressure)) psi")
+                    }
+
+                    if let battery = sensor.batteryPercent {
+                        LabeledContent("Battery", value: "\(battery)%")
+                    }
+
+                    if let lastSeen = sensor.lastSeenAt {
+                        LabeledContent("Last seen", value: relativeDate(lastSeen))
+                    }
+                }
+
+                Section {
+                    NavigationLink("Live Sensor Log") {
+                        TPMSSensorLogView(
+                            sensorID: sensor.sensorID,
+                            sensorName: sensor.displayName
+                        )
+                        .environmentObject(tpmsBluetooth)
+                    }
+                } header: {
+                    Text("Debug")
+                }
+
+                Section {
+                    Picker("Wheel position", selection: $selectedPosition) {
+                        ForEach(TPMSWheelPosition.allCases) { position in
+                            Text(position.title).tag(position)
+                        }
+                    }
+
+                    Button("Save Position Change") {
+                        tpmsStore.reassignSensor(id: sensor.id, to: selectedPosition)
+                    }
+                } header: {
+                    Text("Reassign")
+                } footer: {
+                    Text("Use this after tyre rotations to move the paired sensor to a new wheel position.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Test readings") {
+                    Button("Set Low Pressure") {
+                        tpmsStore.ingestMockReading(
+                            sensorID: sensor.sensorID,
+                            pressurePSI: max(lowPressure - 4, 1),
+                            lowThresholdPSI: lowPressure,
+                            highThresholdPSI: highPressure,
+                            alertsEnabled: alertsEnabled
+                        )
+                    }
+
+                    Button("Set Normal Pressure") {
+                        tpmsStore.ingestMockReading(
+                            sensorID: sensor.sensorID,
+                            pressurePSI: ((lowPressure + highPressure) / 2.0).rounded(),
+                            lowThresholdPSI: lowPressure,
+                            highThresholdPSI: highPressure,
+                            alertsEnabled: alertsEnabled
+                        )
+                    }
+
+                    Button("Set High Pressure") {
+                        tpmsStore.ingestMockReading(
+                            sensorID: sensor.sensorID,
+                            pressurePSI: min(highPressure + 4, 120),
+                            lowThresholdPSI: lowPressure,
+                            highThresholdPSI: highPressure,
+                            alertsEnabled: alertsEnabled
+                        )
+                    }
+                }
+
+                Section {
+                    Button("Remove Sensor", role: .destructive) {
+                        tpmsStore.removeSensor(id: sensor.id)
+                        dismiss()
+                    }
+                }
+            } else {
+                Section {
+                    Text("Sensor not found.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Sensor")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if let sensor {
+                selectedPosition = sensor.assignedPosition
+            }
+        }
+    }
+
+    private func relativeDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+private struct TPMSPairingView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var tpmsStore: TPMSStore
+    @EnvironmentObject private var tpmsBluetooth: TPMSBluetoothManager
+
+    @State private var manualSensorName: String = ""
+    @State private var manualSensorID: String = ""
+    @State private var selectedPosition: TPMSWheelPosition = .frontLeft
+    @State private var replaceExistingAtPosition: Bool = true
+    @State private var selectedDiscoveredDeviceID: UUID?
+
+    private var normalizedManualSensorID: String {
+        manualSensorID.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    private var selectedDiscoveredDevice: TPMSDiscoveredDevice? {
+        guard let selectedDiscoveredDeviceID else { return nil }
+        return tpmsBluetooth.discoveredDevices.first(where: { $0.id == selectedDiscoveredDeviceID })
+    }
+
+    private var existingSensorAtPosition: TPMSSensor? {
+        tpmsStore.sensor(for: selectedPosition)
+    }
+
+    private var canSaveDiscovered: Bool {
+        selectedDiscoveredDevice != nil && (replaceExistingAtPosition || existingSensorAtPosition == nil)
+    }
+
+    private var canSaveManual: Bool {
+        !normalizedManualSensorID.isEmpty && (replaceExistingAtPosition || existingSensorAtPosition == nil)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Text("Bluetooth")
+                    Spacer()
+                    Text(tpmsBluetooth.isBluetoothPoweredOn ? "On" : "Off")
+                        .foregroundStyle(tpmsBluetooth.isBluetoothPoweredOn ? .green : .secondary)
+                }
+
+                HStack {
+                    Text("Scan")
+                    Spacer()
+                    Text(tpmsBluetooth.isScanning ? "Running" : "Stopped")
+                        .foregroundStyle(tpmsBluetooth.isScanning ? .green : .secondary)
+                }
+
+                Button(tpmsBluetooth.isScanning ? "Stop Scan" : "Start Scan") {
+                    tpmsBluetooth.isScanning ? tpmsBluetooth.stopScan() : tpmsBluetooth.startScan()
+                }
+                .disabled(!tpmsBluetooth.isBluetoothPoweredOn)
+
+                Button("Clear Discovered Devices") {
+                    tpmsBluetooth.clearDiscoveredDevices()
+                    selectedDiscoveredDeviceID = nil
+                }
+                .disabled(tpmsBluetooth.discoveredDevices.isEmpty)
+            } header: {
+                Text("Bluetooth Discovery")
+            } footer: {
+                Text("Scan for nearby BLE devices. Any discovered candidates with advertisement data will show here.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                if tpmsBluetooth.discoveredDevices.isEmpty {
+                    Text("No BLE sensors discovered yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(tpmsBluetooth.discoveredDevices), id: \.id) { device in
+                        Button {
+                            selectedDiscoveredDeviceID = device.id
+                            if manualSensorName.isEmpty {
+                                manualSensorName = device.displayName
+                            }
+                        } label: {
+                            tpmsDiscoveredDeviceRow(
+                                device: device,
+                                isSelected: selectedDiscoveredDeviceID == device.id
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } header: {
+                Text("Discovered Sensors")
+            }
+
+            Section {
+                Picker("Wheel position", selection: $selectedPosition) {
+                    ForEach(TPMSWheelPosition.allCases) { position in
+                        Text(position.title).tag(position)
+                    }
+                }
+
+                if let existingSensorAtPosition {
+                    Toggle("Replace existing sensor in this position", isOn: $replaceExistingAtPosition)
+
+                    Text("Currently assigned here: \(existingSensorAtPosition.displayName)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Assign Position")
+            }
+
+            Section {
+                TextField("Saved sensor name (optional)", text: $manualSensorName)
+                    .textInputAutocapitalization(.words)
+
+                Button("Save Selected BLE Sensor") {
+                    saveSelectedBLEDevice()
+                }
+                .disabled(!canSaveDiscovered)
+            } header: {
+                Text("Save Discovered Sensor")
+            } footer: {
+                Text("Tap a discovered BLE candidate above, choose a wheel position, then save it.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                TextField("Sensor name (optional)", text: $manualSensorName)
+                    .textInputAutocapitalization(.words)
+
+                TextField("Sensor ID", text: $manualSensorID)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+
+                Button("Save Manual Sensor") {
+                    saveManualSensor()
+                }
+                .disabled(!canSaveManual)
+            } header: {
+                Text("Manual Fallback")
+            } footer: {
+                Text("Use manual entry if the BLE device is not being decoded properly yet.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Pair New Sensor")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if let firstFreePosition = TPMSWheelPosition.allCases.first(where: { !tpmsStore.isPositionAssigned($0) }) {
+                selectedPosition = firstFreePosition
+            }
+        }
+    }
+    @ViewBuilder
+    private func tpmsDiscoveredDeviceRow(
+        device: TPMSDiscoveredDevice,
+        isSelected: Bool
+    ) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(device.displayName)
+                    .foregroundStyle(.primary)
+
+                Text(device.sensorIDGuess)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Text("RSSI \(device.rssi)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    if device.hasPayload {
+                        Text("Payload")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+    private func saveSelectedBLEDevice() {
+        guard let selectedDiscoveredDevice else { return }
+        guard replaceExistingAtPosition || existingSensorAtPosition == nil else { return }
+
+        tpmsBluetooth.saveDiscoveredDeviceToStore(
+            selectedDiscoveredDevice,
+            name: manualSensorName,
+            position: selectedPosition
+        )
+
+        dismiss()
+    }
+
+    private func saveManualSensor() {
+        guard canSaveManual else { return }
+        guard replaceExistingAtPosition || existingSensorAtPosition == nil else { return }
+
+        tpmsStore.addOrReplaceSensor(
+            sensorID: normalizedManualSensorID,
+            name: manualSensorName,
+            position: selectedPosition
+        )
+
+        dismiss()
+    }
+}
+private struct MediaSettingsView: View {
+    @AppStorage(kMediaButtonEnabledKey) private var mediaButtonEnabled: Bool = true
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show Media Buttons on Map", isOn: $mediaButtonEnabled)
+            } footer: {
+                Text("Shows the play/pause and skip controls on the lower left of the map screen.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Media")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 // =========================================================
 // MARK: - Placeholder
 // =========================================================

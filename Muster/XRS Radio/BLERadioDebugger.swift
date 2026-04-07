@@ -45,7 +45,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         let rssi: Int
         let identifier: UUID
     }
-    
+
     @Published var discoveredPeripherals: [PeripheralItem] = []
     @Published var logText: String = ""
     @Published var serviceSummary: [String] = []
@@ -55,6 +55,19 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     @Published var decodedContacts: [XRSRadioContact] = []
     @Published var isConnected: Bool = false
     @Published var savedRadios: [SavedRadio] = []
+
+    @Published var forceLocationUpdatesEnabled: Bool = false {
+        didSet { handleForceLocationSettingsChanged() }
+    }
+
+    @Published var forceLocationUpdateIntervalMinutes: Double = 2 {
+        didSet { handleForceLocationSettingsChanged() }
+    }
+
+    @Published var forceLocationUpdatePulseSeconds: Double = 0.35 {
+        didSet { handleForceLocationSettingsChanged() }
+    }
+
     @Published var parserMode: ParserMode = .strict {
         didSet {
             UserDefaults.standard.set(parserMode.rawValue, forKey: Self.parserModeKey)
@@ -83,6 +96,10 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     private var recentMessageFingerprints: [String: Date] = [:]
 
     private var shouldAutoReconnect = false
+    private var forceLocationUpdateTimer: Timer?
+    private var isApplyingForceLocationSettings = false
+
+    private let pttCommandCharacteristicUUID = "49535343-1E4D-4BD9-BA61-23C647249616"
 
     private var lastConnectedPeripheralID: UUID? {
         get {
@@ -92,6 +109,10 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         set {
             UserDefaults.standard.set(newValue?.uuidString, forKey: Self.lastPeripheralIDKey)
         }
+    }
+
+    private var currentConnectedRadioID: UUID? {
+        connectedPeripheral?.identifier
     }
 
     private static let lastPeripheralIDKey = "bleradiodebugger.lastPeripheralID"
@@ -196,18 +217,56 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         logText = ""
     }
 
-    func sendHex(_ hex: String) {
+    func sendPTTPress() {
+        sendASCII("AT+WGPTT=1\r\n", characteristicUUID: pttCommandCharacteristicUUID)
+    }
+
+    func sendPTTRelease() {
+        sendASCII("AT+WGPTT=0\r\n", characteristicUUID: pttCommandCharacteristicUUID)
+    }
+
+    func sendForceLocationPulse() {
+        let pulse = normalizedPulseSeconds(forceLocationUpdatePulseSeconds)
+
+        appendLog("Force location pulse start (\(String(format: "%.2f", pulse)) sec)")
+        sendPTTPress()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + pulse) { [weak self] in
+            guard let self else { return }
+            self.sendPTTRelease()
+            self.appendLog("Force location pulse end")
+        }
+    }
+
+    func sendHex(_ hex: String, characteristicUUID: String? = nil) {
         guard let peripheral = connectedPeripheral, isConnected else {
             appendLog("No connected peripheral")
             return
         }
 
-        guard let characteristic = writableCharacteristics.first else {
+        let targetCharacteristic: CBCharacteristic?
+        if let characteristicUUID, !characteristicUUID.isEmpty {
+            targetCharacteristic = writableCharacteristics.first(where: {
+                $0.uuid.uuidString.caseInsensitiveCompare(characteristicUUID) == .orderedSame
+            })
+        } else {
+            targetCharacteristic = writableCharacteristics.first
+        }
+
+        guard let characteristic = targetCharacteristic else {
             appendLog("No writable characteristic found")
             return
         }
 
-        let clean = hex.replacingOccurrences(of: " ", with: "")
+        let clean = hex
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !clean.isEmpty else {
+            appendLog("Empty hex payload")
+            return
+        }
+
         guard clean.count.isMultiple(of: 2) else {
             appendLog("Invalid hex length")
             return
@@ -240,6 +299,42 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         )
     }
 
+    func sendASCII(_ text: String, characteristicUUID: String? = nil) {
+        guard let peripheral = connectedPeripheral, isConnected else {
+            appendLog("No connected peripheral")
+            return
+        }
+
+        let targetCharacteristic: CBCharacteristic?
+        if let characteristicUUID, !characteristicUUID.isEmpty {
+            targetCharacteristic = writableCharacteristics.first(where: {
+                $0.uuid.uuidString.caseInsensitiveCompare(characteristicUUID) == .orderedSame
+            })
+        } else {
+            targetCharacteristic = writableCharacteristics.first
+        }
+
+        guard let characteristic = targetCharacteristic else {
+            appendLog("No writable characteristic found")
+            return
+        }
+
+        guard let data = text.data(using: .utf8) else {
+            appendLog("Failed to encode ASCII")
+            return
+        }
+
+        let writeType: CBCharacteristicWriteType =
+            characteristic.properties.contains(.write) ? .withResponse : .withoutResponse
+
+        onTransmitActivity?()
+        peripheral.writeValue(data, for: characteristic, type: writeType)
+        appendTransmissionLog(
+            title: "TX ASCII \(characteristic.uuid.uuidString)",
+            body: text
+        )
+    }
+
     func reconnectLastKnownPeripheralIfPossible() {
         guard central.state == .poweredOn else { return }
         guard let id = lastConnectedPeripheralID else { return }
@@ -257,6 +352,133 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         peripheral.delegate = self
         central.connect(peripheral, options: nil)
     }
+
+    // MARK: - Per-radio force location settings
+
+    private func perRadioForceLocationEnabledKey(for radioID: UUID) -> String {
+        "bleradiodebugger.forceLocation.enabled.\(radioID.uuidString)"
+    }
+
+    private func perRadioForceLocationIntervalKey(for radioID: UUID) -> String {
+        "bleradiodebugger.forceLocation.intervalMinutes.\(radioID.uuidString)"
+    }
+
+    private func perRadioForceLocationPulseKey(for radioID: UUID) -> String {
+        "bleradiodebugger.forceLocation.pulseSeconds.\(radioID.uuidString)"
+    }
+
+    private func normalizedIntervalMinutes(_ value: Double) -> Double {
+        min(max(value.rounded(), 1), 15)
+    }
+
+    private func normalizedPulseSeconds(_ value: Double) -> Double {
+        min(max((value * 20).rounded() / 20, 0.05), 1.0)
+    }
+
+    private func handleForceLocationSettingsChanged() {
+        guard !isApplyingForceLocationSettings else { return }
+
+        let normalizedInterval = normalizedIntervalMinutes(forceLocationUpdateIntervalMinutes)
+        let normalizedPulse = normalizedPulseSeconds(forceLocationUpdatePulseSeconds)
+
+        let needsNormalization =
+            forceLocationUpdateIntervalMinutes != normalizedInterval ||
+            forceLocationUpdatePulseSeconds != normalizedPulse
+
+        if needsNormalization {
+            isApplyingForceLocationSettings = true
+            forceLocationUpdateIntervalMinutes = normalizedInterval
+            forceLocationUpdatePulseSeconds = normalizedPulse
+            isApplyingForceLocationSettings = false
+        }
+
+        persistForceLocationSettings()
+        restartForceLocationUpdateTimerIfNeeded()
+    }
+
+    private func loadForceLocationSettingsForCurrentRadio() {
+        guard let radioID = currentConnectedRadioID else {
+            isApplyingForceLocationSettings = true
+            forceLocationUpdatesEnabled = false
+            forceLocationUpdateIntervalMinutes = 2
+            forceLocationUpdatePulseSeconds = 0.35
+            isApplyingForceLocationSettings = false
+            return
+        }
+
+        let enabledKey = perRadioForceLocationEnabledKey(for: radioID)
+        let intervalKey = perRadioForceLocationIntervalKey(for: radioID)
+        let pulseKey = perRadioForceLocationPulseKey(for: radioID)
+
+        let enabled: Bool
+        if UserDefaults.standard.object(forKey: enabledKey) != nil {
+            enabled = UserDefaults.standard.bool(forKey: enabledKey)
+        } else {
+            enabled = false
+        }
+
+        let storedInterval = UserDefaults.standard.double(forKey: intervalKey)
+        let interval = storedInterval > 0 ? storedInterval : 2
+
+        let storedPulse = UserDefaults.standard.double(forKey: pulseKey)
+        let pulse = storedPulse > 0 ? storedPulse : 0.35
+
+        isApplyingForceLocationSettings = true
+        forceLocationUpdatesEnabled = enabled
+        forceLocationUpdateIntervalMinutes = normalizedIntervalMinutes(interval)
+        forceLocationUpdatePulseSeconds = normalizedPulseSeconds(pulse)
+        isApplyingForceLocationSettings = false
+
+        appendLog(
+            "Loaded force location settings: " +
+            "enabled=\(forceLocationUpdatesEnabled), " +
+            "interval=\(Int(forceLocationUpdateIntervalMinutes)) min, " +
+            "pulse=\(String(format: "%.2f", forceLocationUpdatePulseSeconds)) sec"
+        )
+    }
+
+    private func persistForceLocationSettings() {
+        guard let radioID = currentConnectedRadioID else { return }
+
+        UserDefaults.standard.set(
+            forceLocationUpdatesEnabled,
+            forKey: perRadioForceLocationEnabledKey(for: radioID)
+        )
+        UserDefaults.standard.set(
+            normalizedIntervalMinutes(forceLocationUpdateIntervalMinutes),
+            forKey: perRadioForceLocationIntervalKey(for: radioID)
+        )
+        UserDefaults.standard.set(
+            normalizedPulseSeconds(forceLocationUpdatePulseSeconds),
+            forKey: perRadioForceLocationPulseKey(for: radioID)
+        )
+    }
+
+    private func restartForceLocationUpdateTimerIfNeeded() {
+        stopForceLocationUpdateTimer()
+
+        guard isConnected else { return }
+        guard forceLocationUpdatesEnabled else { return }
+
+        let intervalMinutes = normalizedIntervalMinutes(forceLocationUpdateIntervalMinutes)
+        let intervalSeconds = intervalMinutes * 60
+
+        appendLog("Force location timer started (\(Int(intervalMinutes)) min)")
+
+        forceLocationUpdateTimer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.sendForceLocationPulse()
+        }
+    }
+
+    private func stopForceLocationUpdateTimer() {
+        if forceLocationUpdateTimer != nil {
+            appendLog("Force location timer stopped")
+        }
+        forceLocationUpdateTimer?.invalidate()
+        forceLocationUpdateTimer = nil
+    }
+
     private func sortedPeripheralItems(_ items: [PeripheralItem]) -> [PeripheralItem] {
         items.sorted { lhs, rhs in
             let lhsSaved = isSavedRadio(lhs.identifier)
@@ -288,6 +510,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         decodedContacts.removeAll()
 
         if clearConnectionIdentity {
+            stopForceLocationUpdateTimer()
             connectedPeripheralName = nil
             connectedPeripheral = nil
             isConnected = false
@@ -405,7 +628,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     }
 
     private func extractRadioMessages(from line: String) -> [String] {
-        let prefixes = ["+WGRMLOC:", "+WGRXLOC:", "$PP", "$GPGGA"]
+        let prefixes = ["+WGRMLOC:", "+WGRXLOC:", "+WGPTT:", "$PP", "$GPGGA"]
         var starts: [String.Index] = []
 
         for prefix in prefixes {
@@ -483,7 +706,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     }
 
     private func lastPrefixOffset(in text: String) -> Int? {
-        let preferredPrefixes = ["+WGRMLOC:", "+WGRXLOC:"]
+        let preferredPrefixes = ["+WGRMLOC:", "+WGRXLOC:", "+WGPTT:"]
         for prefix in preferredPrefixes {
             if let range = text.range(of: prefix, options: .backwards) {
                 return text.distance(from: text.startIndex, to: range.lowerBound)
@@ -524,7 +747,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     }
 
     private func usefulTail(of text: String, maxLength: Int) -> String {
-        let prefixes = ["+WGRMLOC:", "+WGRXLOC:", "$PP", "$GPGGA", "@"]
+        let prefixes = ["+WGRMLOC:", "+WGRXLOC:", "+WGPTT:", "$PP", "$GPGGA", "@"]
         var keepStart: String.Index?
 
         for prefix in prefixes {
@@ -643,6 +866,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         let hasSignalPrefix =
             text.contains("+WGRMLOC:") ||
             text.contains("+WGRXLOC:") ||
+            text.contains("+WGPTT:") ||
             text.contains("$PP") ||
             text.contains("$GPGGA")
 
@@ -1299,6 +1523,7 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
             if central.state == .poweredOn {
                 self.reconnectLastKnownPeripheralIfPossible()
             } else {
+                self.stopForceLocationUpdateTimer()
                 self.isConnected = false
                 self.connectedPeripheralName = nil
                 self.onConnectionChanged?(false)
@@ -1363,6 +1588,8 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
 
             self.appendLog("Connected to \(name)")
             self.resetSessionState(clearConnectionIdentity: false)
+            self.loadForceLocationSettingsForCurrentRadio()
+            self.restartForceLocationUpdateTimerIfNeeded()
 
             peripheral.delegate = self
             peripheral.discoverServices(nil)
@@ -1376,6 +1603,7 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
     ) {
         Task { @MainActor in
             self.appendLog("Failed to connect: \(error?.localizedDescription ?? "unknown error")")
+            self.stopForceLocationUpdateTimer()
             self.isConnected = false
             self.onConnectionChanged?(false)
             self.connectedPeripheralName = nil
@@ -1395,6 +1623,7 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
             }
 
             self.resetSessionState(clearConnectionIdentity: true)
+            self.stopForceLocationUpdateTimer()
             self.isConnected = false
             self.onConnectionChanged?(false)
 

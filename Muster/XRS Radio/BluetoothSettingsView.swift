@@ -6,7 +6,6 @@ struct BluetoothSettingsView: View {
     var body: some View {
         List {
 
-            // MARK: - Status
             Section {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -36,12 +35,69 @@ struct BluetoothSettingsView: View {
                 }
             }
 
-            // MARK: - Known Radios
+            if ble.isConnected, let name = ble.connectedPeripheralName {
+                Section("Current Radio") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(name)
+                                .font(.headline)
+
+                            Text("These settings are saved per paired radio.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Toggle("Force Location Updates", isOn: $ble.forceLocationUpdatesEnabled)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Update Frequency")
+                                Spacer()
+                                Text("\(Int(ble.forceLocationUpdateIntervalMinutes)) min")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption.monospaced())
+                            }
+
+                            Slider(
+                                value: $ble.forceLocationUpdateIntervalMinutes,
+                                in: 1...15,
+                                step: 1
+                            )
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Pulse Length")
+                                Spacer()
+                                Text(String(format: "%.2f sec", ble.forceLocationUpdatePulseSeconds))
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption.monospaced())
+                            }
+
+                            Slider(
+                                value: $ble.forceLocationUpdatePulseSeconds,
+                                in: 0.05...1.0,
+                                step: 0.05
+                            )
+                        }
+
+                        HStack {
+                            Button("Test Pulse") {
+                                ble.sendForceLocationPulse()
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Spacer()
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             if !ble.savedRadios.isEmpty {
                 Section("My Radios") {
                     ForEach(ble.savedRadios) { radio in
                         VStack(alignment: .leading, spacing: 8) {
-
                             HStack {
                                 Text(radio.displayName)
                                     .font(.headline)
@@ -89,7 +145,6 @@ struct BluetoothSettingsView: View {
                 }
             }
 
-            // MARK: - Add New
             Section {
                 Button {
                     ble.startScan()
@@ -98,7 +153,6 @@ struct BluetoothSettingsView: View {
                 }
             }
 
-            // MARK: - Scanning Results
             if ble.isScanning || !ble.discoveredPeripherals.isEmpty {
                 Section("Available Radios") {
                     if ble.discoveredPeripherals.isEmpty {
@@ -107,7 +161,6 @@ struct BluetoothSettingsView: View {
                     } else {
                         ForEach(ble.discoveredPeripherals) { item in
                             VStack(alignment: .leading, spacing: 6) {
-
                                 HStack {
                                     Text(item.name)
                                         .font(.headline)

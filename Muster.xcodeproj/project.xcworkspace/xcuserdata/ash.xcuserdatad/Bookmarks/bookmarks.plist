@@ -12,13 +12,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>Timestamp</key>
-					<string>796933365.68643</string>
+					<string>797234097.5563149</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -55,13 +55,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>Timestamp</key>
-					<string>796933365.6864181</string>
+					<string>797234097.556335</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -98,13 +98,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2672</string>
+					<string>2867</string>
 					<key>Timestamp</key>
-					<string>796933365.6864049</string>
+					<string>797234097.556354</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -141,13 +141,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>1815</string>
+					<string>2867</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>1814</string>
+					<string>2867</string>
 					<key>Timestamp</key>
-					<string>796933365.6863919</string>
+					<string>797234097.556374</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -163,17 +163,13 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>                r.lineWidth = 3
-</string>
+				<string></string>
 				<key>leading</key>
-				<string>                let r = MKCircleRenderer(circle: circle)
-                r.strokeColor = UIColor.black.withAlphaComponent(0.25)
+				<string>    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
+}
 </string>
 				<key>trailing</key>
-				<string>                r.fillColor = .clear
-                return r
-            }
-</string>
+				<string></string>
 			</dict>
 			<key>title</key>
 			<string>Rings</string>
