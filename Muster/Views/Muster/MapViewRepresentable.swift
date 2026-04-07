@@ -1047,6 +1047,19 @@ struct MapViewRepresentable: UIViewRepresentable {
         ) -> (center: CLLocationCoordinate2D, distance: CLLocationDistance) {
             let pitchValue = Double(pitch)
             let verticalSetting = normalizedHeadsUpUserVerticalOffset()
+            let distanceCompensation: Double
+            switch pitchValue {
+            case ..<1:
+                distanceCompensation = 1.0
+            case ..<60:
+                distanceCompensation = 0.94
+            case ..<75:
+                distanceCompensation = 0.82
+            default:
+                distanceCompensation = 0.68
+            }
+
+            let compensatedDistance = max(80, logicalDistance * distanceCompensation)
 
             let verticalProgress = verticalSetting / 10.0
 
@@ -1055,21 +1068,25 @@ struct MapViewRepresentable: UIViewRepresentable {
             case ..<1:
                 maxForwardOffsetMultiplier = 0.115
             case ..<60:
-                maxForwardOffsetMultiplier = 0.12
+                maxForwardOffsetMultiplier = 0.14
+            case ..<75:
+                maxForwardOffsetMultiplier = 0.165
             default:
-                maxForwardOffsetMultiplier = 0.125
+                maxForwardOffsetMultiplier = 0.195
             }
 
-            let requestedForwardOffset = logicalDistance * maxForwardOffsetMultiplier * verticalProgress
+            let requestedForwardOffset = compensatedDistance * maxForwardOffsetMultiplier * verticalProgress
 
             let maxSafeForwardOffset: CLLocationDistance
             switch pitchValue {
             case ..<1:
-                maxSafeForwardOffset = logicalDistance * 0.13
+                maxSafeForwardOffset = compensatedDistance * 0.13
             case ..<60:
-                maxSafeForwardOffset = logicalDistance * 0.135
+                maxSafeForwardOffset = compensatedDistance * 0.17
+            case ..<75:
+                maxSafeForwardOffset = compensatedDistance * 0.2
             default:
-                maxSafeForwardOffset = logicalDistance * 0.14
+                maxSafeForwardOffset = compensatedDistance * 0.24
             }
 
             let forwardOffset = min(requestedForwardOffset, maxSafeForwardOffset)
@@ -1085,7 +1102,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 styledCenter = logicalCenter
             }
 
-            return (styledCenter, max(80, logicalDistance))
+            return (styledCenter, compensatedDistance)
         }
 
         private func keepUserLocationViewOnTop(in map: MKMapView) {
