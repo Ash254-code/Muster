@@ -550,35 +550,66 @@ struct TPMSDashboardView: View {
 
     private var motorbikeSilhouetteModern: some View {
         ZStack {
-            Circle()
-                .stroke(Color.primary.opacity(0.18), lineWidth: 7)
-                .frame(width: 40, height: 40)
-                .offset(y: -62)
+            // Wheels
+            Group {
+                Circle()
+                    .stroke(Color.primary.opacity(0.26), lineWidth: 6)
+                    .frame(width: 34, height: 34)
+                    .offset(x: -20, y: 60)
 
-            Circle()
-                .stroke(Color.primary.opacity(0.18), lineWidth: 7)
-                .frame(width: 40, height: 40)
-                .offset(y: 62)
+                Circle()
+                    .stroke(Color.primary.opacity(0.26), lineWidth: 6)
+                    .frame(width: 34, height: 34)
+                    .offset(x: 20, y: 60)
+            }
 
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.12))
-                .frame(width: 22, height: 110)
-
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.10))
-                .frame(width: 14, height: 44)
+            // Frame / chassis
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.16))
+                .frame(width: 56, height: 8)
+                .offset(y: 44)
 
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.12))
-                .frame(width: 46, height: 8)
-                .rotationEffect(.degrees(-24))
-                .offset(x: 12, y: -32)
+                .fill(Color.primary.opacity(0.16))
+                .frame(width: 40, height: 8)
+                .rotationEffect(.degrees(-35))
+                .offset(x: -5, y: 32)
 
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.10))
-                .frame(width: 38, height: 8)
-                .rotationEffect(.degrees(24))
-                .offset(x: -8, y: 18)
+                .fill(Color.primary.opacity(0.14))
+                .frame(width: 30, height: 7)
+                .rotationEffect(.degrees(35))
+                .offset(x: 10, y: 32)
+
+            // Body / seat
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.16))
+                .frame(width: 30, height: 18)
+                .offset(x: -2, y: 18)
+
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.14))
+                .frame(width: 24, height: 7)
+                .offset(x: -8, y: 8)
+
+            // Front fork + handlebar
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.16))
+                .frame(width: 7, height: 26)
+                .rotationEffect(.degrees(30))
+                .offset(x: 24, y: 34)
+
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.14))
+                .frame(width: 20, height: 6)
+                .rotationEffect(.degrees(-20))
+                .offset(x: 24, y: 14)
+
+            // Rider helmet hint so the silhouette reads as "motorbike"
+            Circle()
+                .fill(Color.primary.opacity(0.13))
+                .frame(width: 14, height: 14)
+                .offset(x: -6, y: -2)
         }
     }
 }
