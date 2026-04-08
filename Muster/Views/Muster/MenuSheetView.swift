@@ -169,6 +169,15 @@ struct MapSetsSheetView: View {
     var body: some View {
         NavigationStack {
             List {
+                
+                Section("Create") {
+                    TextField("Map set name", text: $newMapSetName)
+                    Button("Create Map Set") {
+                        app.muster.createMapSet(named: trimmedNewMapSetName)
+                        newMapSetName = ""
+                    }
+                    .disabled(trimmedNewMapSetName.isEmpty)
+                }
                 Section("Map Sets") {
                     if app.muster.mapSets.isEmpty {
                         Text("No map sets yet.")
@@ -188,49 +197,25 @@ struct MapSetsSheetView: View {
                         }
                     }
                 }
-
-                Section("Create") {
-                    TextField("Map set name", text: $newMapSetName)
-                    Button("Create Map Set") {
-                        app.muster.createMapSet(named: trimmedNewMapSetName)
-                        newMapSetName = ""
-                    }
-                    .disabled(trimmedNewMapSetName.isEmpty)
-                }
-
+                
                 Section("Import") {
-                    Button(showImportActions ? "Hide Import Items" : "Show Import Items") {
-                        withAnimation {
-                            showImportActions.toggle()
-                        }
-                    }
-
-                    if showImportActions {
-                        Button("Import Map Set") {
-                            showImportPicker = true
-                        }
+                    Button("Import Map Set") {
+                        showImportPicker = true
                     }
                 }
 
                 Section("Export") {
-                    Button(showExportActions ? "Hide Export Items" : "Show Export Items") {
-                        withAnimation {
-                            showExportActions.toggle()
-                        }
-                    }
-
-                    if showExportActions {
-                        if app.muster.mapSets.isEmpty {
-                            Text("No map sets available for export.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(app.muster.mapSets) { mapSet in
-                                Button("Export \(mapSet.displayTitle)") {
-                                    exportMapSet(mapSet)
-                                }
+                    if app.muster.mapSets.isEmpty {
+                        Text("No map sets available for export.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(app.muster.mapSets) { mapSet in
+                            Button("Export \(mapSet.displayTitle)") {
+                                exportMapSet(mapSet)
                             }
                         }
                     }
+                
                 }
             }
             .navigationTitle("Map Sets")
