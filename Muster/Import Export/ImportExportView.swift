@@ -35,6 +35,7 @@ struct ImportExportView: View {
 
     @State private var showImporter = false
     @State private var showImportCategoryPicker = false
+    @State private var applyCategoryToAllPendingImports = false
 
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
@@ -233,24 +234,8 @@ struct ImportExportView: View {
         ) { result in
             handleImport(result: result)
         }
-        .confirmationDialog(
-            importCategoryDialogTitle,
-            isPresented: $showImportCategoryPicker,
-            titleVisibility: .visible
-        ) {
-            if let pending = currentPendingImport {
-                ForEach(pending.allowedCategories, id: \.self) { category in
-                    Button("\(categoryIcon(for: category)) \(category.title)") {
-                        applyImportCategory(category)
-                    }
-                }
-            }
-
-            Button("Cancel Import", role: .cancel) {
-                cancelCurrentImportSelection()
-            }
-        } message: {
-            Text(importCategoryDialogMessage)
+        .sheet(isPresented: $showImportCategoryPicker) {
+            importCategoryPickerSheet
         }
         .confirmationDialog(
             "Export Format",
@@ -307,6 +292,47 @@ struct ImportExportView: View {
         }
     }
 
+
+    @ViewBuilder
+    private var importCategoryPickerSheet: some View {
+        NavigationStack {
+            List {
+                if let pending = currentPendingImport {
+                    Section {
+                        ForEach(pending.allowedCategories, id: \.self) { category in
+                            Button {
+                                applyImportCategory(category)
+                            } label: {
+                                HStack {
+                                    Text("\(categoryIcon(for: category)) \(category.title)")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                            }
+                        }
+                    } header: {
+                        Text(importCategoryDialogTitle)
+                    } footer: {
+                        Text(importCategoryDialogMessage)
+                    }
+
+                    Section {
+                        Toggle("Apply to all remaining imports", isOn: $applyCategoryToAllPendingImports)
+                    }
+                }
+            }
+            .navigationTitle("Choose Category")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel Import") {
+                        cancelCurrentImportSelection()
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Import
 
     private var importCategoryDialogTitle: String {
@@ -333,6 +359,7 @@ struct ImportExportView: View {
             pendingImports = []
             currentPendingImport = nil
             showImportCategoryPicker = false
+            applyCategoryToAllPendingImports = false
 
             var scopedURLs: [URL] = []
             for url in selectedURLs {
@@ -389,6 +416,7 @@ struct ImportExportView: View {
         guard !pendingImports.isEmpty else {
             currentPendingImport = nil
             showImportCategoryPicker = false
+            applyCategoryToAllPendingImports = false
             finishImportFlow()
             return
         }
@@ -400,6 +428,26 @@ struct ImportExportView: View {
     private func applyImportCategory(_ category: ImportCategory) {
         guard let pending = currentPendingImport else { return }
 
+        importPendingFile(pending, as: category)
+
+        if applyCategoryToAllPendingImports {
+            let applicable = pendingImports.filter { $0.allowedCategories.contains(category) }
+            for item in applicable {
+                importPendingFile(item, as: category)
+            }
+            pendingImports.removeAll { $0.allowedCategories.contains(category) }
+        }
+
+        currentPendingImport = nil
+        showImportCategoryPicker = false
+        applyCategoryToAllPendingImports = false
+
+        DispatchQueue.main.async {
+            presentNextPendingImport()
+        }
+    }
+
+    private func importPendingFile(_ pending: PendingImportedFile, as category: ImportCategory) {
         let adjustedFile = remapImportedFile(pending.file, to: category)
 
         app.muster.addImportedMapFile(
@@ -411,13 +459,6 @@ struct ImportExportView: View {
         importResultImportedBoundaries += adjustedFile.boundaries.count
         importResultImportedMarkers += adjustedFile.markers.count
         importResultImportedTracks += adjustedFile.tracks.count
-
-        currentPendingImport = nil
-        showImportCategoryPicker = false
-
-        DispatchQueue.main.async {
-            presentNextPendingImport()
-        }
     }
 
     private func remapImportedFile(_ file: ImportedMapFile, to category: ImportCategory) -> ImportedMapFile {
@@ -563,6 +604,7 @@ struct ImportExportView: View {
 
         currentPendingImport = nil
         showImportCategoryPicker = false
+        applyCategoryToAllPendingImports = false
 
         DispatchQueue.main.async {
             presentNextPendingImport()
