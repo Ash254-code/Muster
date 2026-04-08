@@ -714,7 +714,7 @@ struct ImportExportView: View {
     private func exportSelectedTrack() {
         guard
             let format = selectedExportFormat,
-            let selectedSessionID,
+            let selectedSessionID = selectedExportSessionID,
             let session = app.muster.sessions.first(where: { $0.id == selectedSessionID }),
             !session.points.isEmpty
         else { return }
@@ -868,11 +868,11 @@ private struct ExportTrackPickerView: View {
     var body: some View {
         List {
             if sessions.isEmpty {
-                ContentUnavailableView(
-                    "No Tracks Available",
-                    systemImage: "waveform.path.ecg",
-                    description: Text("Record a track first to export.")
-                )
+                ContentUnavailableView {
+                    Label("No Tracks Available", systemImage: "waveform.path.ecg")
+                } description: {
+                    Text("Record a track first to export.")
+                }
             } else {
                 Section("Tracks") {
                     ForEach(sessions) { session in
@@ -892,7 +892,7 @@ private struct ExportTrackPickerView: View {
                                 Spacer()
 
                                 Image(systemName: selectedSessionID == session.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedSessionID == session.id ? .accent : .tertiary)
+                                    .foregroundStyle(selectedSessionID == session.id ? .tint : .tertiary)
                             }
                         }
                         .buttonStyle(.plain)
