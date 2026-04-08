@@ -217,16 +217,22 @@ private struct GroupTrackingSettingsView: View {
 private struct AppSettingsView: View {
     var body: some View {
         Form {
-            NavigationLink("Appearance") {
+            NavigationLink {
                 AppearanceSettingsView()
+            } label: {
+                Label("Appearance", systemImage: "paintbrush")
             }
 
-            NavigationLink("Units") {
+            NavigationLink {
                 UnitsSettingsView()
+            } label: {
+                Label("Units", systemImage: "ruler")
             }
 
-            NavigationLink("Media") {
+            NavigationLink {
                 MediaSettingsView()
+            } label: {
+                Label("Media", systemImage: "speaker.wave.2")
             }
         }
         .navigationTitle("Settings")
