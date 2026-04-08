@@ -5,6 +5,27 @@ import UIKit
 struct ImportExportView: View {
     @EnvironmentObject private var app: AppState
 
+    private enum ExportFormat: String, CaseIterable, Identifiable {
+        case geoJSON
+        case gpx
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .geoJSON: return "GeoJSON"
+            case .gpx: return "GPX"
+            }
+        }
+
+        var fileExtension: String {
+            switch self {
+            case .geoJSON: return "geojson"
+            case .gpx: return "gpx"
+            }
+        }
+    }
+
     private struct PendingImportedFile: Identifiable {
         let id = UUID()
         let sourceURL: URL
@@ -20,6 +41,10 @@ struct ImportExportView: View {
 
     @State private var shareURL: URL? = nil
     @State private var shareSheetItems: [Any] = []
+    @State private var showExportFormatPicker = false
+    @State private var showTrackExportSheet = false
+    @State private var selectedExportFormat: ExportFormat? = nil
+    @State private var selectedExportSessionID: UUID? = nil
 
     @State private var pendingImports: [PendingImportedFile] = []
     @State private var currentPendingImport: PendingImportedFile? = nil
@@ -52,9 +77,10 @@ struct ImportExportView: View {
         app.muster.importedMapFiles.reduce(0) { $0 + $1.tracks.count }
     }
 
-    private var activeSessionHasTrack: Bool {
-        guard let active = app.muster.activeSession else { return false }
-        return !active.points.isEmpty
+    private var exportableSessions: [MusterSession] {
+        app.muster.sessions
+            .filter { !$0.points.isEmpty }
+            .sorted { $0.startedAt > $1.startedAt }
     }
 
     var body: some View {
@@ -84,22 +110,17 @@ struct ImportExportView: View {
 
             Section {
                 Button {
-                    exportActiveTrackAsGeoJSON()
+                    showExportFormatPicker = true
                 } label: {
-                    Label("Export Active Muster Track (GeoJSON)", systemImage: "square.and.arrow.up")
+                    Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .disabled(!activeSessionHasTrack)
-
-                Button {
-                    exportActiveTrackAsGPX()
-                } label: {
-                    Label("Export Active Muster Track (GPX)", systemImage: "paperplane")
-                }
-                .disabled(!activeSessionHasTrack)
+                .disabled(exportableSessions.isEmpty)
 
                 .padding(.vertical, 2)
             } header: {
                 Text("Export")
+            } footer: {
+                Text("Choose a format first, then pick a previous or active track to export.")
             }
 
             Section {
@@ -231,6 +252,23 @@ struct ImportExportView: View {
         } message: {
             Text(importCategoryDialogMessage)
         }
+        .confirmationDialog(
+            "Export Format",
+            isPresented: $showExportFormatPicker,
+            titleVisibility: .visible
+        ) {
+            ForEach(ExportFormat.allCases) { format in
+                Button(format.title) {
+                    selectedExportFormat = format
+                    selectedExportSessionID = nil
+                    showTrackExportSheet = true
+                }
+            }
+
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Select the file format for export.")
+        }
         .alert(
             alertTitle,
             isPresented: Binding(
@@ -256,6 +294,16 @@ struct ImportExportView: View {
             )
         ) {
             ActivityView(activityItems: shareSheetItems)
+        }
+        .sheet(isPresented: $showTrackExportSheet) {
+            NavigationStack {
+                ExportTrackPickerView(
+                    sessions: exportableSessions,
+                    selectedSessionID: $selectedExportSessionID
+                ) {
+                    exportSelectedTrack()
+                }
+            }
         }
     }
 
@@ -621,29 +669,29 @@ struct ImportExportView: View {
     }
     // MARK: - Export
 
-    private func exportActiveTrackAsGeoJSON() {
-        guard let session = app.muster.activeSession, !session.points.isEmpty else { return }
+    private func exportSelectedTrack() {
+        guard
+            let format = selectedExportFormat,
+            let selectedSessionID,
+            let session = app.muster.sessions.first(where: { $0.id == selectedSessionID }),
+            !session.points.isEmpty
+        else { return }
 
         do {
-            let fileURL = try writeGeoJSONTrackFile(for: session)
+            let fileURL: URL
+            switch format {
+            case .geoJSON:
+                fileURL = try writeGeoJSONTrackFile(for: session)
+            case .gpx:
+                fileURL = try writeGPXTrackFile(for: session)
+            }
+
+            showTrackExportSheet = false
             shareURL = fileURL
             shareSheetItems = [fileURL]
         } catch {
             alertTitle = "Export Failed"
-            alertMessage = "Could not export GeoJSON track: \(error.localizedDescription)"
-        }
-    }
-
-    private func exportActiveTrackAsGPX() {
-        guard let session = app.muster.activeSession, !session.points.isEmpty else { return }
-
-        do {
-            let fileURL = try writeGPXTrackFile(for: session)
-            shareURL = fileURL
-            shareSheetItems = [fileURL]
-        } catch {
-            alertTitle = "Export Failed"
-            alertMessage = "Could not export GPX track: \(error.localizedDescription)"
+            alertMessage = "Could not export \(format.title) track: \(error.localizedDescription)"
         }
     }
 
@@ -684,7 +732,7 @@ struct ImportExportView: View {
         let fileName = sanitizedFileBaseName(session.name.isEmpty ? "Muster Track" : session.name)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(fileName)
-            .appendingPathExtension("geojson")
+            .appendingPathExtension(ExportFormat.geoJSON.fileExtension)
 
         try data.write(to: url, options: .atomic)
         return url
@@ -726,7 +774,7 @@ struct ImportExportView: View {
         let fileName = sanitizedFileBaseName(session.name.isEmpty ? "Muster Track" : session.name)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(fileName)
-            .appendingPathExtension("gpx")
+            .appendingPathExtension(ExportFormat.gpx.fileExtension)
 
         try data.write(to: url, options: .atomic)
         return url
@@ -766,6 +814,64 @@ struct ImportExportView: View {
             case .encodingFailed:
                 return "Failed to encode export file."
             }
+        }
+    }
+}
+
+private struct ExportTrackPickerView: View {
+    let sessions: [MusterSession]
+    @Binding var selectedSessionID: UUID?
+    let onExport: () -> Void
+
+    var body: some View {
+        List {
+            if sessions.isEmpty {
+                ContentUnavailableView(
+                    "No Tracks Available",
+                    systemImage: "waveform.path.ecg",
+                    description: Text("Record a track first to export.")
+                )
+            } else {
+                Section("Tracks") {
+                    ForEach(sessions) { session in
+                        Button {
+                            selectedSessionID = session.id
+                        } label: {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(session.name.isEmpty ? "Muster Track" : session.name)
+                                        .foregroundStyle(.primary)
+
+                                    Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: selectedSessionID == session.id ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedSessionID == session.id ? .accent : .tertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } footer: {
+                    Text("Select one track, then tap Export.")
+                }
+            }
+        }
+        .navigationTitle("Choose Track")
+        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            Button("Export") {
+                onExport()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(selectedSessionID == nil)
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom)
+            .background(.thinMaterial)
         }
     }
 }
