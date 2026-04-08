@@ -3,6 +3,8 @@ import SwiftUI
 struct StartSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
+    @State private var showMissingMapSetPrompt = false
+    @State private var showMapSetsSheet = false
 
     private var previewName: String {
         app.muster.makeSmartSessionName()
@@ -36,8 +38,11 @@ struct StartSessionView: View {
                     Spacer()
 
                     Button {
-                        app.muster.startSmartSession()
-                        dismiss()
+                        if app.muster.startSmartSession() {
+                            dismiss()
+                        } else {
+                            showMissingMapSetPrompt = true
+                        }
                     } label: {
                         Label("Start", systemImage: "record.circle")
                     }
@@ -47,6 +52,25 @@ struct StartSessionView: View {
             .padding(14)
             .navigationTitle("New Muster")
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .confirmationDialog(
+            "Map Set Required",
+            isPresented: $showMissingMapSetPrompt,
+            titleVisibility: .visible
+        ) {
+            Button("Create New Map Set") {
+                _ = app.muster.createMapSet()
+            }
+            Button("Select Map Set From List") {
+                showMapSetsSheet = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("New Muster or track can’t be started without a Map Set selected.")
+        }
+        .sheet(isPresented: $showMapSetsSheet) {
+            MapSetsSheetView()
+                .environmentObject(app)
         }
     }
 }
