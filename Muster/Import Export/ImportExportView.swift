@@ -74,9 +74,6 @@ struct ImportExportView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Text("You can now select multiple files at once or choose a folder.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 2)
             } header: {
@@ -89,7 +86,7 @@ struct ImportExportView: View {
                 Button {
                     exportActiveTrackAsGeoJSON()
                 } label: {
-                    Label("Export Active Muster Track", systemImage: "square.and.arrow.up")
+                    Label("Export Active Muster Track (GeoJSON)", systemImage: "square.and.arrow.up")
                 }
                 .disabled(!activeSessionHasTrack)
 
@@ -100,14 +97,6 @@ struct ImportExportView: View {
                 }
                 .disabled(!activeSessionHasTrack)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Going forward")
-                        .font(.subheadline.weight(.semibold))
-
-                    Text("GeoJSON should be the main export format. GPX remains useful for track sharing with other apps and older files.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
                 .padding(.vertical, 2)
             } header: {
                 Text("Export")
