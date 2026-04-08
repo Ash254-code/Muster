@@ -98,7 +98,7 @@ struct SettingsView: View {
                         MapSettingsView()
                     }
 
-                    NavigationLink("Rings") {
+                    NavigationLink {
                         RingsSettingsView()
                     } label: {
                         Label("Map & Rings", systemImage: "map")
@@ -2606,3 +2606,4 @@ private struct PlaceholderSettingsDetail: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
