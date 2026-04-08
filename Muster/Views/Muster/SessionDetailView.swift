@@ -6,6 +6,7 @@ import UIKit
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
+private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 
@@ -29,6 +30,7 @@ struct SessionDetailView: View {
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
     @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
+    @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
 
@@ -67,6 +69,7 @@ struct SessionDetailView: View {
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
+            ringThicknessScale: ringThicknessScale,
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),

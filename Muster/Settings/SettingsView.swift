@@ -10,6 +10,7 @@ import UIKit
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
+private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
@@ -1449,6 +1450,7 @@ private struct RingsSettingsView: View {
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
     @AppStorage(kRingColorKey) private var ringColorRaw: String = RingColorOption.blue.rawValue
+    @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
 
     private let countOptions = Array(1...10)
@@ -1475,10 +1477,21 @@ private struct RingsSettingsView: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Ring thickness")
+                        Spacer()
+                        Text("\(ringThicknessScale, specifier: "%.2f")x")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $ringThicknessScale, in: 0.5...2.0, step: 0.05)
+                }
+
                 Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
 
                 Text(
                     "Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized)" +
+                    " at \(ringThicknessScale, specifier: "%.2f")x thickness" +
                     (ringDistanceLabelsEnabled ? " with" : " without") +
                     " distance labels."
                 )
