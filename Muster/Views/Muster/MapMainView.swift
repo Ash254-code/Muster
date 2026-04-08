@@ -2477,7 +2477,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
                 quickStatButton(
                     title: "TPMS",
-                    value: "Open"
+                    value: "Open",
+                    systemImage: "tirepressure"
                 ) {
                     panelDetent = .collapsed
                     showTPMSDashboard = true
@@ -2620,13 +2621,21 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func quickStatButton(
         title: String,
         value: String,
+        systemImage: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.62))
+                HStack(spacing: 6) {
+                    if let systemImage {
+                        Image(systemName: systemImage)
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+
+                    Text(title)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(.white.opacity(0.62))
 
                 Text(value)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
