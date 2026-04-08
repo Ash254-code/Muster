@@ -44,13 +44,13 @@ struct MenuSheetView: View {
                     }
                 }
 
-                Section("Previous Musters") {
+                Section("Previous Tracks") {
                     if previousSessions.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("No previous musters")
+                            Text("No previous tracks")
                                 .font(.headline)
 
-                            Text("Start a new muster and it will appear here.")
+                            Text("Start a new track and it will appear here.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -120,7 +120,7 @@ struct MenuSheetView: View {
                             showMissingMapSetPrompt = true
                         }
                     } label: {
-                        Label("New Muster", systemImage: "plus.circle.fill")
+                        Label("New Track", systemImage: "plus.circle.fill")
                     }
                 }
             }

@@ -1963,8 +1963,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         switch panelDetent {
         case .collapsed:
             return collapsedHeight
-        case .medium:
-            return mediumHeight
         case .large:
             return largeHeight
         }
@@ -2047,14 +2045,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
                 if moveUp {
                     switch panelDetent {
-                    case .collapsed: target = .medium
-                    case .medium: target = .large
+                    case .collapsed: target = .large
                     case .large: target = .large
                     }
                 } else if moveDown {
                     switch panelDetent {
-                    case .large: target = .medium
-                    case .medium: target = .collapsed
+                    case .large: target = .collapsed
                     case .collapsed: target = .collapsed
                     }
                 } else {
@@ -2072,8 +2068,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         switch panelDetent {
         case .collapsed:
             panelCornerRadius = panelHeight / 2
-        case .medium:
-            panelCornerRadius = 30
         case .large:
             panelCornerRadius = 24
         }
@@ -2535,6 +2529,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             .padding(.horizontal, 14)
 
             VStack(spacing: 10) {
+                
+                panelButtonRow(
+                    title: "Map Sets",
+                    value: "\(app.muster.mapSets.count)",
+                    systemImage: "square.stack.3d.down.right"
+                ) {
+                    panelDetent = .collapsed
+                    showMapSetsSheet = true
+                }
+
                 panelButtonRow(
                     title: "Current Track",
                     value: hasTrack ? totalDistanceTextForCurrentTrack : "Open",
@@ -2551,17 +2555,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 ) {
                     panelDetent = .collapsed
                     showPreviousMusters = true
-                }
-
-                panelRow(title: "XRS radios", value: radios, systemImage: "antenna.radiowaves.left.and.right")
-
-                panelButtonRow(
-                    title: "Map Sets",
-                    value: "\(app.muster.mapSets.count)",
-                    systemImage: "square.stack.3d.down.right"
-                ) {
-                    panelDetent = .collapsed
-                    showMapSetsSheet = true
                 }
 
                 panelButtonRow(
@@ -3541,7 +3534,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
 private enum MapBottomPanelDetent {
     case collapsed
-    case medium
     case large
 }
 
