@@ -1156,6 +1156,14 @@ final class MusterStore: ObservableObject, Codable {
         save()
     }
 
+    func deleteSession(sessionID: UUID) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        guard sessions[index].id != activeSessionID else { return }
+
+        sessions.remove(at: index)
+        save()
+    }
+
     func showAllPreviousSessionsOnMap() {
         var changed = false
 
