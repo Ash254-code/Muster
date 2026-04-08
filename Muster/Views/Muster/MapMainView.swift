@@ -964,7 +964,7 @@ private var selectedMapModeOption: MapModeOption {
             }
             .overlay(alignment: .bottomLeading) {
                 if !showMapLayerSheet && mediaButtonEnabled {
-                    leftSideMediaPill
+                    leftSideFloatingPills
                         .padding(.leading, 12)
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height))
                         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: panelDetent)
@@ -2535,6 +2535,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         }
         .padding(.bottom, 18)
     }
+    private var leftSideFloatingPills: some View {
+        VStack(spacing: 10) {
+            leftSideMediaPill
+            leftSideZoomPill
+        }
+    }
+
     private var leftSideMediaPill: some View {
         VStack(spacing: 0) {
             Button {
@@ -2554,6 +2561,43 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 playPauseMedia()
             } label: {
                 Image(systemName: "playpause.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+            }
+        }
+        .frame(width: 48)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.black.opacity(1.0))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .fixedSize()
+    }
+
+    private var leftSideZoomPill: some View {
+        VStack(spacing: 0) {
+            Button {
+                stepMapZoom(by: -1000)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+            }
+
+            Rectangle()
+                .fill(.white.opacity(0.2))
+                .frame(width: 24, height: 1)
+
+            Button {
+                stepMapZoom(by: 1000)
+            } label: {
+                Image(systemName: "minus")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
@@ -3096,6 +3140,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         )
     }
 
+    private func stepMapZoom(by deltaMeters: Double) {
+        NotificationCenter.default.post(
+            name: .musterStepZoomRequested,
+            object: nil,
+            userInfo: ["deltaMeters": deltaMeters]
+        )
+    }
+
     private func normalizeQuickZoomSettings() {
         quickZoom1M = normalizedQuickZoomValue(quickZoom1M)
         quickZoom2M = normalizedQuickZoomValue(quickZoom2M)
@@ -3449,4 +3501,5 @@ private enum MapBottomPanelDetent {
 
 private extension Notification.Name {
     static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
+    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
 }

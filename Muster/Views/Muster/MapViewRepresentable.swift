@@ -275,6 +275,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var lastRecenterNonce: Int = 0
         private var lastFitRadiosNonce: Int = 0
         private var quickZoomObserver: NSObjectProtocol?
+        private var stepZoomObserver: NSObjectProtocol?
         private weak var observedMap: MKMapView?
         private var sheepPinFadeTimer: Timer?
         private var userLocationAnnotation: UserLocationAnnotation?
@@ -404,12 +405,27 @@ struct MapViewRepresentable: UIViewRepresentable {
                 guard let meters = notification.userInfo?["meters"] as? Double else { return }
                 self.applyQuickZoom(map: map, distanceMeters: meters)
             }
+
+            stepZoomObserver = NotificationCenter.default.addObserver(
+                forName: .musterStepZoomRequested,
+                object: nil,
+                queue: .main
+            ) { [weak self, weak map] notification in
+                guard let self, let map else { return }
+                guard let deltaMeters = notification.userInfo?["deltaMeters"] as? Double else { return }
+                self.applyStepZoom(map: map, deltaMeters: deltaMeters)
+            }
         }
 
         func stopObservingQuickZoom() {
             if let quickZoomObserver {
                 NotificationCenter.default.removeObserver(quickZoomObserver)
                 self.quickZoomObserver = nil
+            }
+
+            if let stepZoomObserver {
+                NotificationCenter.default.removeObserver(stepZoomObserver)
+                self.stepZoomObserver = nil
             }
         }
 
@@ -604,6 +620,12 @@ struct MapViewRepresentable: UIViewRepresentable {
                 pitch: pitch,
                 snap: false
             )
+        }
+
+        private func applyStepZoom(map: MKMapView, deltaMeters: Double) {
+            let currentDistance = max(80, map.camera.centerCoordinateDistance)
+            let targetDistance = currentDistance + deltaMeters
+            applyQuickZoom(map: map, distanceMeters: targetDistance)
         }
 
         private func applyQuickZoom(map: MKMapView, distanceMeters: Double) {
@@ -3009,4 +3031,5 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
 }
 private extension Notification.Name {
     static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
+    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
 }
