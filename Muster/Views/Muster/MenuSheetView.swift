@@ -118,7 +118,7 @@ struct MenuSheetView: View {
                     }
                 }
             }
-            .navigationTitle("Previous Musters")
+            .navigationTitle("Previous Tracks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -195,12 +195,24 @@ struct MapSetsSheetView: View {
             List {
                 
                 Section("Create") {
-                    TextField("Map set name", text: $newMapSetName)
-                    Button("Create Map Set") {
-                        app.muster.createMapSet(named: trimmedNewMapSetName)
-                        newMapSetName = ""
+                    HStack(spacing: 12) {
+                        TextField("Map set name", text: $newMapSetName)
+
+                        Button {
+                            app.muster.createMapSet(named: trimmedNewMapSetName)
+                            newMapSetName = ""
+                        } label: {
+                            Text("Create")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .tint(trimmedNewMapSetName.isEmpty ? .gray : .accentColor)
+                        .disabled(trimmedNewMapSetName.isEmpty)
                     }
-                    .disabled(trimmedNewMapSetName.isEmpty)
                 }
                 Section("Map Sets") {
                     if app.muster.mapSets.isEmpty {
@@ -219,8 +231,8 @@ struct MapSetsSheetView: View {
                                                 .font(.caption2.weight(.semibold))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 3)
-                                                .foregroundStyle(.blue)
-                                                .background(.blue.opacity(0.14), in: Capsule())
+                                                .foregroundStyle(.green)
+                                                .background(.green.opacity(0.14), in: Capsule())
                                         }
                                         Spacer()
                                     }
@@ -418,15 +430,14 @@ private struct MapSetDetailView: View {
     var body: some View {
         List {
             if let mapSet {
-                Section("Actions") {
+                Section("Name") {
                     TextField("Map set name", text: $renameText)
                         .onAppear { renameText = mapSet.displayTitle }
+                }
+
+                Section("Actions") {
                     Button(app.muster.selectedMapSetID == mapSet.id ? "Current Map Set" : "Set as Current Map Set") {
                         app.muster.selectMapSet(mapSet.id)
-                    }
-                    .disabled(app.muster.selectedMapSetID == mapSet.id)
-                    Button("Save Name") {
-                        app.muster.renameMapSet(mapSetID: mapSet.id, newName: renameText)
                     }
                     Button("Duplicate") {
                         if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
@@ -441,7 +452,6 @@ private struct MapSetDetailView: View {
                         dismiss()
                     }
                 }
-
                 Section("Tracks") {
                     let tracks = app.muster.importedTracks(in: mapSet.id)
                     if tracks.isEmpty {
