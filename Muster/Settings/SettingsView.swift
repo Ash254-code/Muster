@@ -98,7 +98,7 @@ struct SettingsView: View {
                     NavigationLink {
                         MapSettingsView()
                     } label: {
-                        Label("Masp View", systemImage: "map")
+                        Label("Map View", systemImage: "map")
                     }
 
                     NavigationLink {
