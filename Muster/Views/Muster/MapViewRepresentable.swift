@@ -1030,18 +1030,28 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func syncCameraStateFromMap(_ map: MKMapView) {
-            let distance = max(80, map.camera.centerCoordinateDistance)
+            let renderedDistance = max(80, map.camera.centerCoordinateDistance)
             let heading = normalizeHeading(map.camera.heading)
             let center = map.centerCoordinate
             let pitch = parent.orientationRaw == "headsUp" ? CGFloat(map.camera.pitch) : 0
+            let logicalDistance: CLLocationDistance
 
-            lastKnownCameraDistance = distance
+            if parent.orientationRaw == "headsUp" {
+                logicalDistance = max(
+                    80,
+                    renderedDistance / distanceCompensationFactor(for: pitch)
+                )
+            } else {
+                logicalDistance = renderedDistance
+            }
+
+            lastKnownCameraDistance = logicalDistance
             displayedCenter = center
             targetCenter = center
             displayedHeading = heading
             targetHeading = heading
-            displayedDistance = distance
-            targetDistance = distance
+            displayedDistance = logicalDistance
+            targetDistance = logicalDistance
             displayedPitch = pitch
             targetPitch = pitch
 
@@ -1077,17 +1087,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         ) -> (center: CLLocationCoordinate2D, distance: CLLocationDistance) {
             let pitchValue = Double(pitch)
             let verticalSetting = normalizedHeadsUpUserVerticalOffset()
-            let distanceCompensation: Double
-            switch pitchValue {
-            case ..<1:
-                distanceCompensation = 1.0
-            case ..<60:
-                distanceCompensation = 0.94
-            case ..<75:
-                distanceCompensation = 0.82
-            default:
-                distanceCompensation = 0.68
-            }
+            let distanceCompensation = distanceCompensationFactor(for: pitch)
 
             let compensatedDistance = max(80, logicalDistance * distanceCompensation)
 
@@ -1133,6 +1133,19 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             return (styledCenter, compensatedDistance)
+        }
+
+        private func distanceCompensationFactor(for pitch: CGFloat) -> Double {
+            switch Double(pitch) {
+            case ..<1:
+                return 1.0
+            case ..<60:
+                return 0.94
+            case ..<75:
+                return 0.82
+            default:
+                return 0.68
+            }
         }
 
         private func keepUserLocationViewOnTop(in map: MKMapView) {
@@ -1918,10 +1931,12 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            let strokeScale = overlayStrokeScale(for: mapView)
+
             if let polyline = overlay as? TrackStyledPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
                 renderer.strokeColor = polyline.strokeColor
-                renderer.lineWidth = 6
+                renderer.lineWidth = 6 * strokeScale
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
                 return renderer
@@ -1930,7 +1945,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? XRSTrailPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
                 renderer.strokeColor = polyline.strokeColor
-                renderer.lineWidth = 6
+                renderer.lineWidth = 6 * strokeScale
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
                 return renderer
@@ -1939,7 +1954,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? HistoricalPolyline {
                 let r = MKPolylineRenderer(polyline: polyline)
                 r.strokeColor = UIColor(red: 0.07, green: 0.14, blue: 0.30, alpha: 0.85)
-                r.lineWidth = 6
+                r.lineWidth = 6 * strokeScale
                 r.lineCap = .round
                 r.lineJoin = .round
                 return r
@@ -1948,7 +1963,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? ImportedTrackPolyline {
                 let r = MKPolylineRenderer(polyline: polyline)
                 r.strokeColor = UIColor.systemPurple.withAlphaComponent(0.85)
-                r.lineWidth = 5
+                r.lineWidth = 5 * strokeScale
                 r.lineCap = .round
                 r.lineJoin = .round
                 r.lineDashPattern = [6, 4]
@@ -1964,7 +1979,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 )
 
                 r.strokeColor = stroke
-                r.lineWidth = 4
+                r.lineWidth = 4 * strokeScale
                 r.fillColor = .clear
                 return r
             }
@@ -1974,12 +1989,12 @@ struct MapViewRepresentable: UIViewRepresentable {
 
                 if polyline === destinationLine {
                     renderer.strokeColor = UIColor.systemOrange
-                    renderer.lineWidth = 3
+                    renderer.lineWidth = 3 * strokeScale
                     renderer.lineCap = .round
                     renderer.lineJoin = .round
                 } else {
                     renderer.strokeColor = UIColor.systemBlue
-                    renderer.lineWidth = 3
+                    renderer.lineWidth = 3 * strokeScale
                     renderer.lineCap = .round
                     renderer.lineJoin = .round
                 }
@@ -1990,12 +2005,21 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let circle = overlay as? MKCircle {
                 let r = MKCircleRenderer(circle: circle)
                 r.strokeColor = ringColor(from: parent.ringColorRaw).withAlphaComponent(0.95)
-                r.lineWidth = 2.5
+                r.lineWidth = 2.5 * strokeScale
                 r.fillColor = .clear
                 return r
             }
 
             return MKOverlayRenderer()
+        }
+
+        private func overlayStrokeScale(for mapView: MKMapView) -> CGFloat {
+            switch mapView.mapType {
+            case .satelliteFlyover, .hybridFlyover:
+                return 0.6
+            default:
+                return 1.0
+            }
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
