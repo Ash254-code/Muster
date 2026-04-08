@@ -161,6 +161,7 @@ struct MapMainView: View {
     @State private var showArrivedBanner = false
     @State private var showQuickZoomEditor = false
     @State private var showImportFilterSheet = false
+    @State private var showMapSetsSheet = false
     @State private var displayedActiveTrackPoints: [TrackPoint] = []
 
     // Long-press marker actions
@@ -633,6 +634,10 @@ private var selectedMapModeOption: MapModeOption {
             }
             .sheet(isPresented: $showImportFilterSheet) {
                 importFilterSheet
+            }
+            .sheet(isPresented: $showMapSetsSheet) {
+                MapSetsSheetView()
+                    .environmentObject(app)
             }
             .sheet(isPresented: $showTPMSDashboard) {
                 tpmsDashboardSheet
@@ -2529,6 +2534,15 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 panelRow(title: "XRS radios", value: radios, systemImage: "antenna.radiowaves.left.and.right")
+
+                panelButtonRow(
+                    title: "Map Sets",
+                    value: "\(app.muster.mapSets.count)",
+                    systemImage: "square.stack.3d.down.right"
+                ) {
+                    panelDetent = .collapsed
+                    showMapSetsSheet = true
+                }
 
                 panelButtonRow(
                     title: "Map Filter",

@@ -57,6 +57,7 @@ struct ImportExportView: View {
     @State private var importResultImportedTracks: Int = 0
     @State private var importResultSelectedCount: Int = 0
     @State private var importResultSupportedCount: Int = 0
+    @State private var selectedTrackImportMapSetID: UUID? = nil
 
     private var importedFileCount: Int {
         app.muster.importedMapFiles.count
@@ -82,6 +83,19 @@ struct ImportExportView: View {
         app.muster.sessions
             .filter { !$0.points.isEmpty }
             .sorted { $0.startedAt > $1.startedAt }
+    }
+
+    private var trackImportMapSetID: UUID {
+        if let selectedTrackImportMapSetID,
+           app.muster.mapSets.contains(where: { $0.id == selectedTrackImportMapSetID }) {
+            return selectedTrackImportMapSetID
+        }
+
+        if let existing = app.muster.mapSets.first {
+            return existing.id
+        }
+
+        return app.muster.createMapSet()
     }
 
     var body: some View {
@@ -319,6 +333,30 @@ struct ImportExportView: View {
                     Section {
                         Toggle("Apply to all remaining imports", isOn: $applyCategoryToAllPendingImports)
                     }
+
+                    if pending.file.tracks.isEmpty == false {
+                        Section("Tracks Map Set") {
+                            if app.muster.mapSets.isEmpty == false {
+                                Picker(
+                                    "Map Set",
+                                    selection: Binding(
+                                        get: { trackImportMapSetID },
+                                        set: { selectedTrackImportMapSetID = $0 }
+                                    )
+                                ) {
+                                    ForEach(app.muster.mapSets) { mapSet in
+                                        Text(mapSet.displayTitle).tag(mapSet.id)
+                                    }
+                                }
+                            }
+
+                            if app.muster.mapSets.isEmpty {
+                                Text("A map set will be created automatically for imported tracks.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Choose Category")
@@ -428,12 +466,13 @@ struct ImportExportView: View {
     private func applyImportCategory(_ category: ImportCategory) {
         guard let pending = currentPendingImport else { return }
 
-        importPendingFile(pending, as: category)
+        let trackMapSetID = category == .tracks ? trackImportMapSetID : nil
+        importPendingFile(pending, as: category, trackMapSetID: trackMapSetID)
 
         if applyCategoryToAllPendingImports {
             let applicable = pendingImports.filter { $0.allowedCategories.contains(category) }
             for item in applicable {
-                importPendingFile(item, as: category)
+                importPendingFile(item, as: category, trackMapSetID: trackMapSetID)
             }
             pendingImports.removeAll { $0.allowedCategories.contains(category) }
         }
@@ -447,8 +486,8 @@ struct ImportExportView: View {
         }
     }
 
-    private func importPendingFile(_ pending: PendingImportedFile, as category: ImportCategory) {
-        let adjustedFile = remapImportedFile(pending.file, to: category)
+    private func importPendingFile(_ pending: PendingImportedFile, as category: ImportCategory, trackMapSetID: UUID?) {
+        let adjustedFile = remapImportedFile(pending.file, to: category, trackMapSetID: trackMapSetID)
 
         app.muster.addImportedMapFile(
             adjustedFile,
@@ -461,7 +500,7 @@ struct ImportExportView: View {
         importResultImportedTracks += adjustedFile.tracks.count
     }
 
-    private func remapImportedFile(_ file: ImportedMapFile, to category: ImportCategory) -> ImportedMapFile {
+    private func remapImportedFile(_ file: ImportedMapFile, to category: ImportCategory, trackMapSetID: UUID?) -> ImportedMapFile {
         switch category {
         case .boundaries:
             var boundaries = file.boundaries
@@ -518,6 +557,7 @@ struct ImportExportView: View {
             let updatedTracks = file.tracks.map { track in
                 var updated = track
                 updated.category = .tracks
+                updated.mapSetID = trackMapSetID
                 return updated
             }
 
