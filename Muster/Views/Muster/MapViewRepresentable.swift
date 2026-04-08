@@ -27,6 +27,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let ringCount: Int
     let ringSpacingMeters: Double
     let ringColorRaw: String
+    let ringThicknessScale: Double
     let ringDistanceLabelsEnabled: Bool
 
     @Binding var orientationRaw: String
@@ -214,6 +215,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             ringCount: ringCount,
             spacingM: ringSpacingMeters,
             colorRaw: ringColorRaw,
+            thicknessScale: ringThicknessScale,
             labelsEnabled: ringDistanceLabelsEnabled
         )
         context.coordinator.updateDestinationLine(
@@ -769,13 +771,15 @@ struct MapViewRepresentable: UIViewRepresentable {
             ringCount: Int,
             spacingM: Double,
             colorRaw: String,
+            thicknessScale: Double,
             labelsEnabled: Bool
         ) -> String {
             guard let centerLocation else { return "nil" }
             let lat = String(format: "%.6f", centerLocation.coordinate.latitude)
             let lon = String(format: "%.6f", centerLocation.coordinate.longitude)
             let spacing = String(format: "%.1f", spacingM)
-            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)|labels:\(labelsEnabled)"
+            let thickness = String(format: "%.2f", thicknessScale)
+            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)|thickness:\(thickness)|labels:\(labelsEnabled)"
         }
 
         private func annotationView(at point: CGPoint, in map: MKMapView) -> MKAnnotationView? {
@@ -1853,6 +1857,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             ringCount: Int,
             spacingM: Double,
             colorRaw: String,
+            thicknessScale: Double,
             labelsEnabled: Bool
         ) {
             let newSignature = signature(
@@ -1860,6 +1865,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 ringCount: ringCount,
                 spacingM: spacingM,
                 colorRaw: colorRaw,
+                thicknessScale: thicknessScale,
                 labelsEnabled: labelsEnabled
             )
             guard newSignature != ringsSignature else { return }
@@ -2005,7 +2011,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let circle = overlay as? MKCircle {
                 let r = MKCircleRenderer(circle: circle)
                 r.strokeColor = ringColor(from: parent.ringColorRaw).withAlphaComponent(0.95)
-                r.lineWidth = 2.5 * strokeScale
+                r.lineWidth = max(1.25, min(5.0, 2.5 * parent.ringThicknessScale))
                 r.fillColor = .clear
                 return r
             }
