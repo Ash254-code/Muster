@@ -135,14 +135,15 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Import and Export") {
+                Section("Data") {
                     NavigationLink {
                         ImportExportView()
                             .environmentObject(app)
                     } label: {
                         Label("Import", systemImage: "square.and.arrow.down")
                     }
-
+                    
+                    
                     NavigationLink {
                         ImportCategoriesSettingsView()
                             .environmentObject(app)
