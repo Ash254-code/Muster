@@ -446,8 +446,8 @@ final class MusterStore: ObservableObject, Codable {
         return newSet.id
     }
 
-    func duplicateMapSet(mapSetID: UUID) {
-        guard let source = mapSets.first(where: { $0.id == mapSetID }) else { return }
+    func duplicateMapSet(mapSetID: UUID) -> MapSet? {
+        guard let source = mapSets.first(where: { $0.id == mapSetID }) else { return nil }
 
         var duplicate = source
         duplicate.id = UUID()
@@ -483,6 +483,7 @@ final class MusterStore: ObservableObject, Codable {
         }
 
         save()
+        return duplicate
     }
 
     func renameMapSet(mapSetID: UUID, newName: String) {
