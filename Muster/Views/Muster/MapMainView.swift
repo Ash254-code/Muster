@@ -1582,6 +1582,13 @@ private var selectedMapModeOption: MapModeOption {
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
             }
+            .highPriorityGesture(
+                LongPressGesture(minimumDuration: 0.6)
+                    .onEnded { _ in
+                        panelDetent = .collapsed
+                        showSettings = true
+                    }
+            )
         }
         .frame(width: 48)
         .background(
