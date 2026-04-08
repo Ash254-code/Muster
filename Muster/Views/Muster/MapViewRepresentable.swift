@@ -2369,6 +2369,10 @@ struct MapViewRepresentable: UIViewRepresentable {
                 return .systemGreen
             case "purple":
                 return .systemPurple
+            case "black":
+                return .black
+            case "white":
+                return .white
             default:
                 return .systemBlue
             }

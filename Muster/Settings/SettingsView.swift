@@ -1436,6 +1436,8 @@ private struct RingsSettingsView: View {
         case red
         case green
         case purple
+        case black
+        case white
 
         var id: String { rawValue }
 
