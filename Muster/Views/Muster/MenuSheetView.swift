@@ -8,6 +8,7 @@ struct MenuSheetView: View {
     @EnvironmentObject private var app: AppState
     @State private var showMissingMapSetPrompt = false
     @State private var showMapSetsSheet = false
+    @State private var sessionPendingDeletion: MusterSession? = nil
 
     private var previousSessions: [MusterSession] {
         app.muster.previousSessions
@@ -102,6 +103,11 @@ struct MenuSheetView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(session.isVisibleOnMap ? "Hide track on map" : "Show track on map")
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("Delete", role: .destructive) {
+                                    sessionPendingDeletion = session
+                                }
+                            }
                         }
                     }
                 }
@@ -146,6 +152,26 @@ struct MenuSheetView: View {
         } message: {
             Text("New Muster or track can’t be started without a Map Set selected.")
         }
+        .confirmationDialog(
+            "Delete Previous Muster?",
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let sessionID = sessionPendingDeletion?.id else { return }
+                app.muster.deleteSession(sessionID: sessionID)
+                sessionPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                sessionPendingDeletion = nil
+            }
+        } message: {
+            if let sessionPendingDeletion {
+                Text("Delete \"\(sessionPendingDeletion.name)\"? This cannot be undone.")
+            } else {
+                Text("This cannot be undone.")
+            }
+        }
         .sheet(isPresented: $showMapSetsSheet) {
             MapSetsSheetView()
                 .environmentObject(app)
@@ -156,6 +182,17 @@ struct MenuSheetView: View {
         Binding(
             get: { app.muster.showPreviousTracksOnMap },
             set: { app.muster.setPreviousTracksVisible($0) }
+        )
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { sessionPendingDeletion != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    sessionPendingDeletion = nil
+                }
+            }
         )
     }
 
