@@ -874,7 +874,7 @@ private struct ExportTrackPickerView: View {
                     Text("Record a track first to export.")
                 }
             } else {
-                Section("Tracks") {
+                Section {
                     ForEach(sessions) { session in
                         Button {
                             selectedSessionID = session.id
@@ -892,11 +892,17 @@ private struct ExportTrackPickerView: View {
                                 Spacer()
 
                                 Image(systemName: selectedSessionID == session.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedSessionID == session.id ? .tint : .tertiary)
+                                    .foregroundStyle(
+                                        selectedSessionID == session.id
+                                            ? AnyShapeStyle(.tint)
+                                            : AnyShapeStyle(.tertiary)
+                                    )
                             }
                         }
                         .buttonStyle(.plain)
                     }
+                } header: {
+                    Text("Tracks")
                 } footer: {
                     Text("Select one track, then tap Export.")
                 }
