@@ -381,6 +381,9 @@ private struct MapSetDetailView: View {
     let mapSetID: UUID
     @State private var renameText: String = ""
     @State private var duplicateAlertMessage: String? = nil
+    @State private var shareSheetItems: [Any] = []
+    @State private var alertTitle: String = ""
+    @State private var alertMessage: String? = nil
 
     private var mapSet: MapSet? {
         app.muster.mapSets.first(where: { $0.id == mapSetID })
@@ -399,6 +402,9 @@ private struct MapSetDetailView: View {
                         if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
                             duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
                         }
+                    }
+                    Button("Export") {
+                        exportMapSet(mapSet)
                     }
                     Button("Delete", role: .destructive) {
                         app.muster.deleteMapSet(mapSetID: mapSet.id)
@@ -492,6 +498,14 @@ private struct MapSetDetailView: View {
         }
         .navigationTitle(mapSet?.displayTitle ?? "Map Set")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(
+            isPresented: Binding(
+                get: { !shareSheetItems.isEmpty },
+                set: { if !$0 { shareSheetItems = [] } }
+            )
+        ) {
+            MapSetActivityView(activityItems: shareSheetItems)
+        }
         .alert(
             "Map Set Duplicated",
             isPresented: Binding(
@@ -504,6 +518,44 @@ private struct MapSetDetailView: View {
             }
         } message: {
             Text(duplicateAlertMessage ?? "")
+        }
+        .alert(
+            alertTitle,
+            isPresented: Binding(
+                get: { alertMessage != nil },
+                set: { if !$0 { alertMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertMessage ?? "")
+        }
+    }
+
+    private func exportMapSet(_ mapSet: MapSet) {
+        struct MapSetBundle: Codable {
+            var mapSet: MapSet
+            var boundaries: [ImportedBoundary]
+            var markers: [ImportedMarker]
+            var tracks: [ImportedTrack]
+        }
+
+        do {
+            let payload = MapSetBundle(
+                mapSet: mapSet,
+                boundaries: app.muster.importedBoundaries(in: mapSet.id).map(\.boundary),
+                markers: app.muster.importedMarkers(in: mapSet.id).map(\.marker),
+                tracks: app.muster.importedTracks(in: mapSet.id).map(\.track)
+            )
+
+            let data = try JSONEncoder().encode(payload)
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(mapSet.displayTitle.replacingOccurrences(of: " ", with: "_"))_map_set.json")
+            try data.write(to: url, options: .atomic)
+            shareSheetItems = [url]
+        } catch {
+            alertTitle = "Export Failed"
+            alertMessage = error.localizedDescription
         }
     }
 }
