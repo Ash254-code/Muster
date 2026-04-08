@@ -963,7 +963,7 @@ private var selectedMapModeOption: MapModeOption {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                if !showMapLayerSheet && mediaButtonEnabled {
+                if !showMapLayerSheet {
                     leftSideFloatingPills
                         .padding(.leading, 12)
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height))
@@ -2537,7 +2537,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
     private var leftSideFloatingPills: some View {
         VStack(spacing: 10) {
-            leftSideMediaPill
+            if mediaButtonEnabled {
+                leftSideMediaPill
+            }
             leftSideZoomPill
         }
     }
