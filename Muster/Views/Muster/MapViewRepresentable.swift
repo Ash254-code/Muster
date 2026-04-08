@@ -4,6 +4,7 @@ import CoreLocation
 import UIKit
 
 private let kSheepPinExpirySecondsKey = "sheep_pin_expiry_s"
+private let kDefaultMapZoomDistanceMeters: CLLocationDistance = 20_000
 
 struct MapViewRepresentable: UIViewRepresentable {
 
@@ -116,7 +117,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         let camera = MKMapCamera()
         camera.centerCoordinate = startCenter
-        camera.centerCoordinateDistance = 15000
+        camera.centerCoordinateDistance = kDefaultMapZoomDistanceMeters
         camera.pitch = 0
         camera.heading = 0
 
@@ -281,13 +282,13 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var targetCenter: CLLocationCoordinate2D?
         private var displayedHeading: CLLocationDirection = 0
         private var targetHeading: CLLocationDirection = 0
-        private var displayedDistance: CLLocationDistance = 15000
-        private var targetDistance: CLLocationDistance = 15000
+        private var displayedDistance: CLLocationDistance = kDefaultMapZoomDistanceMeters
+        private var targetDistance: CLLocationDistance = kDefaultMapZoomDistanceMeters
         private var displayedPitch: CGFloat = 0
         private var targetPitch: CGFloat = 0
         private var lastDisplayTickTime: CFTimeInterval = 0
 
-        private var lastKnownCameraDistance: CLLocationDistance = 15000
+        private var lastKnownCameraDistance: CLLocationDistance = kDefaultMapZoomDistanceMeters
         private var lastKnownMapHeightPoints: CGFloat = 0
 
         private var isAnimatingCameraTransition = false
