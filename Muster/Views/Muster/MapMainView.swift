@@ -1151,7 +1151,7 @@ private var selectedMapModeOption: MapModeOption {
                     showLongPressedMapMarkerDialog = false
                     showLongPressedSessionMarkerDialog = false
 
-                    let sessionName = app.muster.sessions.first(where: { $0.id == sessionID })?.displayName ?? "Track"
+                    let sessionName = app.muster.sessions.first(where: { $0.id == sessionID })?.name ?? "Track"
                     longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName)
                     showLongPressedTrackDialog = true
                 }
