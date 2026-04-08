@@ -118,7 +118,7 @@ struct MenuSheetView: View {
                     }
                 }
             }
-            .navigationTitle("Previous Musters")
+            .navigationTitle("Previous Tracks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -197,12 +197,24 @@ struct MapSetsSheetView: View {
             List {
                 
                 Section("Create") {
-                    TextField("Map set name", text: $newMapSetName)
-                    Button("Create Map Set") {
-                        app.muster.createMapSet(named: trimmedNewMapSetName)
-                        newMapSetName = ""
+                    HStack(spacing: 12) {
+                        TextField("Map set name", text: $newMapSetName)
+
+                        Button {
+                            app.muster.createMapSet(named: trimmedNewMapSetName)
+                            newMapSetName = ""
+                        } label: {
+                            Text("Create")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .tint(trimmedNewMapSetName.isEmpty ? .gray : .accentColor)
+                        .disabled(trimmedNewMapSetName.isEmpty)
                     }
-                    .disabled(trimmedNewMapSetName.isEmpty)
                 }
                 Section("Map Sets") {
                     if app.muster.mapSets.isEmpty {
