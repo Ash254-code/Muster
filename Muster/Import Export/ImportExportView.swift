@@ -364,7 +364,8 @@ struct ImportExportView: View {
                                     )
                                 ) {
                                     ForEach(app.muster.mapSets) { mapSet in
-                                        Text(mapSet.displayTitle).tag(mapSet.id)
+                                        Text("\(mapSet.displayTitle) • \(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                                            .tag(mapSet.id)
                                     }
                                 }
                             }
