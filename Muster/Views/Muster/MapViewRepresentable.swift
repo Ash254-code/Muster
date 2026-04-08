@@ -27,6 +27,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let ringCount: Int
     let ringSpacingMeters: Double
     let ringColorRaw: String
+    let ringDistanceLabelsEnabled: Bool
 
     @Binding var orientationRaw: String
     @Binding var mapStyleRaw: String
@@ -212,7 +213,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             centerLocation: userLocation,
             ringCount: ringCount,
             spacingM: ringSpacingMeters,
-            colorRaw: ringColorRaw
+            colorRaw: ringColorRaw,
+            labelsEnabled: ringDistanceLabelsEnabled
         )
         context.coordinator.updateDestinationLine(
             map: map,
@@ -744,13 +746,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             for centerLocation: CLLocation?,
             ringCount: Int,
             spacingM: Double,
-            colorRaw: String
+            colorRaw: String,
+            labelsEnabled: Bool
         ) -> String {
             guard let centerLocation else { return "nil" }
             let lat = String(format: "%.6f", centerLocation.coordinate.latitude)
             let lon = String(format: "%.6f", centerLocation.coordinate.longitude)
             let spacing = String(format: "%.1f", spacingM)
-            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)"
+            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)|labels:\(labelsEnabled)"
         }
 
         private func annotationView(at point: CGPoint, in map: MKMapView) -> MKAnnotationView? {
@@ -1814,13 +1817,15 @@ struct MapViewRepresentable: UIViewRepresentable {
             centerLocation: CLLocation?,
             ringCount: Int,
             spacingM: Double,
-            colorRaw: String
+            colorRaw: String,
+            labelsEnabled: Bool
         ) {
             let newSignature = signature(
                 for: centerLocation,
                 ringCount: ringCount,
                 spacingM: spacingM,
-                colorRaw: colorRaw
+                colorRaw: colorRaw,
+                labelsEnabled: labelsEnabled
             )
             guard newSignature != ringsSignature else { return }
             ringsSignature = newSignature
@@ -1850,17 +1855,19 @@ struct MapViewRepresentable: UIViewRepresentable {
                 )
                 newRings.append(circle)
 
-                let labelCoordinate = offsetCoordinate(
-                    center.coordinate,
-                    meters: radiusMeters,
-                    bearingDegrees: 300
-                )
-                newLabels.append(
-                    RingLabelAnnotation(
-                        coordinate: labelCoordinate,
-                        distanceText: "\(Int(radiusMeters))m"
+                if labelsEnabled {
+                    let labelCoordinate = offsetCoordinate(
+                        center.coordinate,
+                        meters: radiusMeters,
+                        bearingDegrees: 330
                     )
-                )
+                    newLabels.append(
+                        RingLabelAnnotation(
+                            coordinate: labelCoordinate,
+                            distanceText: "\(Int(radiusMeters))m"
+                        )
+                    )
+                }
             }
 
             ringOverlays = newRings

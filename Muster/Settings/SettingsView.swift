@@ -10,6 +10,7 @@ import UIKit
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
+private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double: 0...10
@@ -1446,6 +1447,7 @@ private struct RingsSettingsView: View {
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
     @AppStorage(kRingColorKey) private var ringColorRaw: String = RingColorOption.blue.rawValue
+    @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
 
     private let countOptions = Array(1...10)
     private let spacingOptions: [Double] = Array(stride(from: 250, through: 2500, by: 250))
@@ -1471,7 +1473,9 @@ private struct RingsSettingsView: View {
                     }
                 }
 
-                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized).")
+                Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
+
+                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized)\(ringDistanceLabelsEnabled ? \" with\" : \" without\") distance labels.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: {
