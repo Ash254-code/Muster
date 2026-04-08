@@ -222,9 +222,6 @@ struct MapSetsSheetView: View {
     @State private var alertMessage: String? = nil
     @State private var showImportActions = false
     @State private var showExportActions = false
-    @State private var editingMapSetID: UUID? = nil
-    @State private var editingMapSetName: String = ""
-
     private var trimmedNewMapSetName: String {
         newMapSetName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -264,15 +261,7 @@ struct MapSetsSheetView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 8) {
-                                        if editingMapSetID == mapSet.id {
-                                            TextField("Map set name", text: $editingMapSetName)
-                                                .textFieldStyle(.roundedBorder)
-                                                .onSubmit {
-                                                    saveNameEdits(for: mapSet)
-                                                }
-                                        } else {
-                                            Text(mapSet.displayTitle)
-                                        }
+                                        Text(mapSet.displayTitle)
                                         if app.muster.selectedMapSetID == mapSet.id {
                                             Text("Current Map Set")
                                                 .font(.caption2.weight(.semibold))
@@ -280,18 +269,6 @@ struct MapSetsSheetView: View {
                                                 .padding(.vertical, 3)
                                                 .foregroundStyle(.green)
                                                 .background(.green.opacity(0.14), in: Capsule())
-                                            Button {
-                                                if editingMapSetID == mapSet.id {
-                                                    saveNameEdits(for: mapSet)
-                                                } else {
-                                                    editingMapSetID = mapSet.id
-                                                    editingMapSetName = mapSet.displayTitle
-                                                }
-                                            } label: {
-                                                Image(systemName: editingMapSetID == mapSet.id ? "checkmark" : "pencil")
-                                                    .font(.caption.weight(.semibold))
-                                            }
-                                            .buttonStyle(.borderless)
                                         }
                                         Spacer()
                                     }
@@ -418,12 +395,6 @@ struct MapSetsSheetView: View {
         }
     }
 
-    private func saveNameEdits(for mapSet: MapSet) {
-        app.muster.renameMapSet(mapSetID: mapSet.id, newName: editingMapSetName)
-        editingMapSetName = ""
-        editingMapSetID = nil
-    }
-
     private func importMapSet(result: Result<[URL], Error>) {
         struct MapSetBundle: Codable {
             var mapSet: MapSet
@@ -500,6 +471,8 @@ private struct MapSetDetailView: View {
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
     @State private var showDeleteConfirmation = false
+    @State private var isEditingName = false
+    @State private var editingName = ""
 
     private var mapSet: MapSet? {
         app.muster.mapSets.first(where: { $0.id == mapSetID })
@@ -508,6 +481,37 @@ private struct MapSetDetailView: View {
     var body: some View {
         List {
             if let mapSet {
+                Section("Name") {
+                    HStack(spacing: 8) {
+                        if isEditingName {
+                            TextField("Map set name", text: $editingName)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit {
+                                    saveNameEdits(for: mapSet)
+                                }
+                        } else {
+                            Text(mapSet.displayTitle)
+                        }
+                        Button {
+                            if isEditingName {
+                                saveNameEdits(for: mapSet)
+                            } else {
+                                editingName = mapSet.displayTitle
+                                isEditingName = true
+                            }
+                        } label: {
+                            Image(systemName: isEditingName ? "checkmark" : "pencil")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.borderless)
+                        Spacer()
+                    }
+
+                    Text("Created \(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Actions") {
                     Button(app.muster.selectedMapSetID == mapSet.id ? "Current Map Set" : "Set as Current Map Set") {
                         app.muster.selectMapSet(mapSet.id)
@@ -524,13 +528,6 @@ private struct MapSetDetailView: View {
                     Button("Delete", role: .destructive) {
                         showDeleteConfirmation = true
                     }
-                }
-
-                Section("Name") {
-                    Text(mapSet.displayTitle)
-                    Text("Created \(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 Section("Tracks") {
                     let tracks = app.muster.importedTracks(in: mapSet.id)
@@ -626,6 +623,10 @@ private struct MapSetDetailView: View {
         ) {
             MapSetActivityView(activityItems: shareSheetItems)
         }
+        .onChange(of: mapSet?.id) { _, _ in
+            isEditingName = false
+            editingName = mapSet?.displayTitle ?? ""
+        }
         .alert(
             "Map Set Duplicated",
             isPresented: Binding(
@@ -690,5 +691,11 @@ private struct MapSetDetailView: View {
             alertTitle = "Export Failed"
             alertMessage = error.localizedDescription
         }
+    }
+
+    private func saveNameEdits(for mapSet: MapSet) {
+        app.muster.renameMapSet(mapSetID: mapSet.id, newName: editingName)
+        editingName = ""
+        isEditingName = false
     }
 }
