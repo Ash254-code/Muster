@@ -117,6 +117,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
 
     private static let lastPeripheralIDKey = "bleradiodebugger.lastPeripheralID"
     private static let parserModeKey = "bleradiodebugger.parserMode"
+    private static let savedRadiosKey = "bleradiodebugger.savedRadios"
 
     override init() {
         if let raw = UserDefaults.standard.string(forKey: Self.parserModeKey) {
@@ -135,6 +136,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         }
 
         super.init()
+        loadSavedRadios()
         central = CBCentralManager(
             delegate: self,
             queue: nil,
@@ -206,10 +208,16 @@ final class BLERadioDebugger: NSObject, ObservableObject {
             radio.lastConnectedAt = Date()
             savedRadios.append(radio)
         }
+
+        persistSavedRadios()
     }
 
     func forgetSavedRadio(_ radio: SavedRadio) {
         savedRadios.removeAll { $0.id == radio.id }
+        if lastConnectedPeripheralID == radio.identifier {
+            lastConnectedPeripheralID = nil
+        }
+        persistSavedRadios()
         discoveredPeripherals = sortedPeripheralItems(Array(seenPeripherals.values))
     }
 
@@ -339,18 +347,19 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         guard central.state == .poweredOn else { return }
         guard let id = lastConnectedPeripheralID else { return }
         guard connectedPeripheral == nil else { return }
+        shouldAutoReconnect = true
 
         let restored = central.retrievePeripherals(withIdentifiers: [id])
-        guard let peripheral = restored.first else {
-            appendLog("No previously known peripheral found for reconnect.")
+        if let peripheral = restored.first {
+            appendLog("Reconnecting to last paired radio: \(peripheral.name ?? "Unknown")")
+            connectedPeripheral = peripheral
+            peripheral.delegate = self
+            central.connect(peripheral, options: nil)
             return
         }
 
-        appendLog("Reconnecting to last known peripheral: \(peripheral.name ?? "Unknown")")
-        shouldAutoReconnect = true
-        connectedPeripheral = peripheral
-        peripheral.delegate = self
-        central.connect(peripheral, options: nil)
+        appendLog("Last paired radio not immediately available. Scanning for it now...")
+        startScan()
     }
 
     // MARK: - Per-radio force location settings
@@ -494,6 +503,25 @@ final class BLERadioDebugger: NSObject, ObservableObject {
 
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    private func loadSavedRadios() {
+        guard let data = UserDefaults.standard.data(forKey: Self.savedRadiosKey) else { return }
+        guard let decoded = try? JSONDecoder().decode([SavedRadio].self, from: data) else {
+            appendLog("Failed to decode saved radios. Clearing saved list.")
+            UserDefaults.standard.removeObject(forKey: Self.savedRadiosKey)
+            return
+        }
+
+        savedRadios = decoded
+    }
+
+    private func persistSavedRadios() {
+        guard let data = try? JSONEncoder().encode(savedRadios) else {
+            appendLog("Failed to encode saved radios.")
+            return
+        }
+        UserDefaults.standard.set(data, forKey: Self.savedRadiosKey)
     }
 
     // MARK: - Internal state helpers
@@ -1556,6 +1584,7 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
             if self.isSavedRadio(peripheral.identifier),
                let index = self.savedRadios.firstIndex(where: { $0.identifier == peripheral.identifier }) {
                 self.savedRadios[index].displayName = name
+                self.persistSavedRadios()
             }
 
             let now = Date()

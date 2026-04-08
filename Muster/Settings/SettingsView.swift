@@ -69,72 +69,96 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("General") {
-                    NavigationLink("Settings") {
+                    NavigationLink {
                         AppSettingsView()
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
                     }
 
-                    NavigationLink("XRS Radio") {
+                    NavigationLink {
                         BluetoothSettingsView()
+                    } label: {
+                        Label("XRS Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
 
-                    NavigationLink("TPMS") {
+                    NavigationLink {
                         TPMSDashboardHostView()
+                    } label: {
+                        Label("TPMS", systemImage: "tirepressure")
                     }
 
-                    NavigationLink("Group Tracking") {
+                    NavigationLink {
                         GroupTrackingSettingsView()
+                    } label: {
+                        Label("Group Tracking", systemImage: "person.2")
                     }
                 }
                 Section("Map") {
-                    NavigationLink("Map") {
-                        MapSettingsView()
-                    }
-
-                    NavigationLink("Rings") {
+                    NavigationLink {
                         RingsSettingsView()
+                    } label: {
+                        Label("Map & Rings", systemImage: "map")
                     }
 
-                    NavigationLink("Top Pills") {
+                    NavigationLink {
                         TopPillsSettingsView()
+                    } label: {
+                        Label("Top Pills", systemImage: "capsule")
                     }
 
-                    NavigationLink("Marker Templates") {
+                    NavigationLink {
                         MarkerTemplatesSettingsView()
                             .environmentObject(app)
+                    } label: {
+                        Label("Marker Templates", systemImage: "mappin.and.ellipse")
                     }
 
-                    NavigationLink("Quick Drop Pin") {
+                    NavigationLink {
                         SheepPinSettingsView()
+                    } label: {
+                        Label("Quick Drop Pin", systemImage: "mappin")
                     }
 
-                    NavigationLink("Advanced Map") {
+                    NavigationLink {
                         AdvancedMapSettingsView()
+                    } label: {
+                        Label("Advanced Map", systemImage: "map.fill")
                     }
                 }
 
                 Section("Import and Export") {
-                    NavigationLink("Import") {
+                    NavigationLink {
                         ImportExportView()
                             .environmentObject(app)
+                    } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
                     }
 
-                    NavigationLink("Import Categories") {
+                    NavigationLink {
                         ImportCategoriesSettingsView()
                             .environmentObject(app)
+                    } label: {
+                        Label("Import Categories", systemImage: "folder.badge.plus")
                     }
                 }
 
                 Section("Admin") {
-                    NavigationLink("Map Tuning") {
+                    NavigationLink {
                         AdminMapTuningView()
+                    } label: {
+                        Label("Map Tuning", systemImage: "slider.horizontal.3")
                     }
 
-                    NavigationLink("XRS Radio Debug") {
+                    NavigationLink {
                         BLERadioDebugView()
+                    } label: {
+                        Label("XRS Radio Debug", systemImage: "waveform.path.ecg")
                     }
 
-                    NavigationLink("Battery & Thermal") {
+                    NavigationLink {
                         BatteryThermalSettingsView()
+                    } label: {
+                        Label("Battery & Thermal", systemImage: "battery.75")
                     }
                 }
             }

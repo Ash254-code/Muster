@@ -106,18 +106,6 @@ struct TPMSDashboardView: View {
         return Array(spares.prefix(spareCount))
     }
 
-    private var statusText: String {
-        let alertCount = (roadTyres + spareTyres).filter(\.isAlerting).count
-        if alertCount > 0 {
-            return "\(alertCount) alert" + (alertCount == 1 ? "" : "s")
-        }
-        return "All tyres normal"
-    }
-
-    private var statusColor: Color {
-        (roadTyres + spareTyres).contains(where: \.isAlerting) ? .red : .green
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -192,21 +180,6 @@ struct TPMSDashboardView: View {
                     systemImage: resolvedVehicleMode == .car ? "car.fill" : "motorcycle"
                 )
             }
-
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 9, height: 9)
-
-                Text(statusText)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(statusColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -306,23 +279,30 @@ struct TPMSDashboardView: View {
         let isAlerting = tyre?.isAlerting ?? false
         let isConnected = tyre?.isConnected ?? false
 
+        let backgroundColor: Color = {
+            if !isConnected { return Color(.systemBackground).opacity(0.92) }
+            return isAlerting ? Color.red.opacity(0.14) : Color.green.opacity(0.14)
+        }()
+
+        let borderColor: Color = {
+            if !isConnected { return Color.primary.opacity(0.08) }
+            return isAlerting ? Color.red.opacity(0.50) : Color.green.opacity(0.50)
+        }()
+
+        let valueColor: Color = {
+            if !isConnected { return .primary }
+            return isAlerting ? .red : .green
+        }()
+
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Text(tyre?.position.title ?? "Not Set")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                Circle()
-                    .fill(isAlerting ? .red : (isConnected ? .green : .secondary.opacity(0.4)))
-                    .frame(width: 8, height: 8)
-            }
+            Text(tyre?.position.title ?? "Not Set")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
             Text(tyre?.pressurePSI.map { "\($0) psi" } ?? "-- psi")
                 .font(.headline.weight(.bold))
-                .foregroundStyle(isAlerting ? .red : .primary)
+                .foregroundStyle(valueColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
@@ -341,11 +321,11 @@ struct TPMSDashboardView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isAlerting ? Color.red.opacity(0.10) : Color(.systemBackground).opacity(0.92))
+                .fill(backgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isAlerting ? Color.red.opacity(0.45) : Color.primary.opacity(0.08), lineWidth: 1)
+                .stroke(borderColor, lineWidth: 1)
         )
     }
 
