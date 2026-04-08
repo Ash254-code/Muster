@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 import UniformTypeIdentifiers
 import UIKit
 
@@ -473,6 +474,8 @@ private struct MapSetDetailView: View {
     @State private var showDeleteConfirmation = false
     @State private var isEditingName = false
     @State private var editingName = ""
+    @State private var selectedTrackPreview: TrackPreviewTarget? = nil
+    @State private var pendingTrackDeletion: TrackPreviewTarget? = nil
 
     private var mapSet: MapSet? {
         app.muster.mapSets.first(where: { $0.id == mapSetID })
@@ -548,15 +551,39 @@ private struct MapSetDetailView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(recordedSessions, id: \.id) { session in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(session.name)
-                                Text("Muster • \(session.startedAt.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(session.name)
+                                    Text("Muster • \(session.startedAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button {
+                                    selectedTrackPreview = .recorded(session)
+                                } label: {
+                                    Image(systemName: "eye")
+                                        .font(.body.weight(.semibold))
+                                        .frame(width: 30, height: 30)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Preview \(session.name)")
                             }
                         }
                         ForEach(importedTracks, id: \.track.id) { pair in
-                            Text(pair.track.displayTitle)
+                            HStack(spacing: 10) {
+                                Text(pair.track.displayTitle)
+                                Spacer()
+                                Button {
+                                    selectedTrackPreview = .imported(track: pair.track)
+                                } label: {
+                                    Image(systemName: "eye")
+                                        .font(.body.weight(.semibold))
+                                        .frame(width: 30, height: 30)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Preview \(pair.track.displayTitle)")
+                            }
                         }
                     }
                 }
@@ -643,6 +670,18 @@ private struct MapSetDetailView: View {
         ) {
             MapSetActivityView(activityItems: shareSheetItems)
         }
+        .sheet(item: $selectedTrackPreview) { track in
+            TrackPreviewSheet(
+                title: track.title,
+                coordinates: track.coordinates,
+                onExport: {
+                    exportTrack(track)
+                },
+                onDelete: {
+                    pendingTrackDeletion = track
+                }
+            )
+        }
         .onChange(of: mapSet?.id) { _, _ in
             isEditingName = false
             editingName = mapSet?.displayTitle ?? ""
@@ -684,6 +723,25 @@ private struct MapSetDetailView: View {
         } message: {
             Text("This will remove the map set and reassign its items.")
         }
+        .alert(
+            "Delete Track?",
+            isPresented: Binding(
+                get: { pendingTrackDeletion != nil },
+                set: { if !$0 { pendingTrackDeletion = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let target = pendingTrackDeletion else { return }
+                deleteTrack(target)
+                pendingTrackDeletion = nil
+                selectedTrackPreview = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingTrackDeletion = nil
+            }
+        } message: {
+            Text("This cannot be undone.")
+        }
     }
 
     private func exportMapSet(_ mapSet: MapSet) {
@@ -717,5 +775,209 @@ private struct MapSetDetailView: View {
         app.muster.renameMapSet(mapSetID: mapSet.id, newName: editingName)
         editingName = ""
         isEditingName = false
+    }
+
+    private func deleteTrack(_ track: TrackPreviewTarget) {
+        switch track {
+        case .recorded(let session):
+            app.muster.deleteSession(sessionID: session.id)
+        case .imported(let importedTrack):
+            app.muster.deleteImportedTrack(trackID: importedTrack.id)
+        }
+    }
+
+    private func exportTrack(_ track: TrackPreviewTarget) {
+        do {
+            let fileURL = try writeGPXTrackFile(for: track)
+            shareSheetItems = [fileURL]
+        } catch {
+            alertTitle = "Export Failed"
+            alertMessage = "Could not export GPX track: \(error.localizedDescription)"
+        }
+    }
+
+    private func writeGPXTrackFile(for track: TrackPreviewTarget) throws -> URL {
+        var xml: [String] = []
+        xml.append(#"<?xml version="1.0" encoding="UTF-8"?>"#)
+        xml.append(#"<gpx version="1.1" creator="Muster" xmlns="http://www.topografix.com/GPX/1/1">"#)
+        xml.append("<trk>")
+        xml.append("<name>\(xmlEscaped(track.title))</name>")
+        xml.append("<trkseg>")
+
+        for coordinate in track.coordinates {
+            xml.append(#"<trkpt lat="\#(coordinate.latitude)" lon="\#(coordinate.longitude)"></trkpt>"#)
+        }
+
+        xml.append("</trkseg>")
+        xml.append("</trk>")
+        xml.append("</gpx>")
+
+        let text = xml.joined(separator: "\n")
+        guard let data = text.data(using: .utf8) else {
+            throw ExportError.encodingFailed
+        }
+
+        let fileName = sanitizedFileBaseName(track.title.isEmpty ? "Muster Track" : track.title)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(fileName)
+            .appendingPathExtension("gpx")
+
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    private func sanitizedFileBaseName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = trimmed.isEmpty ? "Muster Track" : trimmed
+        let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+        let cleaned = base.components(separatedBy: invalid).joined(separator: "-")
+        return cleaned
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func xmlEscaped(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+    }
+
+    private enum ExportError: LocalizedError {
+        case encodingFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .encodingFailed:
+                return "Failed to encode export file."
+            }
+        }
+    }
+}
+
+private enum TrackPreviewTarget: Identifiable {
+    case recorded(MusterSession)
+    case imported(track: ImportedTrack)
+
+    var id: UUID {
+        switch self {
+        case .recorded(let session):
+            return session.id
+        case .imported(let track):
+            return track.id
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .recorded(let session):
+            return session.name
+        case .imported(let track):
+            return track.displayTitle
+        }
+    }
+
+    var coordinates: [CLLocationCoordinate2D] {
+        switch self {
+        case .recorded(let session):
+            return session.points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+        case .imported(let track):
+            return track.points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+        }
+    }
+}
+
+private struct TrackPreviewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let title: String
+    let coordinates: [CLLocationCoordinate2D]
+    let onExport: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                TrackOverviewMap(coordinates: coordinates)
+                    .frame(height: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                HStack(spacing: 12) {
+                    Button {
+                        onExport()
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button(role: .destructive) {
+                        onDelete()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding()
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct TrackOverviewMap: UIViewRepresentable {
+    let coordinates: [CLLocationCoordinate2D]
+
+    func makeUIView(context: Context) -> MKMapView {
+        let map = MKMapView(frame: .zero)
+        map.isRotateEnabled = false
+        map.isPitchEnabled = false
+        map.showsCompass = false
+        map.pointOfInterestFilter = .excludingAll
+        map.mapType = .hybrid
+        map.isUserInteractionEnabled = false
+        map.delegate = context.coordinator
+        return map
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {
+        map.removeOverlays(map.overlays)
+        guard coordinates.count > 1 else { return }
+
+        let polyline = MKPolyline(coordinates: coordinates, count: coordinates.count)
+        map.addOverlay(polyline)
+        map.setVisibleMapRect(
+            polyline.boundingMapRect,
+            edgePadding: UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24),
+            animated: false
+        )
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            guard let polyline = overlay as? MKPolyline else {
+                return MKOverlayRenderer(overlay: overlay)
+            }
+            let renderer = MKPolylineRenderer(polyline: polyline)
+            renderer.strokeColor = UIColor.systemBlue
+            renderer.lineWidth = 4
+            renderer.lineCap = .round
+            return renderer
+        }
     }
 }
