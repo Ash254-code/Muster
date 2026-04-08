@@ -94,14 +94,16 @@ struct SettingsView: View {
                     }
                 }
                 Section("Map") {
-                    NavigationLink("Map") {
+                    NavigationLink {
                         MapSettingsView()
+                    } label: {
+                        Label("Masp View", systemImage: "map")
                     }
 
                     NavigationLink {
                         RingsSettingsView()
                     } label: {
-                        Label("Map & Rings", systemImage: "map")
+                        Label("Rings", systemImage: "scope")
                     }
 
                     NavigationLink {
@@ -2606,4 +2608,3 @@ private struct PlaceholderSettingsDetail: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
-
