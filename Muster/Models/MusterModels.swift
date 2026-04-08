@@ -609,6 +609,7 @@ struct MusterSession: Identifiable, Codable, Hashable {
     var name: String
     var startedAt: Date = Date()
     var endedAt: Date? = nil
+    var mapSetID: UUID? = nil
 
     var isActive: Bool = true
 
