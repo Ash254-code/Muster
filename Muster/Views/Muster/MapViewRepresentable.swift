@@ -25,6 +25,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     let ringCount: Int
     let ringSpacingMeters: Double
+    let ringColorRaw: String
 
     @Binding var orientationRaw: String
     @Binding var mapStyleRaw: String
@@ -209,7 +210,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: map,
             centerLocation: userLocation,
             ringCount: ringCount,
-            spacingM: ringSpacingMeters
+            spacingM: ringSpacingMeters,
+            colorRaw: ringColorRaw
         )
         context.coordinator.updateDestinationLine(
             map: map,
@@ -256,6 +258,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var xrsTrailPolylines: [XRSTrailPolyline] = []
         private var destinationLine: MKPolyline?
         private var ringOverlays: [MKCircle] = []
+        private var ringLabelAnnotations: [RingLabelAnnotation] = []
 
         private var previousTrackSignature: String = ""
         private var importedTrackSignature: String = ""
@@ -739,13 +742,14 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func signature(
             for centerLocation: CLLocation?,
             ringCount: Int,
-            spacingM: Double
+            spacingM: Double,
+            colorRaw: String
         ) -> String {
             guard let centerLocation else { return "nil" }
             let lat = String(format: "%.6f", centerLocation.coordinate.latitude)
             let lon = String(format: "%.6f", centerLocation.coordinate.longitude)
             let spacing = String(format: "%.1f", spacingM)
-            return "\(lat),\(lon)|\(ringCount)|\(spacing)"
+            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)"
         }
 
         private func annotationView(at point: CGPoint, in map: MKMapView) -> MKAnnotationView? {
@@ -1808,12 +1812,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: MKMapView,
             centerLocation: CLLocation?,
             ringCount: Int,
-            spacingM: Double
+            spacingM: Double,
+            colorRaw: String
         ) {
             let newSignature = signature(
                 for: centerLocation,
                 ringCount: ringCount,
-                spacingM: spacingM
+                spacingM: spacingM,
+                colorRaw: colorRaw
             )
             guard newSignature != ringsSignature else { return }
             ringsSignature = newSignature
@@ -1822,23 +1828,44 @@ struct MapViewRepresentable: UIViewRepresentable {
                 map.removeOverlays(ringOverlays)
                 ringOverlays.removeAll()
             }
+            if !ringLabelAnnotations.isEmpty {
+                map.removeAnnotations(ringLabelAnnotations)
+                ringLabelAnnotations.removeAll()
+            }
 
             guard let center = centerLocation else { return }
             guard ringCount > 0, spacingM > 0 else { return }
 
             var newRings: [MKCircle] = []
+            var newLabels: [RingLabelAnnotation] = []
             newRings.reserveCapacity(ringCount)
+            newLabels.reserveCapacity(ringCount)
 
             for i in 1...ringCount {
+                let radiusMeters = spacingM * Double(i)
                 let circle = MKCircle(
                     center: center.coordinate,
-                    radius: spacingM * Double(i)
+                    radius: radiusMeters
                 )
                 newRings.append(circle)
+
+                let labelCoordinate = offsetCoordinate(
+                    center.coordinate,
+                    meters: radiusMeters,
+                    bearingDegrees: 300
+                )
+                newLabels.append(
+                    RingLabelAnnotation(
+                        coordinate: labelCoordinate,
+                        distanceText: "\(Int(radiusMeters))m"
+                    )
+                )
             }
 
             ringOverlays = newRings
             map.addOverlays(newRings, level: .aboveRoads)
+            ringLabelAnnotations = newLabels
+            map.addAnnotations(newLabels)
         }
 
         func mapView(_ mapView: MKMapView, shouldSelect view: MKAnnotationView) -> Bool {
@@ -1932,7 +1959,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             if let circle = overlay as? MKCircle {
                 let r = MKCircleRenderer(circle: circle)
-                r.strokeColor = UIColor.systemBlue.withAlphaComponent(0.95)
+                r.strokeColor = ringColor(from: parent.ringColorRaw).withAlphaComponent(0.95)
                 r.lineWidth = 2.5
                 r.fillColor = .clear
                 return r
@@ -1963,6 +1990,16 @@ struct MapViewRepresentable: UIViewRepresentable {
                     mapView.bringSubviewToFront(view)
                 }
 
+                return view
+            }
+
+            if let ann = annotation as? RingLabelAnnotation {
+                let id = "ringLabel"
+                let view = (mapView.dequeueReusableAnnotationView(withIdentifier: id) as? RingLabelAnnotationView)
+                    ?? RingLabelAnnotationView(annotation: ann, reuseIdentifier: id)
+                view.annotation = ann
+                view.displayPriority = .required
+                view.layer.zPosition = 6000
                 return view
             }
 
@@ -2289,6 +2326,23 @@ struct MapViewRepresentable: UIViewRepresentable {
             let hue = CGFloat((1.0 - t) * 0.65)
             return UIColor(hue: hue, saturation: 0.90, brightness: 0.95, alpha: 1.0)
         }
+
+        private func ringColor(from raw: String) -> UIColor {
+            switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "yellow":
+                return .systemYellow
+            case "orange":
+                return .systemOrange
+            case "red":
+                return .systemRed
+            case "green":
+                return .systemGreen
+            case "purple":
+                return .systemPurple
+            default:
+                return .systemBlue
+            }
+        }
     }
 }
 
@@ -2393,6 +2447,20 @@ final class ImportedMarkerAnnotation: NSObject, MKAnnotation {
     var subtitle: String? { marker.note ?? marker.markerType }
 }
 
+final class RingLabelAnnotation: NSObject, MKAnnotation {
+    dynamic var coordinate: CLLocationCoordinate2D
+    let distanceText: String
+
+    init(coordinate: CLLocationCoordinate2D, distanceText: String) {
+        self.coordinate = coordinate
+        self.distanceText = distanceText
+        super.init()
+    }
+
+    var title: String? { distanceText }
+    var subtitle: String? { nil }
+}
+
 final class UserLocationAnnotationView: MKAnnotationView {
 
     private let glyphView = UIImageView()
@@ -2450,6 +2518,58 @@ final class UserLocationAnnotationView: MKAnnotationView {
                 .withTintColor(.systemBlue, renderingMode: .alwaysOriginal)
             glyphView.transform = .identity
         }
+    }
+}
+
+final class RingLabelAnnotationView: MKAnnotationView {
+    private let label = UILabel()
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    override var annotation: MKAnnotation? {
+        didSet {
+            guard let ring = annotation as? RingLabelAnnotation else { return }
+            label.text = ring.distanceText
+        }
+    }
+
+    private func setup() {
+        canShowCallout = false
+        isEnabled = false
+        isOpaque = false
+        collisionMode = .none
+        centerOffset = CGPoint(x: 0, y: -4)
+
+        label.font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        label.textColor = UIColor.label
+        label.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.72)
+        label.layer.cornerRadius = 6
+        label.layer.masksToBounds = true
+        label.textAlignment = .center
+
+        addSubview(label)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        label.sizeToFit()
+        let horizontalPadding: CGFloat = 7
+        let verticalPadding: CGFloat = 3
+        label.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: label.bounds.width + (horizontalPadding * 2),
+            height: label.bounds.height + (verticalPadding * 2)
+        )
+        frame = label.frame
     }
 }
 

@@ -5,6 +5,7 @@ import UIKit
 // Shared keys (must match MapMainView / SettingsView)
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
+private let kRingColorKey = "rings_color"              // String
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 
 struct SessionDetailView: View {
@@ -26,6 +27,7 @@ struct SessionDetailView: View {
     // Persisted ring + orientation settings
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
+    @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
 
     // Trigger to force recenter in MKMapView
@@ -62,6 +64,7 @@ struct SessionDetailView: View {
             userHeadingDegrees: location.headingDegrees,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
+            ringColorRaw: ringColorRaw,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),
             recenterNonce: $recenterNonce,
