@@ -110,7 +110,9 @@ struct SessionDetailView: View {
                 selectedSessionMarker = nil
                 selectedMapMarker = marker
                 showMapMarkerActions = true
-            }
+            },
+            onLongPressPreviousTrack: { _ in },
+            onLongPressImportedTrack: { _, _ in }
         )
         .ignoresSafeArea()
     }

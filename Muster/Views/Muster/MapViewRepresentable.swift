@@ -54,6 +54,8 @@ struct MapViewRepresentable: UIViewRepresentable {
     let onTapImportedMarker: (ImportedMarker) -> Void
     let onLongPressSessionMarker: (MusterMarker) -> Void
     let onLongPressMapMarker: (MapMarker) -> Void
+    let onLongPressPreviousTrack: (UUID) -> Void
+    let onLongPressImportedTrack: (UUID, String) -> Void
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView(frame: .zero)
@@ -323,6 +325,11 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         private var suppressSelectionUntil: Date = .distantPast
         private let longPressSelectionSuppressDuration: TimeInterval = 0.9
+
+        private enum LongPressedTrackTarget {
+            case previous(sessionID: UUID)
+            case imported(trackID: UUID, name: String)
+        }
 
         init(parent: MapViewRepresentable, metersPerPoint: Binding<Double>) {
             self.parent = parent
@@ -718,6 +725,16 @@ struct MapViewRepresentable: UIViewRepresentable {
                     }
                 }
 
+                if let trackTarget = longPressedTrackTarget(at: point, in: map) {
+                    switch trackTarget {
+                    case .previous(let sessionID):
+                        parent.onLongPressPreviousTrack(sessionID)
+                    case .imported(let trackID, let name):
+                        parent.onLongPressImportedTrack(trackID, name)
+                    }
+                    return
+                }
+
                 let coordinate = map.convert(point, toCoordinateFrom: map)
                 parent.onLongPressAtCoordinate(coordinate)
 
@@ -730,6 +747,42 @@ struct MapViewRepresentable: UIViewRepresentable {
             default:
                 break
             }
+        }
+
+        private func longPressedTrackTarget(at point: CGPoint, in map: MKMapView) -> LongPressedTrackTarget? {
+            for polyline in previousTrackPolylines {
+                guard let sessionID = polyline.sessionID else { continue }
+                if isPoint(point, near: polyline, in: map) {
+                    return .previous(sessionID: sessionID)
+                }
+            }
+
+            for polyline in importedTrackPolylines {
+                guard let trackID = polyline.trackID else { continue }
+                if isPoint(point, near: polyline, in: map) {
+                    let trimmedName = polyline.trackName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    return .imported(trackID: trackID, name: trimmedName.isEmpty ? "Track" : trimmedName)
+                }
+            }
+
+            return nil
+        }
+
+        private func isPoint(_ point: CGPoint, near polyline: MKPolyline, in map: MKMapView) -> Bool {
+            guard let renderer = map.renderer(for: polyline) as? MKPolylineRenderer,
+                  let path = renderer.path else { return false }
+
+            let mapPoint = MKMapPoint(map.convert(point, toCoordinateFrom: map))
+            let rendererPoint = renderer.point(for: mapPoint)
+            let tapTolerance = max(12, renderer.lineWidth + 14)
+            let stroked = path.copy(
+                strokingWithWidth: tapTolerance,
+                lineCap: .round,
+                lineJoin: .round,
+                miterLimit: 0
+            )
+
+            return stroked.contains(rendererPoint)
         }
 
         private func signature(for sessions: [MusterSession]) -> String {

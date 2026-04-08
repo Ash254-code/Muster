@@ -42,6 +42,18 @@ struct MapMainView: View {
         let subtitle: String
     }
 
+    private enum LongPressedTrackTarget {
+        case previousSession(sessionID: UUID, name: String)
+        case imported(trackID: UUID, name: String)
+
+        var name: String {
+            switch self {
+            case .previousSession(_, let name), .imported(_, let name):
+                return name
+            }
+        }
+    }
+
     private enum TopSidePillMetric: String, CaseIterable, Identifiable {
         case weather
         case wind
@@ -170,6 +182,10 @@ struct MapMainView: View {
     @State private var longPressedMapMarker: MapMarker? = nil
     @State private var showLongPressedSessionMarkerDialog = false
     @State private var showLongPressedMapMarkerDialog = false
+    @State private var longPressedTrackTarget: LongPressedTrackTarget? = nil
+    @State private var showLongPressedTrackDialog = false
+    @State private var pendingTrackDeleteConfirmation: LongPressedTrackTarget? = nil
+    @State private var showTrackDeleteConfirmationAlert = false
 
     // Editing / moving session marker
     @State private var editingSessionMarker: MusterMarker? = nil
@@ -679,6 +695,27 @@ private var selectedMapModeOption: MapModeOption {
                 message: longPressedMapMarkerDialogMessage
             )
             .confirmationDialog(
+                longPressedTrackTarget?.name ?? "Track",
+                isPresented: $showLongPressedTrackDialog,
+                titleVisibility: .visible,
+                actions: longPressedTrackDialogActions
+            )
+            .alert(
+                "Confirm Delete",
+                isPresented: $showTrackDeleteConfirmationAlert,
+                presenting: pendingTrackDeleteConfirmation
+            ) { track in
+                Button("Cancel", role: .cancel) {
+                    pendingTrackDeleteConfirmation = nil
+                }
+                Button("Delete", role: .destructive) {
+                    deleteLongPressedTrack(track)
+                    pendingTrackDeleteConfirmation = nil
+                }
+            } message: { track in
+                Text("Delete \(track.name)? This cannot be undone.")
+            }
+            .confirmationDialog(
                 topPillPickerTitle,
                 isPresented: topPillPickerPresented,
                 titleVisibility: .visible
@@ -710,6 +747,10 @@ private var selectedMapModeOption: MapModeOption {
                 longPressedMapMarker = nil
                 showLongPressedSessionMarkerDialog = false
                 showLongPressedMapMarkerDialog = false
+                longPressedTrackTarget = nil
+                showLongPressedTrackDialog = false
+                pendingTrackDeleteConfirmation = nil
+                showTrackDeleteConfirmationAlert = false
 
                 editingSessionMarker = nil
                 editingSessionMarkerName = ""
@@ -1100,6 +1141,33 @@ private var selectedMapModeOption: MapModeOption {
                     longPressedMapMarker = marker
                     showLongPressedMapMarkerDialog = true
                 }
+            },
+            onLongPressPreviousTrack: { sessionID in
+                DispatchQueue.main.async {
+                    movingSessionMarker = nil
+                    movingMapMarker = nil
+                    longPressedMapMarker = nil
+                    longPressedSessionMarker = nil
+                    showLongPressedMapMarkerDialog = false
+                    showLongPressedSessionMarkerDialog = false
+
+                    let sessionName = app.muster.sessions.first(where: { $0.id == sessionID })?.displayName ?? "Track"
+                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName)
+                    showLongPressedTrackDialog = true
+                }
+            },
+            onLongPressImportedTrack: { trackID, trackName in
+                DispatchQueue.main.async {
+                    movingSessionMarker = nil
+                    movingMapMarker = nil
+                    longPressedMapMarker = nil
+                    longPressedSessionMarker = nil
+                    showLongPressedMapMarkerDialog = false
+                    showLongPressedSessionMarkerDialog = false
+
+                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName)
+                    showLongPressedTrackDialog = true
+                }
             }
         )
         .ignoresSafeArea()
@@ -1213,6 +1281,21 @@ private var selectedMapModeOption: MapModeOption {
         Text("Edit, move, or delete this session marker.")
     }
 
+    @ViewBuilder
+    private func longPressedTrackDialogActions() -> some View {
+        Button("Delete", role: .destructive) {
+            guard let target = longPressedTrackTarget else { return }
+            pendingTrackDeleteConfirmation = target
+            showLongPressedTrackDialog = false
+            longPressedTrackTarget = nil
+            showTrackDeleteConfirmationAlert = true
+        }
+
+        Button("Cancel", role: .cancel) {
+            showLongPressedTrackDialog = false
+            longPressedTrackTarget = nil
+        }
+    }
 
     @ViewBuilder
     private func longPressedMapMarkerDialogMessage() -> some View {
@@ -2918,6 +3001,15 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         }
 
         app.muster.deleteMapMarker(markerID: marker.id)
+    }
+
+    private func deleteLongPressedTrack(_ track: LongPressedTrackTarget) {
+        switch track {
+        case .previousSession(let sessionID, _):
+            app.muster.deleteSession(sessionID: sessionID)
+        case .imported(let trackID, _):
+            app.muster.deleteImportedTrack(trackID: trackID)
+        }
     }
 
     private func saveSessionMarkerEdit() {

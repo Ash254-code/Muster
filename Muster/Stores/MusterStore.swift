@@ -734,6 +734,21 @@ final class MusterStore: ObservableObject, Codable {
         save()
     }
 
+    func deleteImportedTrack(trackID: UUID) {
+        var changed = false
+
+        for fileIndex in importedMapFiles.indices {
+            let originalCount = importedMapFiles[fileIndex].tracks.count
+            importedMapFiles[fileIndex].tracks.removeAll { $0.id == trackID }
+
+            if importedMapFiles[fileIndex].tracks.count != originalCount {
+                changed = true
+            }
+        }
+
+        if changed { save() }
+    }
+
     // =========================================================
     // MARK: - Imported category filters / styling
     // =========================================================
