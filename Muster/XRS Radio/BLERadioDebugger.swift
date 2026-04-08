@@ -96,6 +96,8 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     private var recentMessageFingerprints: [String: Date] = [:]
 
     private var shouldAutoReconnect = false
+    private var reconnectWorkItem: DispatchWorkItem?
+    private var reconnectAttemptCount = 0
     private var forceLocationUpdateTimer: Timer?
     private var isApplyingForceLocationSettings = false
 
@@ -176,6 +178,8 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     func connect(to peripheral: CBPeripheral) {
         stopScan()
         shouldAutoReconnect = true
+        cancelPendingReconnect()
+        reconnectAttemptCount = 0
         lastConnectedPeripheralID = peripheral.identifier
 
         let name = peripheral.name ?? "Unknown"
@@ -184,11 +188,12 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         appendLog("Connecting to \(name)...")
         connectedPeripheral = peripheral
         peripheral.delegate = self
-        central.connect(peripheral, options: nil)
+        central.connect(peripheral, options: self.connectionOptions)
     }
 
     func disconnect() {
         shouldAutoReconnect = false
+        cancelPendingReconnect()
 
         guard let peripheral = connectedPeripheral else { return }
         appendLog("Disconnecting from \(peripheral.name ?? "Unknown")...")
@@ -354,7 +359,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
             appendLog("Reconnecting to last paired radio: \(peripheral.name ?? "Unknown")")
             connectedPeripheral = peripheral
             peripheral.delegate = self
-            central.connect(peripheral, options: nil)
+            central.connect(peripheral, options: self.connectionOptions)
             return
         }
 
@@ -541,8 +546,54 @@ final class BLERadioDebugger: NSObject, ObservableObject {
             stopForceLocationUpdateTimer()
             connectedPeripheralName = nil
             connectedPeripheral = nil
-            isConnected = false
         }
+    }
+
+    private var connectionOptions: [String: Any] {
+        [
+            CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
+            CBConnectPeripheralOptionNotifyOnConnectionKey: true
+        ]
+    }
+
+    private func updateConnectionState(_ connected: Bool) {
+        if isConnected == connected { return }
+        isConnected = connected
+        onConnectionChanged?(connected)
+    }
+
+    private func cancelPendingReconnect() {
+        reconnectWorkItem?.cancel()
+        reconnectWorkItem = nil
+    }
+
+    private func scheduleReconnect(reason: String) {
+        guard shouldAutoReconnect else { return }
+        guard central.state == .poweredOn else { return }
+        guard let peripheral = connectedPeripheral else {
+            reconnectLastKnownPeripheralIfPossible()
+            return
+        }
+
+        cancelPendingReconnect()
+
+        reconnectAttemptCount += 1
+        let delay = min(pow(2.0, Double(max(reconnectAttemptCount - 1, 0))), 8.0)
+        appendLog("Scheduling reconnect (attempt \(reconnectAttemptCount), \(String(format: "%.1f", delay))s) due to \(reason)")
+
+        let workItem = DispatchWorkItem { [weak self, weak peripheral] in
+            guard let self, let peripheral else { return }
+            guard self.shouldAutoReconnect else { return }
+            guard self.central.state == .poweredOn else { return }
+            guard !self.isConnected else { return }
+
+            self.appendLog("Auto-reconnect attempt \(self.reconnectAttemptCount) to \(peripheral.name ?? "Unknown")")
+            peripheral.delegate = self
+            self.central.connect(peripheral, options: self.connectionOptions)
+        }
+
+        reconnectWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
     private func appendLog(_ line: String) {
@@ -1552,9 +1603,8 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
                 self.reconnectLastKnownPeripheralIfPossible()
             } else {
                 self.stopForceLocationUpdateTimer()
-                self.isConnected = false
+                self.updateConnectionState(false)
                 self.connectedPeripheralName = nil
-                self.onConnectionChanged?(false)
             }
         }
     }
@@ -1599,7 +1649,7 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
                 self.appendLog("Auto-reconnecting to \(name)...")
                 self.connectedPeripheral = peripheral
                 peripheral.delegate = self
-                central.connect(peripheral, options: nil)
+                central.connect(peripheral, options: self.connectionOptions)
             }
         }
     }
@@ -1610,8 +1660,9 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
 
             self.connectedPeripheral = peripheral
             self.connectedPeripheralName = name
-            self.isConnected = true
-            self.onConnectionChanged?(true)
+            self.cancelPendingReconnect()
+            self.reconnectAttemptCount = 0
+            self.updateConnectionState(true)
             self.lastConnectedPeripheralID = peripheral.identifier
             self.saveRadio(identifier: peripheral.identifier, name: name)
 
@@ -1633,10 +1684,10 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
         Task { @MainActor in
             self.appendLog("Failed to connect: \(error?.localizedDescription ?? "unknown error")")
             self.stopForceLocationUpdateTimer()
-            self.isConnected = false
-            self.onConnectionChanged?(false)
+            self.updateConnectionState(false)
             self.connectedPeripheralName = nil
             self.connectedPeripheral = nil
+            self.scheduleReconnect(reason: "failed connect")
         }
     }
 
@@ -1651,17 +1702,18 @@ extension BLERadioDebugger: CBCentralManagerDelegate {
                 self.appendLog("Disconnect error: \(error.localizedDescription)")
             }
 
+            if let active = self.connectedPeripheral,
+               active.identifier != peripheral.identifier,
+               self.isConnected {
+                self.appendLog("Ignoring disconnect callback for inactive peripheral \(peripheral.name ?? "Unknown")")
+                return
+            }
+
             self.resetSessionState(clearConnectionIdentity: true)
             self.stopForceLocationUpdateTimer()
-            self.isConnected = false
-            self.onConnectionChanged?(false)
-
-            if self.shouldAutoReconnect {
-                self.appendLog("Attempting auto-reconnect...")
-                peripheral.delegate = self
-                self.connectedPeripheral = peripheral
-                central.connect(peripheral, options: nil)
-            }
+            self.updateConnectionState(false)
+            self.connectedPeripheral = peripheral
+            self.scheduleReconnect(reason: "disconnect")
         }
     }
 }
