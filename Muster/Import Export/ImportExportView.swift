@@ -4,6 +4,19 @@ import UIKit
 
 struct ImportExportView: View {
     @EnvironmentObject private var app: AppState
+    let mode: Mode
+
+    enum Mode {
+        case `import`
+        case export
+
+        var navigationTitle: String {
+            switch self {
+            case .import: return "Imported Maps & Tracks"
+            case .export: return "Export Tracks"
+            }
+        }
+    }
 
     private enum ExportFormat: String, CaseIterable, Identifiable {
         case geoJSON
@@ -100,140 +113,146 @@ struct ImportExportView: View {
 
     var body: some View {
         List {
-            Section {
-                Button {
-                    showImporter = true
-                } label: {
-                    Label("Import Files or Folder", systemImage: "square.and.arrow.down")
+            if mode == .import {
+                Section {
+                    Button {
+                        showImporter = true
+                    } label: {
+                        Label("Import Files or Folder", systemImage: "square.and.arrow.down")
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Supported import formats")
+                            .font(.subheadline.weight(.semibold))
+
+                        Text("GeoJSON, GPX, KML and KMZ")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                    }
+                    .padding(.vertical, 2)
+                } header: {
+                    Text("Import")
+                } footer: {
+                    Text("Use this to bring in paddock boundaries, markers and tracks from existing files.")
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Supported import formats")
-                        .font(.subheadline.weight(.semibold))
-
-                    Text("GeoJSON, GPX, KML and KMZ")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                }
-                .padding(.vertical, 2)
-            } header: {
-                Text("Import")
-            } footer: {
-                Text("Use this to bring in paddock boundaries, markers and tracks from existing files.")
             }
 
-            Section {
-                Button {
-                    showExportFormatPicker = true
-                } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
-                }
-                .disabled(exportableSessions.isEmpty)
+            if mode == .export {
+                Section {
+                    Button {
+                        showExportFormatPicker = true
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(exportableSessions.isEmpty)
 
-                .padding(.vertical, 2)
-            } header: {
-                Text("Export")
-            } footer: {
-                Text("Choose a format first, then pick a previous or active track to export.")
+                    .padding(.vertical, 2)
+                } header: {
+                    Text("Export")
+                } footer: {
+                    Text("Choose a format first, then pick a previous or active track to export.")
+                }
             }
 
-            Section {
-                LabeledContent("Imported files", value: "\(importedFileCount)")
-                LabeledContent("Visible on map", value: "\(visibleImportedFileCount)")
-                LabeledContent("Boundaries", value: "\(boundaryCount)")
-                LabeledContent("Markers", value: "\(markerCount)")
-                LabeledContent("Tracks", value: "\(trackCount)")
-            } header: {
-                Text("Imported Data")
-            }
-
-            Section {
-                Button {
-                    app.muster.showAllImportedMapFiles()
-                } label: {
-                    Text("Show All Imported Files")
+            if mode == .import {
+                Section {
+                    LabeledContent("Imported files", value: "\(importedFileCount)")
+                    LabeledContent("Visible on map", value: "\(visibleImportedFileCount)")
+                    LabeledContent("Boundaries", value: "\(boundaryCount)")
+                    LabeledContent("Markers", value: "\(markerCount)")
+                    LabeledContent("Tracks", value: "\(trackCount)")
+                } header: {
+                    Text("Imported Data")
                 }
-                .disabled(importedFileCount == 0)
 
-                Button {
-                    app.muster.hideAllImportedMapFiles()
-                } label: {
-                    Text("Hide All Imported Files")
+                Section {
+                    Button {
+                        app.muster.showAllImportedMapFiles()
+                    } label: {
+                        Text("Show All Imported Files")
+                    }
+                    .disabled(importedFileCount == 0)
+
+                    Button {
+                        app.muster.hideAllImportedMapFiles()
+                    } label: {
+                        Text("Hide All Imported Files")
+                    }
+                    .disabled(importedFileCount == 0)
+                } header: {
+                    Text("Manage Visibility")
                 }
-                .disabled(importedFileCount == 0)
-            } header: {
-                Text("Manage Visibility")
-            }
 
-            Section {
-                if app.muster.importedMapFiles.isEmpty {
-                    Text("No imported files yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(app.muster.importedMapFiles) { file in
-                        NavigationLink {
-                            ImportedMapFileDetailView(fileID: file.id)
-                                .environmentObject(app)
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 8) {
-                                        Text(file.displayTitle)
-                                            .foregroundStyle(.primary)
+                Section {
+                    if app.muster.importedMapFiles.isEmpty {
+                        Text("No imported files yet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(app.muster.importedMapFiles) { file in
+                            NavigationLink {
+                                ImportedMapFileDetailView(fileID: file.id)
+                                    .environmentObject(app)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 8) {
+                                            Text(file.displayTitle)
+                                                .foregroundStyle(.primary)
 
-                                        Text(file.format.title)
-                                            .font(.caption2.weight(.semibold))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(.thinMaterial, in: Capsule())
-                                    }
-
-                                    HStack(spacing: 8) {
-                                        if file.assignedCategory == .waterPoints ||
-                                            file.assignedCategory == .yards ||
-                                            file.assignedCategory == .other {
-                                            Text(categoryIcon(for: file.assignedCategory))
+                                            Text(file.format.title)
+                                                .font(.caption2.weight(.semibold))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 3)
+                                                .background(.thinMaterial, in: Capsule())
                                         }
 
-                                        Text(file.assignedCategory.title)
+                                        HStack(spacing: 8) {
+                                            if file.assignedCategory == .waterPoints ||
+                                                file.assignedCategory == .yards ||
+                                                file.assignedCategory == .other {
+                                                Text(categoryIcon(for: file.assignedCategory))
+                                            }
+
+                                            Text(file.assignedCategory.title)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Text("\(file.boundaries.count) boundaries • \(file.markers.count) markers • \(file.tracks.count) tracks")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
 
-                                    Text("\(file.boundaries.count) boundaries • \(file.markers.count) markers • \(file.tracks.count) tracks")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                                    Spacer()
 
-                                Spacer()
-
-                                Toggle(
-                                    "",
-                                    isOn: Binding(
-                                        get: { file.isVisible },
-                                        set: { app.muster.setImportedMapFileVisibility(fileID: file.id, isVisible: $0) }
+                                    Toggle(
+                                        "",
+                                        isOn: Binding(
+                                            get: { file.isVisible },
+                                            set: { app.muster.setImportedMapFileVisibility(fileID: file.id, isVisible: $0) }
+                                        )
                                     )
-                                )
-                                .labelsHidden()
+                                    .labelsHidden()
+                                }
+                                .padding(.vertical, 2)
                             }
-                            .padding(.vertical, 2)
+                        }
+                        .onDelete { offsets in
+                            let ids = offsets.map { app.muster.importedMapFiles[$0].id }
+                            for id in ids {
+                                app.muster.deleteImportedMapFile(fileID: id)
+                            }
                         }
                     }
-                    .onDelete { offsets in
-                        let ids = offsets.map { app.muster.importedMapFiles[$0].id }
-                        for id in ids {
-                            app.muster.deleteImportedMapFile(fileID: id)
-                        }
-                    }
+                } header: {
+                    Text("Imported Files")
+                } footer: {
+                    Text("Imported files are stored in the app and can be shown or hidden on the map.")
                 }
-            } header: {
-                Text("Imported Files")
-            } footer: {
-                Text("Imported files are stored in the app and can be shown or hidden on the map.")
             }
         }
-        .navigationTitle("Imported Maps & Tracks")
+        .navigationTitle(mode.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .fileImporter(
             isPresented: $showImporter,
