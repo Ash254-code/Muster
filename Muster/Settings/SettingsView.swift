@@ -1489,12 +1489,13 @@ private struct RingsSettingsView: View {
 
                 Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
 
-                Text(
-                    "Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized)" +
-                    " at \(ringThicknessScale, specifier: "%.2f")x thickness" +
+                let ringsSummary =
+                    "Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized) " +
+                    "at \(String(format: "%.2f", ringThicknessScale))x thickness" +
                     (ringDistanceLabelsEnabled ? " with" : " without") +
                     " distance labels."
-                )
+
+                Text(ringsSummary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: {
