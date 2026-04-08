@@ -9,6 +9,7 @@ import UIKit
 // Shared keys (must match MapMainView / MapViewRepresentable usage)
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
+private let kRingColorKey = "rings_color"              // String
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double: 0...10
@@ -1427,9 +1428,24 @@ private struct MapSettingsView: View {
 // =========================================================
 
 private struct RingsSettingsView: View {
+    private enum RingColorOption: String, CaseIterable, Identifiable {
+        case blue
+        case yellow
+        case orange
+        case red
+        case green
+        case purple
+
+        var id: String { rawValue }
+
+        var title: String {
+            rawValue.capitalized
+        }
+    }
 
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
+    @AppStorage(kRingColorKey) private var ringColorRaw: String = RingColorOption.blue.rawValue
 
     private let countOptions = Array(1...10)
     private let spacingOptions: [Double] = Array(stride(from: 250, through: 2500, by: 250))
@@ -1449,7 +1465,13 @@ private struct RingsSettingsView: View {
                     }
                 }
 
-                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals.")
+                Picker("Ring color", selection: $ringColorRaw) {
+                    ForEach(RingColorOption.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+
+                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: {
@@ -1458,6 +1480,11 @@ private struct RingsSettingsView: View {
         }
         .navigationTitle("Rings")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if RingColorOption(rawValue: ringColorRaw) == nil {
+                ringColorRaw = RingColorOption.blue.rawValue
+            }
+        }
     }
 }
 

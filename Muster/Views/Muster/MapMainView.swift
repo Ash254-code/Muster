@@ -11,6 +11,7 @@ import AudioToolbox
 // Shared keys (must match Settings)
 private let kRingCountKey = "rings_count"              // Int
 private let kRingSpacingKey = "rings_spacing_m"        // Double
+private let kRingColorKey = "rings_color"              // String
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double 0...10
@@ -201,6 +202,7 @@ struct MapMainView: View {
     
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
+    @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
     @AppStorage(kHeadsUpPitchDegreesKey) private var headsUpPitchDegrees: Double = 45
     @AppStorage(kHeadsUpUserVerticalOffsetKey) private var headsUpUserVerticalOffset: Double = 10
@@ -988,6 +990,7 @@ private var selectedMapModeOption: MapModeOption {
             userHeadingDegrees: location.headingDegrees,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
+            ringColorRaw: ringColorRaw,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
             recenterNonce: $recenterNonce,
