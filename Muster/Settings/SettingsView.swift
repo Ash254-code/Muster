@@ -86,8 +86,16 @@ struct SettingsView: View {
                     }
                 }
                 Section("Map") {
-                    NavigationLink("Map & Rings") {
+                    NavigationLink {
+                        MapSettingsView()
+                    } label: {
+                        Label("Masp View", systemImage: "map")
+                    }
+
+                    NavigationLink {
                         RingsSettingsView()
+                    } label: {
+                        Label("Rings", systemImage: "circle.hexagongrid")
                     }
 
                     NavigationLink("Top Pills") {
@@ -1252,45 +1260,20 @@ private struct RadioSettingsView: View {
     }
 }
 // =========================================================
-// MARK: - Rings + Map Settings
+// MARK: - Map Settings
 // =========================================================
 
-private struct RingsSettingsView: View {
-
-    @AppStorage(kRingCountKey) private var ringCount: Int = 4
-    @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
+private struct MapSettingsView: View {
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
     @AppStorage(kHeadsUpPitchDegreesKey) private var headsUpPitchDegrees: Double = 45
     @AppStorage(kHeadsUpUserVerticalOffsetKey) private var headsUpUserVerticalOffset: Double = 10
 
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
-    private let countOptions = Array(1...10)
-    private let spacingOptions: [Double] = Array(stride(from: 250, through: 2500, by: 250))
     private let headsUpPitchOptions: [Double] = [0, 45, 80]
 
     var body: some View {
         Form {
-            Section {
-                Picker("Number of rings", selection: $ringCount) {
-                    ForEach(countOptions, id: \.self) { n in
-                        Text("\(n)").tag(n)
-                    }
-                }
-
-                Picker("Ring spacing", selection: $ringSpacingM) {
-                    ForEach(spacingOptions, id: \.self) { v in
-                        Text("\(Int(v)) m").tag(v)
-                    }
-                }
-
-                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text("Distance Rings")
-            }
-
             Section {
                 Toggle(isOn: Binding(
                     get: { isHeadsUp },
@@ -1366,7 +1349,7 @@ private struct RingsSettingsView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Map & Rings")
+        .navigationTitle("Map")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             normalizeHeadsUpPitch()
@@ -1410,6 +1393,45 @@ private struct RingsSettingsView: View {
         default:
             return "Choose how tilted the map looks while in Heads Up mode."
         }
+    }
+}
+
+// =========================================================
+// MARK: - Rings Settings
+// =========================================================
+
+private struct RingsSettingsView: View {
+
+    @AppStorage(kRingCountKey) private var ringCount: Int = 4
+    @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
+
+    private let countOptions = Array(1...10)
+    private let spacingOptions: [Double] = Array(stride(from: 250, through: 2500, by: 250))
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Number of rings", selection: $ringCount) {
+                    ForEach(countOptions, id: \.self) { n in
+                        Text("\(n)").tag(n)
+                    }
+                }
+
+                Picker("Ring spacing", selection: $ringSpacingM) {
+                    ForEach(spacingOptions, id: \.self) { v in
+                        Text("\(Int(v)) m").tag(v)
+                    }
+                }
+
+                Text("Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Distance Rings")
+            }
+        }
+        .navigationTitle("Rings")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
