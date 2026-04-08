@@ -162,6 +162,7 @@ struct MapMainView: View {
     @State private var showQuickZoomEditor = false
     @State private var showImportFilterSheet = false
     @State private var showMapSetsSheet = false
+    @State private var showMissingMapSetPrompt = false
     @State private var displayedActiveTrackPoints: [TrackPoint] = []
 
     // Long-press marker actions
@@ -638,6 +639,21 @@ private var selectedMapModeOption: MapModeOption {
             .sheet(isPresented: $showMapSetsSheet) {
                 MapSetsSheetView()
                     .environmentObject(app)
+            }
+            .confirmationDialog(
+                "Map Set Required",
+                isPresented: $showMissingMapSetPrompt,
+                titleVisibility: .visible
+            ) {
+                Button("Create New Map Set") {
+                    _ = app.muster.createMapSet()
+                }
+                Button("Select Map Set From List") {
+                    showMapSetsSheet = true
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("New Muster or track can’t be started without a Map Set selected.")
             }
             .sheet(isPresented: $showTPMSDashboard) {
                 tpmsDashboardSheet
@@ -2472,7 +2488,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     if isActive {
                         app.muster.stopActiveSession()
                     } else {
-                        app.muster.startSmartSession()
+                        if app.muster.startSmartSession() == false {
+                            showMissingMapSetPrompt = true
+                        }
                     }
                 }
 
@@ -2480,7 +2498,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     title: "New Muster",
                     systemImage: "plus.circle.fill"
                 ) {
-                    app.muster.startSmartSession()
+                    if app.muster.startSmartSession() == false {
+                        showMissingMapSetPrompt = true
+                    }
                 }
 
                 bottomActionButton(

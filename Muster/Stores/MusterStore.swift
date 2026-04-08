@@ -13,6 +13,7 @@ final class MusterStore: ObservableObject, Codable {
     /// Imported read-only map content from GPX / KML / KMZ / GeoJSON
     @Published var importedMapFiles: [ImportedMapFile] = []
     @Published var mapSets: [MapSet] = []
+    @Published var selectedMapSetID: UUID? = nil
 
     /// Per-category appearance for imported content
     @Published var importCategoryStyles: [ImportCategoryStyle] = .default
@@ -48,6 +49,7 @@ final class MusterStore: ObservableObject, Codable {
         case mapMarkers
         case importedMapFiles
         case mapSets
+        case selectedMapSetID
         case importCategoryStyles
         case importCategoryVisibility
         case activeSessionID
@@ -68,6 +70,7 @@ final class MusterStore: ObservableObject, Codable {
         mapMarkers = try c.decodeIfPresent([MapMarker].self, forKey: .mapMarkers) ?? []
         importedMapFiles = try c.decodeIfPresent([ImportedMapFile].self, forKey: .importedMapFiles) ?? []
         mapSets = try c.decodeIfPresent([MapSet].self, forKey: .mapSets) ?? []
+        selectedMapSetID = try c.decodeIfPresent(UUID.self, forKey: .selectedMapSetID)
         importCategoryStyles = try c.decodeIfPresent([ImportCategoryStyle].self, forKey: .importCategoryStyles) ?? .default
         importCategoryVisibility = try c.decodeIfPresent(ImportCategoryVisibility.self, forKey: .importCategoryVisibility) ?? .init()
         activeSessionID = try c.decodeIfPresent(UUID.self, forKey: .activeSessionID)
@@ -78,6 +81,7 @@ final class MusterStore: ObservableObject, Codable {
         seedDefaultImportCategoryStylesIfNeeded()
         normalizeImportedMapFilesIfNeeded()
         normalizeMapSetAssignmentsIfNeeded()
+        normalizeSelectedMapSetIfNeeded()
         configureAutosaveObservers()
     }
 
@@ -154,6 +158,7 @@ final class MusterStore: ObservableObject, Codable {
         try c.encode(mapMarkers, forKey: .mapMarkers)
         try c.encode(importedMapFiles, forKey: .importedMapFiles)
         try c.encode(mapSets, forKey: .mapSets)
+        try c.encode(selectedMapSetID, forKey: .selectedMapSetID)
         try c.encode(importCategoryStyles, forKey: .importCategoryStyles)
         try c.encode(importCategoryVisibility, forKey: .importCategoryVisibility)
         try c.encode(activeSessionID, forKey: .activeSessionID)
@@ -427,7 +432,8 @@ final class MusterStore: ObservableObject, Codable {
         Self.smartSessionNameFormatter.string(from: date).lowercased()
     }
 
-    func startSmartSession(at date: Date = Date()) {
+    @discardableResult
+    func startSmartSession(at date: Date = Date()) -> Bool {
         startSession(name: makeSmartSessionName(from: date))
     }
 
@@ -442,8 +448,24 @@ final class MusterStore: ObservableObject, Codable {
 
         let newSet = MapSet(name: finalName)
         mapSets.insert(newSet, at: 0)
+        selectedMapSetID = newSet.id
         save()
         return newSet.id
+    }
+
+    var selectedMapSet: MapSet? {
+        guard let selectedMapSetID else { return nil }
+        return mapSets.first(where: { $0.id == selectedMapSetID })
+    }
+
+    var canStartMusterOrTrack: Bool {
+        selectedMapSet != nil
+    }
+
+    func selectMapSet(_ mapSetID: UUID) {
+        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        selectedMapSetID = mapSetID
+        save()
     }
 
     func duplicateMapSet(mapSetID: UUID) -> MapSet? {
@@ -526,6 +548,9 @@ final class MusterStore: ObservableObject, Codable {
         }
 
         mapSets.removeAll { $0.id == mapSetID }
+        if selectedMapSetID == mapSetID {
+            selectedMapSetID = mapSets.first?.id
+        }
         save()
     }
 
@@ -755,6 +780,13 @@ final class MusterStore: ObservableObject, Codable {
 
     private func normalizeMapSetAssignmentsIfNeeded() {
         importedMapFiles = importedMapFiles.map { assigningRequiredTrackMapSet(to: $0) }
+    }
+
+    private func normalizeSelectedMapSetIfNeeded() {
+        if let selectedMapSetID, mapSets.contains(where: { $0.id == selectedMapSetID }) {
+            return
+        }
+        selectedMapSetID = nil
     }
 
     private func assigningRequiredTrackMapSet(to file: ImportedMapFile) -> ImportedMapFile {
@@ -1216,7 +1248,9 @@ final class MusterStore: ObservableObject, Codable {
     // MARK: - Session lifecycle
     // =========================================================
 
-    func startSession(name: String) {
+    @discardableResult
+    func startSession(name: String) -> Bool {
+        guard canStartMusterOrTrack else { return false }
         if var current = activeSession, current.isActive {
             current.isActive = false
             current.endedAt = Date()
@@ -1240,6 +1274,7 @@ final class MusterStore: ObservableObject, Codable {
         save()
 
         GoToLiveActivityManager.shared.startRecording()
+        return true
     }
 
     func stopActiveSession() {

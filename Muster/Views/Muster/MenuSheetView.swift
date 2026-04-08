@@ -6,6 +6,8 @@ struct MenuSheetView: View {
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
+    @State private var showMissingMapSetPrompt = false
+    @State private var showMapSetsSheet = false
 
     private var previousSessions: [MusterSession] {
         app.muster.previousSessions
@@ -106,8 +108,11 @@ struct MenuSheetView: View {
 
                 Section {
                     Button {
-                        app.muster.startSmartSession()
-                        dismiss()
+                        if app.muster.startSmartSession() {
+                            dismiss()
+                        } else {
+                            showMissingMapSetPrompt = true
+                        }
                     } label: {
                         Label("New Muster", systemImage: "plus.circle.fill")
                     }
@@ -125,6 +130,25 @@ struct MenuSheetView: View {
                     }
                 }
             }
+        }
+        .confirmationDialog(
+            "Map Set Required",
+            isPresented: $showMissingMapSetPrompt,
+            titleVisibility: .visible
+        ) {
+            Button("Create New Map Set") {
+                _ = app.muster.createMapSet()
+            }
+            Button("Select Map Set From List") {
+                showMapSetsSheet = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("New Muster or track can’t be started without a Map Set selected.")
+        }
+        .sheet(isPresented: $showMapSetsSheet) {
+            MapSetsSheetView()
+                .environmentObject(app)
         }
     }
 
@@ -188,11 +212,28 @@ struct MapSetsSheetView: View {
                                 MapSetDetailView(mapSetID: mapSet.id)
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(mapSet.displayTitle)
+                                    HStack(spacing: 8) {
+                                        Text(mapSet.displayTitle)
+                                        if app.muster.selectedMapSetID == mapSet.id {
+                                            Text("Current Map Set")
+                                                .font(.caption2.weight(.semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 3)
+                                                .foregroundStyle(.blue)
+                                                .background(.blue.opacity(0.14), in: Capsule())
+                                        }
+                                        Spacer()
+                                    }
                                     Text(summary(for: mapSet.id))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button("Set Current") {
+                                    app.muster.selectMapSet(mapSet.id)
+                                }
+                                .tint(.blue)
                             }
                         }
                     }
@@ -380,6 +421,10 @@ private struct MapSetDetailView: View {
                 Section("Actions") {
                     TextField("Map set name", text: $renameText)
                         .onAppear { renameText = mapSet.displayTitle }
+                    Button(app.muster.selectedMapSetID == mapSet.id ? "Current Map Set" : "Set as Current Map Set") {
+                        app.muster.selectMapSet(mapSet.id)
+                    }
+                    .disabled(app.muster.selectedMapSetID == mapSet.id)
                     Button("Save Name") {
                         app.muster.renameMapSet(mapSetID: mapSet.id, newName: renameText)
                     }
