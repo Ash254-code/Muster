@@ -2022,7 +2022,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func overlayStrokeScale(for mapView: MKMapView) -> CGFloat {
             switch mapView.mapType {
             case .satelliteFlyover, .hybridFlyover:
-                return 0.6
+                return 0.45
             default:
                 return 1.0
             }
@@ -2154,7 +2154,15 @@ struct MapViewRepresentable: UIViewRepresentable {
             let w = max(1.0, Double(mapView.bounds.width))
             metersPerPoint.wrappedValue = metersWide / w
 
-            lastKnownCameraDistance = max(80, mapView.camera.centerCoordinateDistance)
+            let renderedDistance = max(80, mapView.camera.centerCoordinateDistance)
+            if parent.orientationRaw == "headsUp" {
+                lastKnownCameraDistance = max(
+                    80,
+                    renderedDistance / distanceCompensationFactor(for: CGFloat(mapView.camera.pitch))
+                )
+            } else {
+                lastKnownCameraDistance = renderedDistance
+            }
             lastKnownMapHeightPoints = mapView.bounds.height
 
             if parent.orientationRaw == "headsUp" && !isAnimatingCameraTransition {
