@@ -159,6 +159,12 @@ struct MapSetsSheetView: View {
     @State private var shareSheetItems: [Any] = []
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
+    @State private var showImportActions = false
+    @State private var showExportActions = false
+
+    private var trimmedNewMapSetName: String {
+        newMapSetName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         NavigationStack {
@@ -186,24 +192,45 @@ struct MapSetsSheetView: View {
                 Section("Create") {
                     TextField("Map set name", text: $newMapSetName)
                     Button("Create Map Set") {
-                        app.muster.createMapSet(named: newMapSetName)
+                        app.muster.createMapSet(named: trimmedNewMapSetName)
                         newMapSetName = ""
+                    }
+                    .disabled(trimmedNewMapSetName.isEmpty)
+                }
+
+                Section("Import") {
+                    Button(showImportActions ? "Hide Import Items" : "Show Import Items") {
+                        withAnimation {
+                            showImportActions.toggle()
+                        }
+                    }
+
+                    if showImportActions {
+                        Button("Import Map Set") {
+                            showImportPicker = true
+                        }
                     }
                 }
 
-                Section("Import / Export") {
-                    Button("Import Map Set") {
-                        showImportPicker = true
+                Section("Export") {
+                    Button(showExportActions ? "Hide Export Items" : "Show Export Items") {
+                        withAnimation {
+                            showExportActions.toggle()
+                        }
                     }
 
-                    Menu("Export Map Set") {
-                        ForEach(app.muster.mapSets) { mapSet in
-                            Button(mapSet.displayTitle) {
-                                exportMapSet(mapSet)
+                    if showExportActions {
+                        if app.muster.mapSets.isEmpty {
+                            Text("No map sets available for export.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(app.muster.mapSets) { mapSet in
+                                Button("Export \(mapSet.displayTitle)") {
+                                    exportMapSet(mapSet)
+                                }
                             }
                         }
                     }
-                    .disabled(app.muster.mapSets.isEmpty)
                 }
             }
             .navigationTitle("Map Sets")
@@ -353,6 +380,7 @@ private struct MapSetDetailView: View {
 
     let mapSetID: UUID
     @State private var renameText: String = ""
+    @State private var duplicateAlertMessage: String? = nil
 
     private var mapSet: MapSet? {
         app.muster.mapSets.first(where: { $0.id == mapSetID })
@@ -368,7 +396,9 @@ private struct MapSetDetailView: View {
                         app.muster.renameMapSet(mapSetID: mapSet.id, newName: renameText)
                     }
                     Button("Duplicate") {
-                        app.muster.duplicateMapSet(mapSetID: mapSet.id)
+                        if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
+                            duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
+                        }
                     }
                     Button("Delete", role: .destructive) {
                         app.muster.deleteMapSet(mapSetID: mapSet.id)
@@ -462,5 +492,18 @@ private struct MapSetDetailView: View {
         }
         .navigationTitle(mapSet?.displayTitle ?? "Map Set")
         .navigationBarTitleDisplayMode(.inline)
+        .alert(
+            "Map Set Duplicated",
+            isPresented: Binding(
+                get: { duplicateAlertMessage != nil },
+                set: { if !$0 { duplicateAlertMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                duplicateAlertMessage = nil
+            }
+        } message: {
+            Text(duplicateAlertMessage ?? "")
+        }
     }
 }
