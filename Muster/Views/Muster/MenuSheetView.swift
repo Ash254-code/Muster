@@ -513,10 +513,21 @@ private struct MapSetDetailView: View {
                 }
 
                 Section("Actions") {
-                    Button(app.muster.selectedMapSetID == mapSet.id ? "Current Map Set" : "Set as Current Map Set") {
-                        app.muster.selectMapSet(mapSet.id)
+                    if app.muster.selectedMapSetID == mapSet.id {
+                        HStack {
+                            Text("Current Map Set")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.green)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.green.opacity(0.14), in: Capsule())
+                            Spacer()
+                        }
+                    } else {
+                        Button("Set as Current Map Set") {
+                            app.muster.selectMapSet(mapSet.id)
+                        }
                     }
-                    .disabled(app.muster.selectedMapSetID == mapSet.id)
                     Button("Duplicate") {
                         if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
                             duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
@@ -530,12 +541,21 @@ private struct MapSetDetailView: View {
                     }
                 }
                 Section("Tracks") {
-                    let tracks = app.muster.importedTracks(in: mapSet.id)
-                    if tracks.isEmpty {
+                    let importedTracks = app.muster.importedTracks(in: mapSet.id)
+                    let recordedSessions = app.muster.recordedSessions(in: mapSet.id)
+                    if importedTracks.isEmpty && recordedSessions.isEmpty {
                         Text("No tracks")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(tracks, id: \.track.id) { pair in
+                        ForEach(recordedSessions, id: \.id) { session in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.name)
+                                Text("Muster • \(session.startedAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        ForEach(importedTracks, id: \.track.id) { pair in
                             Text(pair.track.displayTitle)
                         }
                     }

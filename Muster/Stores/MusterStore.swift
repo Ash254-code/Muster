@@ -281,6 +281,12 @@ final class MusterStore: ObservableObject, Codable {
         }
     }
 
+    func recordedSessions(in mapSetID: UUID) -> [MusterSession] {
+        sessions
+            .filter { $0.mapSetID == mapSetID }
+            .sorted { $0.startedAt > $1.startedAt }
+    }
+
     func markerTemplate(withID id: UUID?) -> MarkerTemplate? {
         guard let id else { return nil }
         return markerTemplates.first(where: { $0.id == id })
@@ -504,6 +510,14 @@ final class MusterStore: ObservableObject, Codable {
             return updatedFile
         }
 
+        sessions = sessions.map { session in
+            var updated = session
+            if session.mapSetID == source.id {
+                updated.mapSetID = duplicate.id
+            }
+            return updated
+        }
+
         save()
         return duplicate
     }
@@ -543,6 +557,14 @@ final class MusterStore: ObservableObject, Codable {
                     value.mapSetID = replacementMapSetID
                 }
                 return value
+            }
+            return updated
+        }
+
+        sessions = sessions.map { session in
+            var updated = session
+            if updated.mapSetID == mapSetID {
+                updated.mapSetID = replacementMapSetID
             }
             return updated
         }
@@ -1272,6 +1294,7 @@ final class MusterStore: ObservableObject, Codable {
             name: finalName,
             startedAt: Date(),
             endedAt: nil,
+            mapSetID: selectedMapSetID,
             isActive: true,
             isVisibleOnMap: true
         )
