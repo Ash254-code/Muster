@@ -241,8 +241,8 @@ struct MapSetsSheetView: View {
                                                 .font(.caption2.weight(.semibold))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 3)
-                                                .foregroundStyle(.blue)
-                                                .background(.blue.opacity(0.14), in: Capsule())
+                                                .foregroundStyle(.green)
+                                                .background(.green.opacity(0.14), in: Capsule())
                                             Button {
                                                 if editingMapSetID == mapSet.id {
                                                     saveNameEdits(for: mapSet)
