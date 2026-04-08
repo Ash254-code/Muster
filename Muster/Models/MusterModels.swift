@@ -424,6 +424,9 @@ struct ImportedBoundary: Identifiable, Codable, Hashable {
     /// Visibility toggle
     var isVisible: Bool = true
 
+    /// Optional grouping in a named map set
+    var mapSetID: UUID? = nil
+
     var displayTitle: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Boundary" : trimmed
@@ -456,6 +459,9 @@ struct ImportedMarker: Identifiable, Codable, Hashable {
 
     var isVisible: Bool = true
 
+    /// Optional grouping in a named map set
+    var mapSetID: UUID? = nil
+
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
@@ -486,6 +492,10 @@ struct ImportedTrack: Identifiable, Codable, Hashable {
 
     var isVisible: Bool = true
 
+    /// Tracks are required to belong to a map set.
+    /// Legacy imports may decode with nil and should be normalized in the store.
+    var mapSetID: UUID? = nil
+
     var displayTitle: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Imported Track" : trimmed
@@ -497,6 +507,17 @@ struct ImportedTrack: Identifiable, Codable, Hashable {
 
     var hasTrack: Bool {
         !points.isEmpty
+    }
+}
+
+struct MapSet: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var name: String
+
+    var displayTitle: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Map Set" : trimmed
     }
 }
 

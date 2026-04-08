@@ -108,6 +108,13 @@ final class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        muster.$mapSets
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.muster.save()
+            }
+            .store(in: &cancellables)
+
         muster.$activeSessionID
             .dropFirst()
             .sink { [weak self] _ in

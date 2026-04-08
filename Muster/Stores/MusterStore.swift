@@ -12,6 +12,7 @@ final class MusterStore: ObservableObject, Codable {
 
     /// Imported read-only map content from GPX / KML / KMZ / GeoJSON
     @Published var importedMapFiles: [ImportedMapFile] = []
+    @Published var mapSets: [MapSet] = []
 
     /// Per-category appearance for imported content
     @Published var importCategoryStyles: [ImportCategoryStyle] = .default
@@ -46,6 +47,7 @@ final class MusterStore: ObservableObject, Codable {
         case markerTemplates
         case mapMarkers
         case importedMapFiles
+        case mapSets
         case importCategoryStyles
         case importCategoryVisibility
         case activeSessionID
@@ -65,6 +67,7 @@ final class MusterStore: ObservableObject, Codable {
         markerTemplates = try c.decodeIfPresent([MarkerTemplate].self, forKey: .markerTemplates) ?? []
         mapMarkers = try c.decodeIfPresent([MapMarker].self, forKey: .mapMarkers) ?? []
         importedMapFiles = try c.decodeIfPresent([ImportedMapFile].self, forKey: .importedMapFiles) ?? []
+        mapSets = try c.decodeIfPresent([MapSet].self, forKey: .mapSets) ?? []
         importCategoryStyles = try c.decodeIfPresent([ImportCategoryStyle].self, forKey: .importCategoryStyles) ?? .default
         importCategoryVisibility = try c.decodeIfPresent(ImportCategoryVisibility.self, forKey: .importCategoryVisibility) ?? .init()
         activeSessionID = try c.decodeIfPresent(UUID.self, forKey: .activeSessionID)
@@ -74,6 +77,7 @@ final class MusterStore: ObservableObject, Codable {
         seedDefaultMarkerTemplatesIfNeeded()
         seedDefaultImportCategoryStylesIfNeeded()
         normalizeImportedMapFilesIfNeeded()
+        normalizeMapSetAssignmentsIfNeeded()
         configureAutosaveObservers()
     }
 
@@ -149,6 +153,7 @@ final class MusterStore: ObservableObject, Codable {
         try c.encode(markerTemplates, forKey: .markerTemplates)
         try c.encode(mapMarkers, forKey: .mapMarkers)
         try c.encode(importedMapFiles, forKey: .importedMapFiles)
+        try c.encode(mapSets, forKey: .mapSets)
         try c.encode(importCategoryStyles, forKey: .importCategoryStyles)
         try c.encode(importCategoryVisibility, forKey: .importCategoryVisibility)
         try c.encode(activeSessionID, forKey: .activeSessionID)
@@ -240,6 +245,33 @@ final class MusterStore: ObservableObject, Codable {
             file.tracks.filter { track in
                 track.isVisible &&
                 importCategoryVisibility.isVisible(track.category)
+            }
+        }
+    }
+
+    func importedBoundaries(in mapSetID: UUID) -> [(fileID: UUID, boundary: ImportedBoundary)] {
+        importedMapFiles.flatMap { file in
+            file.boundaries.compactMap { boundary in
+                guard boundary.mapSetID == mapSetID else { return nil }
+                return (file.id, boundary)
+            }
+        }
+    }
+
+    func importedMarkers(in mapSetID: UUID) -> [(fileID: UUID, marker: ImportedMarker)] {
+        importedMapFiles.flatMap { file in
+            file.markers.compactMap { marker in
+                guard marker.mapSetID == mapSetID else { return nil }
+                return (file.id, marker)
+            }
+        }
+    }
+
+    func importedTracks(in mapSetID: UUID) -> [(fileID: UUID, track: ImportedTrack)] {
+        importedMapFiles.flatMap { file in
+            file.tracks.compactMap { track in
+                guard track.mapSetID == mapSetID else { return nil }
+                return (file.id, track)
             }
         }
     }
@@ -359,6 +391,7 @@ final class MusterStore: ObservableObject, Codable {
             self.markerTemplates = loaded.markerTemplates
             self.mapMarkers = loaded.mapMarkers
             self.importedMapFiles = loaded.importedMapFiles
+            self.mapSets = loaded.mapSets
             self.importCategoryStyles = loaded.importCategoryStyles
             self.importCategoryVisibility = loaded.importCategoryVisibility
             self.activeSessionID = loaded.activeSessionID
@@ -368,6 +401,7 @@ final class MusterStore: ObservableObject, Codable {
             seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
             normalizeImportedMapFilesIfNeeded()
+            normalizeMapSetAssignmentsIfNeeded()
             validateActiveSheepTarget()
         } else {
             seedDefaultMarkerTemplatesIfNeeded()
@@ -398,12 +432,142 @@ final class MusterStore: ObservableObject, Codable {
     }
 
     // =========================================================
+    // MARK: - Map sets
+    // =========================================================
+
+    @discardableResult
+    func createMapSet(named rawName: String? = nil) -> UUID {
+        let trimmed = rawName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let finalName = trimmed.isEmpty ? nextMapSetName() : trimmed
+
+        let newSet = MapSet(name: finalName)
+        mapSets.insert(newSet, at: 0)
+        save()
+        return newSet.id
+    }
+
+    func duplicateMapSet(mapSetID: UUID) {
+        guard let source = mapSets.first(where: { $0.id == mapSetID }) else { return }
+
+        var duplicate = source
+        duplicate.id = UUID()
+        duplicate.createdAt = Date()
+        duplicate.name = "\(source.displayTitle) Copy"
+
+        mapSets.insert(duplicate, at: 0)
+
+        importedMapFiles = importedMapFiles.map { file in
+            var updatedFile = file
+            updatedFile.boundaries = file.boundaries.map { boundary in
+                var updated = boundary
+                if boundary.mapSetID == source.id {
+                    updated.mapSetID = duplicate.id
+                }
+                return updated
+            }
+            updatedFile.markers = file.markers.map { marker in
+                var updated = marker
+                if marker.mapSetID == source.id {
+                    updated.mapSetID = duplicate.id
+                }
+                return updated
+            }
+            updatedFile.tracks = file.tracks.map { track in
+                var updated = track
+                if track.mapSetID == source.id {
+                    updated.mapSetID = duplicate.id
+                }
+                return updated
+            }
+            return updatedFile
+        }
+
+        save()
+    }
+
+    func renameMapSet(mapSetID: UUID, newName: String) {
+        guard let index = mapSets.firstIndex(where: { $0.id == mapSetID }) else { return }
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        mapSets[index].name = trimmed
+        save()
+    }
+
+    func deleteMapSet(mapSetID: UUID) {
+        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+
+        let replacementMapSetID = fallbackMapSetID(excluding: mapSetID)
+
+        importedMapFiles = importedMapFiles.map { file in
+            var updated = file
+            updated.boundaries = file.boundaries.map { boundary in
+                var value = boundary
+                if value.mapSetID == mapSetID {
+                    value.mapSetID = nil
+                }
+                return value
+            }
+            updated.markers = file.markers.map { marker in
+                var value = marker
+                if value.mapSetID == mapSetID {
+                    value.mapSetID = nil
+                }
+                return value
+            }
+            updated.tracks = file.tracks.map { track in
+                var value = track
+                if value.mapSetID == mapSetID {
+                    value.mapSetID = replacementMapSetID
+                }
+                return value
+            }
+            return updated
+        }
+
+        mapSets.removeAll { $0.id == mapSetID }
+        save()
+    }
+
+    func assignImportedBoundary(fileID: UUID, boundaryID: UUID, to mapSetID: UUID?) {
+        guard mapSetID == nil || mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let fileIndex = importedMapFiles.firstIndex(where: { $0.id == fileID }),
+              let boundaryIndex = importedMapFiles[fileIndex].boundaries.firstIndex(where: { $0.id == boundaryID }) else { return }
+
+        importedMapFiles[fileIndex].boundaries[boundaryIndex].mapSetID = mapSetID
+        save()
+    }
+
+    func assignImportedMarker(fileID: UUID, markerID: UUID, to mapSetID: UUID?) {
+        guard mapSetID == nil || mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let fileIndex = importedMapFiles.firstIndex(where: { $0.id == fileID }),
+              let markerIndex = importedMapFiles[fileIndex].markers.firstIndex(where: { $0.id == markerID }) else { return }
+
+        importedMapFiles[fileIndex].markers[markerIndex].mapSetID = mapSetID
+        save()
+    }
+
+    func assignImportedTrack(fileID: UUID, trackID: UUID, to mapSetID: UUID) {
+        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let fileIndex = importedMapFiles.firstIndex(where: { $0.id == fileID }),
+              let trackIndex = importedMapFiles[fileIndex].tracks.firstIndex(where: { $0.id == trackID }) else { return }
+
+        importedMapFiles[fileIndex].tracks[trackIndex].mapSetID = mapSetID
+        save()
+    }
+
+    func mapSetName(for id: UUID?) -> String {
+        guard let id, let mapSet = mapSets.first(where: { $0.id == id }) else { return "None" }
+        return mapSet.displayTitle
+    }
+
+    // =========================================================
     // MARK: - Imported map files
     // =========================================================
 
     func addImportedMapFile(_ file: ImportedMapFile) {
         guard file.hasContent else { return }
-        importedMapFiles.insert(file.applyingAssignedCategoryToChildren(), at: 0)
+        let normalized = assigningRequiredTrackMapSet(to: file.applyingAssignedCategoryToChildren())
+        importedMapFiles.insert(normalized, at: 0)
         save()
     }
 
@@ -413,6 +577,7 @@ final class MusterStore: ObservableObject, Codable {
         var updated = file
         updated.assignedCategory = assignedCategory
         updated = updated.applyingAssignedCategoryToChildren()
+        updated = assigningRequiredTrackMapSet(to: updated)
 
         importedMapFiles.insert(updated, at: 0)
         save()
@@ -420,7 +585,7 @@ final class MusterStore: ObservableObject, Codable {
 
     func replaceImportedMapFile(_ file: ImportedMapFile) {
         guard let index = importedMapFiles.firstIndex(where: { $0.id == file.id }) else { return }
-        importedMapFiles[index] = file.applyingAssignedCategoryToChildren()
+        importedMapFiles[index] = assigningRequiredTrackMapSet(to: file.applyingAssignedCategoryToChildren())
         save()
     }
 
@@ -430,6 +595,7 @@ final class MusterStore: ObservableObject, Codable {
         var updated = file
         updated.assignedCategory = assignedCategory
         updated = updated.applyingAssignedCategoryToChildren()
+        updated = assigningRequiredTrackMapSet(to: updated)
 
         importedMapFiles[index] = updated
         save()
@@ -584,6 +750,62 @@ final class MusterStore: ObservableObject, Codable {
             normalized = normalized.applyingAssignedCategoryToChildren()
             return normalized
         }
+    }
+
+    private func normalizeMapSetAssignmentsIfNeeded() {
+        importedMapFiles = importedMapFiles.map { assigningRequiredTrackMapSet(to: $0) }
+    }
+
+    private func assigningRequiredTrackMapSet(to file: ImportedMapFile) -> ImportedMapFile {
+        var updated = file
+        guard updated.tracks.isEmpty == false else { return updated }
+
+        let mapSetID = fallbackMapSetID()
+
+        updated.tracks = updated.tracks.map { track in
+            var value = track
+            if value.mapSetID == nil || mapSets.contains(where: { $0.id == value.mapSetID }) == false {
+                value.mapSetID = mapSetID
+            }
+            return value
+        }
+
+        updated.boundaries = updated.boundaries.map { boundary in
+            var value = boundary
+            if let id = value.mapSetID, mapSets.contains(where: { $0.id == id }) == false {
+                value.mapSetID = nil
+            }
+            return value
+        }
+
+        updated.markers = updated.markers.map { marker in
+            var value = marker
+            if let id = value.mapSetID, mapSets.contains(where: { $0.id == id }) == false {
+                value.mapSetID = nil
+            }
+            return value
+        }
+
+        return updated
+    }
+
+    private func fallbackMapSetID(excluding excludedID: UUID? = nil) -> UUID {
+        if let existing = mapSets.first(where: { $0.id != excludedID }) {
+            return existing.id
+        }
+
+        let newID = UUID()
+        mapSets.insert(MapSet(id: newID, createdAt: Date(), name: nextMapSetName()), at: 0)
+        return newID
+    }
+
+    private func nextMapSetName() -> String {
+        let names = Set(mapSets.map { $0.displayTitle.lowercased() })
+        var index = 1
+        while names.contains("map set \(index)") {
+            index += 1
+        }
+        return "Map Set \(index)"
     }
 
     func isImportCategoryVisible(_ category: ImportCategory) -> Bool {
@@ -1313,4 +1535,3 @@ final class MusterStore: ObservableObject, Codable {
         return others + keep
     }
 }
-
