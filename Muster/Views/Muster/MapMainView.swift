@@ -640,6 +640,10 @@ private var selectedMapModeOption: MapModeOption {
 }
 
     var body: some View {
+        observedMainContent
+    }
+
+    private var presentedMainContent: some View {
         mainContent
             .sheet(isPresented: $showSettings) {
                 settingsSheet
@@ -768,6 +772,10 @@ private var selectedMapModeOption: MapModeOption {
             } message: {
                 Text("Update the marker name.")
             }
+    }
+
+    private var lifecycleMainContent: some View {
+        presentedMainContent
             .onAppear(perform: handleMainViewAppear)
             .onDisappear(perform: handleMainViewDisappear)
             .onChange(of: quickZoom1M) { _, newValue in
@@ -808,6 +816,10 @@ private var selectedMapModeOption: MapModeOption {
             .onChange(of: app.muster.activeSessionID) { _, _ in
                 syncDisplayedActiveTrackPoints()
             }
+    }
+
+    private var observedMainContent: some View {
+        lifecycleMainContent
             .onChange(of: location.lastLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
 
