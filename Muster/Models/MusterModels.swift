@@ -373,6 +373,13 @@ struct ImportCategoryVisibility: Codable, Hashable {
     }
 }
 
+struct CustomImportCategory: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var title: String
+    var icon: String
+    var isVisibleByDefault: Bool = true
+}
+
 extension Array where Element == ImportCategoryStyle {
     static var `default`: [ImportCategoryStyle] {
         ImportCategory.allCases.map { category in
