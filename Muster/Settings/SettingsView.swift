@@ -432,7 +432,7 @@ private struct MarkerTemplatesSettingsView: View {
     var body: some View {
         List {
             Section {
-                ForEach(ImportCategory.allCases) { category in
+                ForEach(builtInCategories) { category in
                     NavigationLink {
                         ImportCategoryEditorView(category: category)
                             .environmentObject(app)
@@ -501,31 +501,6 @@ private struct MarkerTemplatesSettingsView: View {
                     Text("Custom categories are used for organizing imported marker-like points.")
                 }
             }
-
-            Section("Quick visibility") {
-                ForEach(ImportCategory.allCases) { category in
-                    Toggle(isOn: Binding(
-                        get: { app.muster.isImportCategoryVisible(category) },
-                        set: { app.muster.setImportCategoryVisibility($0, for: category) }
-                    )) {
-                        HStack(spacing: 10) {
-                            Text(app.muster.iconForImportCategory(category))
-                            Text(category.title)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                Button("Show All Categories") {
-                    app.muster.showAllImportCategories()
-                }
-
-                Button("Hide All Categories") {
-                    app.muster.hideAllImportCategories()
-                }
-                .foregroundStyle(.red)
-            }
         }
         .navigationTitle("Marker Templates")
         .navigationBarTitleDisplayMode(.inline)
@@ -545,6 +520,10 @@ private struct MarkerTemplatesSettingsView: View {
                     .environmentObject(app)
             }
         }
+    }
+
+    private var builtInCategories: [ImportCategory] {
+        [.boundaries, .tracks]
     }
 
     private func categorySummary(for category: ImportCategory) -> String {
