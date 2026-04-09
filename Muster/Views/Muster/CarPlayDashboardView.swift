@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct CarPlayDashboardView: View {
     @EnvironmentObject private var app: AppState
@@ -9,7 +10,8 @@ struct CarPlayDashboardView: View {
 
     private var activeTrackDistanceText: String {
         guard let session = activeSession else { return "0.0 km" }
-        let kilometres = max(0, session.recordedDistanceMeters / 1000)
+        let metres = totalDistanceMeters(points: session.points)
+        let kilometres = max(0, metres / 1000)
         return String(format: "%.1f km", kilometres)
     }
 
@@ -117,6 +119,20 @@ struct CarPlayDashboardView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(accent.opacity(0.7), lineWidth: 2)
         )
+    }
+
+
+    private func totalDistanceMeters(points: [TrackPoint]) -> Double {
+        guard points.count > 1 else { return 0 }
+
+        var total: Double = 0
+        for index in 1..<points.count {
+            let previous = CLLocation(latitude: points[index - 1].lat, longitude: points[index - 1].lon)
+            let current = CLLocation(latitude: points[index].lat, longitude: points[index].lon)
+            total += previous.distance(from: current)
+        }
+
+        return total
     }
 
     private var sessionActionButton: some View {
