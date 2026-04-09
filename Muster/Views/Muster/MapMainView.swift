@@ -169,6 +169,7 @@ struct MapMainView: View {
 
     @State private var followUser = true
     @State private var showSettings = false
+    @State private var showRingsSettings = false
     @State private var gotoTarget: MusterMarker? = nil
 
     @State private var showMarkerSheet = false
@@ -640,6 +641,9 @@ private var selectedMapModeOption: MapModeOption {
         mainContent
             .sheet(isPresented: $showSettings) {
                 settingsSheet
+            }
+            .sheet(isPresented: $showRingsSettings) {
+                ringsSettingsSheet
             }
             .sheet(isPresented: $showMarkerSheet, onDismiss: {
                 pendingMarkerCoordinate = nil
@@ -1189,6 +1193,13 @@ private var selectedMapModeOption: MapModeOption {
         SettingsView()
             .environmentObject(app)
             .presentationDetents([.large])
+    }
+
+    private var ringsSettingsSheet: some View {
+        NavigationStack {
+            RingsSettingsView()
+        }
+        .presentationDetents([.large])
     }
 
     private var markerSheet: some View {
@@ -2606,25 +2617,29 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             }
             .padding(.horizontal, 14)
 
-            HStack(spacing: 12) {
-                quickStat(title: "Km For Day", value: km)
-
-                quickStatButton(
+            HStack(spacing: 10) {
+                bottomActionButton(
                     title: "TPMS",
-                    value: "Open",
                     systemImage: "tirepressure"
                 ) {
                     panelDetent = .collapsed
                     showTPMSDashboard = true
                 }
 
-                quickStatButton(
+                bottomActionButton(
                     title: "Settings",
-                    value: "Open",
                     systemImage: "gearshape.fill"
                 ) {
                     panelDetent = .collapsed
                     showSettings = true
+                }
+
+                bottomActionButton(
+                    title: "Rings",
+                    systemImage: "scope"
+                ) {
+                    panelDetent = .collapsed
+                    showRingsSettings = true
                 }
             }
             .padding(.horizontal, 14)
@@ -2637,6 +2652,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 ) {
                     cycleActiveTrackAppearanceMode()
                 }
+
+                panelRow(
+                    title: "Km For Day",
+                    value: km,
+                    systemImage: "road.lanes"
+                )
 
                 panelButtonRow(
                     title: "Current Track",
