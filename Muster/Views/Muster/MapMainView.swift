@@ -169,6 +169,7 @@ struct MapMainView: View {
 
     @State private var followUser = true
     @State private var showSettings = false
+    @State private var showRingsSettings = false
     @State private var gotoTarget: MusterMarker? = nil
 
     @State private var showMarkerSheet = false
@@ -640,6 +641,9 @@ private var selectedMapModeOption: MapModeOption {
         mainContent
             .sheet(isPresented: $showSettings) {
                 settingsSheet
+            }
+            .sheet(isPresented: $showRingsSettings) {
+                ringsSettingsSheet
             }
             .sheet(isPresented: $showMarkerSheet, onDismiss: {
                 pendingMarkerCoordinate = nil
@@ -1189,6 +1193,13 @@ private var selectedMapModeOption: MapModeOption {
         SettingsView()
             .environmentObject(app)
             .presentationDetents([.large])
+    }
+
+    private var ringsSettingsSheet: some View {
+        NavigationStack {
+            RingsSettingsView()
+        }
+        .presentationDetents([.large])
     }
 
     private var markerSheet: some View {
@@ -2628,7 +2639,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     systemImage: "scope"
                 ) {
                     panelDetent = .collapsed
-                    showSettings = true
+                    showRingsSettings = true
                 }
             }
             .padding(.horizontal, 14)

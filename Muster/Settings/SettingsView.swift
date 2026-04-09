@@ -1442,7 +1442,7 @@ private struct MapSettingsView: View {
 // MARK: - Rings Settings
 // =========================================================
 
-private struct RingsSettingsView: View {
+struct RingsSettingsView: View {
     private enum RingColorOption: String, CaseIterable, Identifiable {
         case blue
         case yellow
