@@ -2588,7 +2588,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 bottomActionButton(
-                    title: "New Muster",
+                    title: "New Track",
                     systemImage: "plus.circle.fill"
                 ) {
                     if app.muster.startSmartSession() == false {
@@ -2597,11 +2597,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 bottomActionButton(
-                    title: "Settings",
-                    systemImage: "gearshape.fill"
+                    title: "Map Sets",
+                    systemImage: "square.stack.3d.down.right"
                 ) {
                     panelDetent = .collapsed
-                    showSettings = true
+                    showMapSetsSheet = true
                 }
             }
             .padding(.horizontal, 14)
@@ -2619,23 +2619,23 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 quickStatButton(
-                    title: "Track View",
-                    value: trackShort
+                    title: "Settings",
+                    value: "Open",
+                    systemImage: "gearshape.fill"
                 ) {
-                    cycleActiveTrackAppearanceMode()
+                    panelDetent = .collapsed
+                    showSettings = true
                 }
             }
             .padding(.horizontal, 14)
 
             VStack(spacing: 10) {
-                
                 panelButtonRow(
-                    title: "Map Sets",
-                    value: "\(app.muster.mapSets.count)",
-                    systemImage: "square.stack.3d.down.right"
+                    title: "Track View",
+                    value: trackShort,
+                    systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 ) {
-                    panelDetent = .collapsed
-                    showMapSetsSheet = true
+                    cycleActiveTrackAppearanceMode()
                 }
 
                 panelButtonRow(
