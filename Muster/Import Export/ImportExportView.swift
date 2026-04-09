@@ -71,6 +71,7 @@ struct ImportExportView: View {
     @State private var importResultSelectedCount: Int = 0
     @State private var importResultSupportedCount: Int = 0
     @State private var selectedTrackImportMapSetID: UUID? = nil
+    @State private var expandedImportCategories: Set<ImportCategory> = []
 
     private var importedFileCount: Int {
         app.muster.importedMapFiles.count
@@ -175,13 +176,21 @@ struct ImportExportView: View {
                 }
 
 
-                Section {
-                    if app.muster.importedMapFiles.isEmpty {
+                if app.muster.importedMapFiles.isEmpty {
+                    Section {
                         Text("No imported files yet.")
                             .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(importedFilesByCategory, id: \.category) { categoryGroup in
-                            Section {
+                    } header: {
+                        Text("Imported Files")
+                    } footer: {
+                        Text("Imported files are stored in the app and can be shown or hidden on the map.")
+                    }
+                } else {
+                    ForEach(importedFilesByCategory, id: \.category) { categoryGroup in
+                        Section {
+                            DisclosureGroup(
+                                isExpanded: expandedBinding(for: categoryGroup.category)
+                            ) {
                                 ForEach(categoryGroup.files) { file in
                                     NavigationLink {
                                         ImportedMapFileDetailView(fileID: file.id)
@@ -222,15 +231,13 @@ struct ImportExportView: View {
                                 .onDelete { offsets in
                                     deleteImportedFiles(at: offsets, in: categoryGroup.files)
                                 }
-                            } header: {
-                                Text("\(categoryIcon(for: categoryGroup.category)) \(categoryGroup.category.title)")
+                            } label: {
+                                Text("\(categoryIcon(for: categoryGroup.category)) \(categoryGroup.category.title) - \(categoryGroup.files.count)")
                             }
+                        } footer: {
+                            Text("Imported files are stored in the app and can be shown or hidden on the map.")
                         }
                     }
-                } header: {
-                    Text("Imported Files")
-                } footer: {
-                    Text("Imported files are stored in the app and can be shown or hidden on the map.")
                 }
             }
         }
@@ -378,6 +385,19 @@ struct ImportExportView: View {
         for id in ids {
             app.muster.deleteImportedMapFile(fileID: id)
         }
+    }
+
+    private func expandedBinding(for category: ImportCategory) -> Binding<Bool> {
+        Binding(
+            get: { expandedImportCategories.contains(category) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedImportCategories.insert(category)
+                } else {
+                    expandedImportCategories.remove(category)
+                }
+            }
+        )
     }
 
     // MARK: - Import
