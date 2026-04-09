@@ -52,37 +52,8 @@ struct MarkerSheet: View {
             } else {
                 ScrollView {
                     VStack(spacing: 10) {
-                        ForEach(templates) { template in
-                            Button {
-                                selectedTemplateID = template.id
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Text(template.emoji)
-                                        .font(.title2)
-
-                                    Text(template.displayTitle)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(.primary)
-
-                                    Spacer()
-
-                                    if selectedTemplateID == template.id {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.accent)
-                                    }
-                                }
-                                .padding(.horizontal, 12)
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(
-                                            selectedTemplateID == template.id
-                                            ? Color.accentColor.opacity(0.18)
-                                            : Color.secondary.opacity(0.10)
-                                        )
-                                )
-                            }
-                            .buttonStyle(.plain)
+                        ForEach(templates, id: \.id) { template in
+                            templateRow(template)
                         }
                     }
                     .padding(.horizontal, 2)
@@ -90,24 +61,58 @@ struct MarkerSheet: View {
                 .frame(maxHeight: 240)
             }
 
-            Button {
+            Button(action: {
                 guard selectedTemplate != nil else { return }
                 step = .enterName
-            } label: {
+            }) {
                 Text("Drop")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(
-                        selectedTemplate == nil
-                        ? Color.gray.opacity(0.25)
-                        : Color.accentColor
-                    )
+                    .background(dropButtonBackgroundColor)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .disabled(selectedTemplate == nil)
         }
+    }
+
+    private func templateRow(_ template: MarkerTemplate) -> some View {
+        Button(action: {
+            selectedTemplateID = template.id
+        }) {
+            HStack(spacing: 12) {
+                Text("🙂")
+                    .font(.title2)
+
+                Text(template.displayTitle)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if selectedTemplateID == template.id {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(rowBackground(for: template))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func rowBackground(for template: MarkerTemplate) -> some ShapeStyle {
+        if selectedTemplateID == template.id {
+            return Color.accentColor.opacity(0.18)
+        } else {
+            return Color.secondary.opacity(0.10)
+        }
+    }
+
+    private var dropButtonBackgroundColor: Color {
+        selectedTemplate == nil ? Color.gray.opacity(0.25) : Color.accentColor
     }
 
     private var enterNameView: some View {
