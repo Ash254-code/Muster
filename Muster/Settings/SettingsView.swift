@@ -648,7 +648,7 @@ private struct ImportCategoriesSettingsView: View {
 
     var body: some View {
         List {
-            Section("Built-in Categories") {
+            Section {
                 ForEach(ImportCategory.allCases) { category in
                     NavigationLink {
                         ImportCategoryEditorView(category: category)
@@ -681,12 +681,14 @@ private struct ImportCategoriesSettingsView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Built-in Categories")
             } footer: {
                 Text("Choose the icon or emoji used for each imported category. Boundaries and Tracks can also have their own colours. Visibility here sets the default filter state used on the map.")
             }
 
             if !app.muster.customImportCategories.isEmpty {
-                Section("Custom Categories") {
+                Section {
                     ForEach(app.muster.customImportCategories) { category in
                         NavigationLink {
                             CustomImportCategoryEditorView(categoryID: category.id)
@@ -710,6 +712,8 @@ private struct ImportCategoriesSettingsView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("Custom Categories")
                 } footer: {
                     Text("Custom categories are used for organizing imported marker-like points.")
                 }
@@ -788,14 +792,18 @@ private struct NewCustomImportCategoryView: View {
 
     var body: some View {
         Form {
-            Section("Category") {
+            Section {
                 TextField("Name", text: $title)
                 TextField("Icon or emoji", text: $icon)
                     .autocorrectionDisabled()
+            } header: {
+                Text("Category")
             }
 
-            Section("Visibility") {
+            Section {
                 Toggle("Visible in map filter by default", isOn: $isVisibleByDefault)
+            } header: {
+                Text("Visibility")
             }
         }
         .navigationTitle("New Category")
@@ -1066,7 +1074,7 @@ private struct CustomImportCategoryEditorView: View {
 
     var body: some View {
         Form {
-            Section("Category") {
+            Section {
                 TextField("Name", text: $title)
                 TextField("Icon or emoji", text: $icon)
                     .autocorrectionDisabled()
@@ -1077,10 +1085,14 @@ private struct CustomImportCategoryEditorView: View {
                     Text(previewIcon)
                         .font(.title2)
                 }
+            } header: {
+                Text("Category")
             }
 
-            Section("Visibility") {
+            Section {
                 Toggle("Visible in map filter by default", isOn: $isVisibleByDefault)
+            } header: {
+                Text("Visibility")
             }
 
             Section {
