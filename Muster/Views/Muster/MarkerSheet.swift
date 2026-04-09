@@ -82,7 +82,7 @@ struct MarkerSheet: View {
             selectedTemplateID = template.id
         }) {
             HStack(spacing: 12) {
-                Text("🙂")
+                Text(template.emoji)
                     .font(.title2)
 
                 Text(template.displayTitle)

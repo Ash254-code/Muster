@@ -242,7 +242,9 @@ struct SessionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showMarkerSheet) {
             MarkerSheet(
-                templates: app.muster.markerTemplates
+                templates: app.muster.customImportCategories.map {
+                    MarkerTemplate(id: $0.id, description: $0.title, emoji: $0.icon)
+                }
             ) { template, name in
                 guard let coordinate = location.lastLocation?.coordinate else { return }
 

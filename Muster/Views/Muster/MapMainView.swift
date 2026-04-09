@@ -1178,7 +1178,9 @@ private var selectedMapModeOption: MapModeOption {
 
     private var markerSheet: some View {
         MarkerSheet(
-            templates: app.muster.markerTemplates
+            templates: app.muster.customImportCategories.map {
+                MarkerTemplate(id: $0.id, description: $0.title, emoji: $0.icon)
+            }
         ) { template, markerName in
             guard let coordinate = pendingMarkerCoordinate else { return }
 
