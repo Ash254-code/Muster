@@ -102,19 +102,20 @@ struct MarkerSheet: View {
                         .foregroundStyle(Color.accentColor)
                 }
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .background(rowBackground(for: template))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(.thinMaterial, in: Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        selectedTemplateID == template.id ? Color.accentColor.opacity(0.45) : .white.opacity(0.12),
+                        lineWidth: selectedTemplateID == template.id ? 1.5 : 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
-    }
-
-    private func rowBackground(for template: MarkerTemplate) -> some ShapeStyle {
-        if selectedTemplateID == template.id {
-            return Color.accentColor.opacity(0.18)
-        } else {
-            return Color.secondary.opacity(0.10)
-        }
     }
 
     private var enterNameView: some View {
@@ -134,10 +135,10 @@ struct MarkerSheet: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(.ultraThinMaterial, in: Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(.secondary.opacity(0.2), lineWidth: 1)
+                Capsule()
+                    .strokeBorder(.white.opacity(0.16), lineWidth: 1)
             )
 
             HStack(spacing: 12) {
@@ -148,8 +149,11 @@ struct MarkerSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.secondary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .background(.thinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                        )
                 }
 
                 Button {
@@ -162,9 +166,12 @@ struct MarkerSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.accentColor)
+                        .background(Color.accentColor.gradient, in: Capsule())
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(.white.opacity(0.20), lineWidth: 1)
+                        )
                 }
             }
         }
