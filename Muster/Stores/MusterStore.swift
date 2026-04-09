@@ -81,6 +81,7 @@ final class MusterStore: ObservableObject, Codable {
         seedDefaultImportCategoryStylesIfNeeded()
         normalizeImportedMapFilesIfNeeded()
         normalizeMapSetAssignmentsIfNeeded()
+        normalizeSessionMapSetAssignmentsIfNeeded()
         normalizeSelectedMapSetIfNeeded()
         configureAutosaveObservers()
     }
@@ -189,7 +190,11 @@ final class MusterStore: ObservableObject, Codable {
     var visiblePreviousSessions: [MusterSession] {
         guard showPreviousTracksOnMap else { return [] }
         return previousSessions
-            .filter { $0.isVisibleOnMap && !$0.points.isEmpty }
+            .filter { session in
+                session.isVisibleOnMap &&
+                !session.points.isEmpty &&
+                isVisibleInSelectedMapSet(session.mapSetID)
+            }
     }
 
     var activeSheepTarget: MusterMarker? {
@@ -231,7 +236,8 @@ final class MusterStore: ObservableObject, Codable {
         visibleImportedMapFiles.flatMap { file in
             file.boundaries.filter { boundary in
                 boundary.isVisible &&
-                importCategoryVisibility.isVisible(boundary.category)
+                importCategoryVisibility.isVisible(boundary.category) &&
+                isVisibleInSelectedMapSet(boundary.mapSetID)
             }
         }
     }
@@ -240,7 +246,8 @@ final class MusterStore: ObservableObject, Codable {
         visibleImportedMapFiles.flatMap { file in
             file.markers.filter { marker in
                 marker.isVisible &&
-                importCategoryVisibility.isVisible(marker.category)
+                importCategoryVisibility.isVisible(marker.category) &&
+                isVisibleInSelectedMapSet(marker.mapSetID)
             }
         }
     }
@@ -249,7 +256,8 @@ final class MusterStore: ObservableObject, Codable {
         visibleImportedMapFiles.flatMap { file in
             file.tracks.filter { track in
                 track.isVisible &&
-                importCategoryVisibility.isVisible(track.category)
+                importCategoryVisibility.isVisible(track.category) &&
+                isVisibleInSelectedMapSet(track.mapSetID)
             }
         }
     }
@@ -409,6 +417,7 @@ final class MusterStore: ObservableObject, Codable {
             self.mapMarkers = loaded.mapMarkers
             self.importedMapFiles = loaded.importedMapFiles
             self.mapSets = loaded.mapSets
+            self.selectedMapSetID = loaded.selectedMapSetID
             self.importCategoryStyles = loaded.importCategoryStyles
             self.importCategoryVisibility = loaded.importCategoryVisibility
             self.activeSessionID = loaded.activeSessionID
@@ -419,6 +428,8 @@ final class MusterStore: ObservableObject, Codable {
             seedDefaultImportCategoryStylesIfNeeded()
             normalizeImportedMapFilesIfNeeded()
             normalizeMapSetAssignmentsIfNeeded()
+            normalizeSessionMapSetAssignmentsIfNeeded()
+            normalizeSelectedMapSetIfNeeded()
             validateActiveSheepTarget()
         } else {
             seedDefaultMarkerTemplatesIfNeeded()
@@ -827,6 +838,21 @@ final class MusterStore: ObservableObject, Codable {
         importedMapFiles = importedMapFiles.map { assigningRequiredTrackMapSet(to: $0) }
     }
 
+    private func normalizeSessionMapSetAssignmentsIfNeeded() {
+        guard sessions.isEmpty == false else { return }
+
+        let fallbackID = fallbackMapSetID()
+        sessions = sessions.map { session in
+            var value = session
+            if let id = value.mapSetID, mapSets.contains(where: { $0.id == id }) {
+                return value
+            }
+
+            value.mapSetID = fallbackID
+            return value
+        }
+    }
+
     private func normalizeSelectedMapSetIfNeeded() {
         if let selectedMapSetID, mapSets.contains(where: { $0.id == selectedMapSetID }) {
             return
@@ -875,6 +901,11 @@ final class MusterStore: ObservableObject, Codable {
         let newID = UUID()
         mapSets.insert(MapSet(id: newID, createdAt: Date(), lastUsedAt: nil, name: nextMapSetName()), at: 0)
         return newID
+    }
+
+    private func isVisibleInSelectedMapSet(_ mapSetID: UUID?) -> Bool {
+        guard let selectedMapSetID else { return true }
+        return mapSetID == selectedMapSetID
     }
 
     private func nextMapSetName() -> String {
