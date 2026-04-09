@@ -234,11 +234,8 @@ struct MapSetsSheetView: View {
     @State private var showBoundarySelection = false
     @State private var showMarkerSelection = false
     @State private var showImportPicker = false
-    @State private var shareSheetItems: [Any] = []
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
-    @State private var showImportActions = false
-    @State private var showExportActions = false
     @State private var didAutoStartCreateFlow = false
 
     init(startInCreateFlow: Bool = false) {
@@ -281,6 +278,21 @@ struct MapSetsSheetView: View {
         }
     }
 
+    private var orderedMapSets: [MapSet] {
+        app.muster.mapSets.sorted { lhs, rhs in
+            if lhs.id == app.muster.selectedMapSetID { return true }
+            if rhs.id == app.muster.selectedMapSetID { return false }
+
+            let lhsLastUsed = lhs.lastUsedAt ?? lhs.createdAt
+            let rhsLastUsed = rhs.lastUsedAt ?? rhs.createdAt
+            if lhsLastUsed != rhsLastUsed {
+                return lhsLastUsed > rhsLastUsed
+            }
+
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -290,7 +302,7 @@ struct MapSetsSheetView: View {
                         Text("No map sets yet.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(app.muster.mapSets) { mapSet in
+                        ForEach(orderedMapSets) { mapSet in
                             NavigationLink {
                                 MapSetDetailView(mapSetID: mapSet.id)
                             } label: {
@@ -330,18 +342,6 @@ struct MapSetsSheetView: View {
                         showImportPicker = true
                     }
                 }
-
-                Section("Export") {
-                    if app.muster.mapSets.isEmpty {
-                        Text("No map sets available for export.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Button("Export Map Set") {
-                            showExportActions = true
-                        }
-                    }
-                
-                }
             }
             .navigationTitle("Map Sets")
             .navigationBarTitleDisplayMode(.inline)
@@ -365,6 +365,9 @@ struct MapSetsSheetView: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Color.green, in: Circle())
                     }
                     .accessibilityLabel("Create map set")
                 }
@@ -479,14 +482,6 @@ struct MapSetsSheetView: View {
         ) { result in
             importMapSet(result: result)
         }
-        .sheet(
-            isPresented: Binding(
-                get: { !shareSheetItems.isEmpty },
-                set: { if !$0 { shareSheetItems = [] } }
-            )
-        ) {
-            MapSetActivityView(activityItems: shareSheetItems)
-        }
         .alert(
             alertTitle,
             isPresented: Binding(
@@ -497,18 +492,6 @@ struct MapSetsSheetView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(alertMessage ?? "")
-        }
-        .confirmationDialog(
-            "Export Map Set",
-            isPresented: $showExportActions,
-            titleVisibility: .visible
-        ) {
-            ForEach(app.muster.mapSets) { mapSet in
-                Button("\(mapSet.displayTitle) • \(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))") {
-                    exportMapSet(mapSet)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
         }
         .onAppear {
             guard startInCreateFlow, didAutoStartCreateFlow == false else { return }
@@ -571,33 +554,6 @@ struct MapSetsSheetView: View {
         let markers = app.muster.importedMarkers(in: mapSetID).count
         let tracks = app.muster.importedTracks(in: mapSetID).count
         return "\(boundaries) boundaries • \(markers) markers • \(tracks) tracks"
-    }
-
-    private func exportMapSet(_ mapSet: MapSet) {
-        struct MapSetBundle: Codable {
-            var mapSet: MapSet
-            var boundaries: [ImportedBoundary]
-            var markers: [ImportedMarker]
-            var tracks: [ImportedTrack]
-        }
-
-        do {
-            let payload = MapSetBundle(
-                mapSet: mapSet,
-                boundaries: app.muster.importedBoundaries(in: mapSet.id).map(\.boundary),
-                markers: app.muster.importedMarkers(in: mapSet.id).map(\.marker),
-                tracks: app.muster.importedTracks(in: mapSet.id).map(\.track)
-            )
-
-            let data = try JSONEncoder().encode(payload)
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("\(mapSet.displayTitle.replacingOccurrences(of: " ", with: "_"))_map_set.json")
-            try data.write(to: url, options: .atomic)
-            shareSheetItems = [url]
-        } catch {
-            alertTitle = "Export Failed"
-            alertMessage = error.localizedDescription
-        }
     }
 
     private func importMapSet(result: Result<[URL], Error>) {

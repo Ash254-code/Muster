@@ -513,6 +513,7 @@ struct ImportedTrack: Identifiable, Codable, Hashable {
 struct MapSet: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
+    var lastUsedAt: Date? = nil
     var name: String
 
     var displayTitle: String {
