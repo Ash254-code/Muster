@@ -182,7 +182,10 @@ struct MapMainView: View {
     @State private var showQuickZoomEditor = false
     @State private var showImportFilterSheet = false
     @State private var showMapSetsSheet = false
+    @State private var startMapSetCreationFlowOnOpen = false
     @State private var showMissingMapSetPrompt = false
+    @State private var pendingTrackName = ""
+    @State private var showNewTrackNamePrompt = false
     @State private var displayedActiveTrackPoints: [TrackPoint] = []
 
     // Long-press marker actions
@@ -664,8 +667,13 @@ private var selectedMapModeOption: MapModeOption {
                 importFilterSheet
             }
             .sheet(isPresented: $showMapSetsSheet) {
-                MapSetsSheetView()
+                MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                     .environmentObject(app)
+            }
+            .onChange(of: showMapSetsSheet) { _, isPresented in
+                if isPresented == false {
+                    startMapSetCreationFlowOnOpen = false
+                }
             }
             .confirmationDialog(
                 "Map Set Required",
@@ -673,14 +681,27 @@ private var selectedMapModeOption: MapModeOption {
                 titleVisibility: .visible
             ) {
                 Button("Create New Map Set") {
-                    _ = app.muster.createMapSet()
+                    startMapSetCreationFlowOnOpen = true
+                    showMapSetsSheet = true
                 }
                 Button("Select Map Set From List") {
+                    startMapSetCreationFlowOnOpen = false
                     showMapSetsSheet = true
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("New Muster or track can’t be started without a Map Set selected.")
+            }
+            .alert("New Track", isPresented: $showNewTrackNamePrompt) {
+                TextField("Track name", text: $pendingTrackName)
+                Button("Cancel", role: .cancel) {}
+                Button("Start") {
+                    if app.muster.startSession(name: pendingTrackName) == false {
+                        showMissingMapSetPrompt = true
+                    }
+                }
+            } message: {
+                Text("Choose a track name.")
             }
             .sheet(isPresented: $showTPMSDashboard) {
                 tpmsDashboardSheet
@@ -2592,9 +2613,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     if isActive {
                         app.muster.stopActiveSession()
                     } else {
-                        if app.muster.startSmartSession() == false {
-                            showMissingMapSetPrompt = true
-                        }
+                        startNewTrackFlow()
                     }
                 }
 
@@ -2602,9 +2621,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     title: "New Track",
                     systemImage: "plus.circle.fill"
                 ) {
-                    if app.muster.startSmartSession() == false {
-                        showMissingMapSetPrompt = true
-                    }
+                    startNewTrackFlow()
                 }
 
                 bottomActionButton(
@@ -2691,6 +2708,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             Spacer(minLength: 0)
         }
         .padding(.bottom, 18)
+    }
+
+    private func startNewTrackFlow() {
+        pendingTrackName = app.muster.makeSmartSessionName()
+        showNewTrackNamePrompt = true
     }
     private var leftSideFloatingPills: some View {
         VStack(spacing: 10) {

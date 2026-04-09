@@ -5,10 +5,8 @@ struct StartSessionView: View {
     @EnvironmentObject private var app: AppState
     @State private var showMissingMapSetPrompt = false
     @State private var showMapSetsSheet = false
-
-    private var previewName: String {
-        app.muster.makeSmartSessionName()
-    }
+    @State private var startMapSetCreationFlowOnOpen = false
+    @State private var pendingTrackName = ""
 
     var body: some View {
         NavigationStack {
@@ -22,8 +20,9 @@ struct StartSessionView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Text(previewName)
-                            .font(.headline)
+                        TextField("Track name", text: $pendingTrackName)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
                     }
                 }
 
@@ -38,7 +37,7 @@ struct StartSessionView: View {
                     Spacer()
 
                     Button {
-                        if app.muster.startSmartSession() {
+                        if app.muster.startSession(name: pendingTrackName) {
                             dismiss()
                         } else {
                             showMissingMapSetPrompt = true
@@ -59,9 +58,11 @@ struct StartSessionView: View {
             titleVisibility: .visible
         ) {
             Button("Create New Map Set") {
-                _ = app.muster.createMapSet()
+                startMapSetCreationFlowOnOpen = true
+                showMapSetsSheet = true
             }
             Button("Select Map Set From List") {
+                startMapSetCreationFlowOnOpen = false
                 showMapSetsSheet = true
             }
             Button("Cancel", role: .cancel) {}
@@ -69,8 +70,16 @@ struct StartSessionView: View {
             Text("New track can’t be started without a Map Set selected.")
         }
         .sheet(isPresented: $showMapSetsSheet) {
-            MapSetsSheetView()
+            MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                 .environmentObject(app)
+        }
+        .onAppear {
+            pendingTrackName = app.muster.makeSmartSessionName()
+        }
+        .onChange(of: showMapSetsSheet) { _, isPresented in
+            if isPresented == false {
+                startMapSetCreationFlowOnOpen = false
+            }
         }
     }
 }
