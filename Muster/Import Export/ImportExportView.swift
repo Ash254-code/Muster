@@ -46,6 +46,26 @@ struct ImportExportView: View {
         let allowedCategories: [ImportCategory]
     }
 
+    private struct ImportCategorySelectionOption: Identifiable, Hashable {
+        let baseCategory: ImportCategory
+        let customCategory: CustomImportCategory?
+
+        var id: String {
+            if let customCategory {
+                return "\(baseCategory.rawValue)-\(customCategory.id.uuidString)"
+            }
+            return baseCategory.rawValue
+        }
+
+        var title: String {
+            customCategory?.title ?? baseCategory.title
+        }
+
+        var icon: String {
+            customCategory?.icon ?? baseCategory.defaultIcon
+        }
+    }
+
     @State private var showImporter = false
     @State private var showImportCategoryPicker = false
     @State private var applyCategoryToAllPendingImports = false
@@ -321,12 +341,12 @@ struct ImportExportView: View {
             List {
                 if let pending = currentPendingImport {
                     Section {
-                        ForEach(pending.allowedCategories, id: \.self) { category in
+                        ForEach(selectionOptions(for: pending)) { option in
                             Button {
-                                applyImportCategory(category)
+                                applyImportCategory(option)
                             } label: {
                                 HStack {
-                                    Text("\(categoryIcon(for: category)) \(category.title)")
+                                    Text("\(option.icon) \(option.title)")
                                         .foregroundStyle(.primary)
                                     Spacer()
                                 }
@@ -492,18 +512,29 @@ struct ImportExportView: View {
         showImportCategoryPicker = true
     }
 
-    private func applyImportCategory(_ category: ImportCategory) {
+    private func applyImportCategory(_ option: ImportCategorySelectionOption) {
         guard let pending = currentPendingImport else { return }
+        let category = option.baseCategory
 
         let trackMapSetID = category == .tracks ? trackImportMapSetID : nil
-        importPendingFile(pending, as: category, trackMapSetID: trackMapSetID)
+        importPendingFile(
+            pending,
+            as: category,
+            trackMapSetID: trackMapSetID,
+            customIcon: option.customCategory?.icon
+        )
 
         if applyCategoryToAllPendingImports {
-            let applicable = pendingImports.filter { $0.allowedCategories.contains(category) }
+            let applicable = pendingImports.filter { isSelectionOption(option, applicableTo: $0) }
             for item in applicable {
-                importPendingFile(item, as: category, trackMapSetID: trackMapSetID)
+                importPendingFile(
+                    item,
+                    as: category,
+                    trackMapSetID: trackMapSetID,
+                    customIcon: option.customCategory?.icon
+                )
             }
-            pendingImports.removeAll { $0.allowedCategories.contains(category) }
+            pendingImports.removeAll { isSelectionOption(option, applicableTo: $0) }
         }
 
         currentPendingImport = nil
@@ -515,8 +546,18 @@ struct ImportExportView: View {
         }
     }
 
-    private func importPendingFile(_ pending: PendingImportedFile, as category: ImportCategory, trackMapSetID: UUID?) {
-        let adjustedFile = remapImportedFile(pending.file, to: category, trackMapSetID: trackMapSetID)
+    private func importPendingFile(
+        _ pending: PendingImportedFile,
+        as category: ImportCategory,
+        trackMapSetID: UUID?,
+        customIcon: String? = nil
+    ) {
+        let adjustedFile = remapImportedFile(
+            pending.file,
+            to: category,
+            trackMapSetID: trackMapSetID,
+            customIcon: customIcon
+        )
 
         app.muster.addImportedMapFile(
             adjustedFile,
@@ -529,7 +570,12 @@ struct ImportExportView: View {
         importResultImportedTracks += adjustedFile.tracks.count
     }
 
-    private func remapImportedFile(_ file: ImportedMapFile, to category: ImportCategory, trackMapSetID: UUID?) -> ImportedMapFile {
+    private func remapImportedFile(
+        _ file: ImportedMapFile,
+        to category: ImportCategory,
+        trackMapSetID: UUID?,
+        customIcon: String?
+    ) -> ImportedMapFile {
         switch category {
         case .boundaries:
             var boundaries = file.boundaries
@@ -619,6 +665,11 @@ struct ImportExportView: View {
             let updatedMarkers = file.markers.map { marker in
                 var updated = marker
                 updated.category = category
+                if category == .other,
+                   let customIcon,
+                   !customIcon.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    updated.emoji = customIcon
+                }
                 return updated
             }
 
@@ -777,6 +828,23 @@ struct ImportExportView: View {
 
     private func categoryIcon(for category: ImportCategory) -> String {
         app.muster.iconForImportCategory(category)
+    }
+
+    private func selectionOptions(for pending: PendingImportedFile) -> [ImportCategorySelectionOption] {
+        pending.allowedCategories.flatMap { category in
+            if category == .other, !app.muster.customImportCategories.isEmpty {
+                let customOptions = app.muster.customImportCategories.map {
+                    ImportCategorySelectionOption(baseCategory: .other, customCategory: $0)
+                }
+                return [ImportCategorySelectionOption(baseCategory: .other, customCategory: nil)] + customOptions
+            }
+
+            return [ImportCategorySelectionOption(baseCategory: category, customCategory: nil)]
+        }
+    }
+
+    private func isSelectionOption(_ option: ImportCategorySelectionOption, applicableTo pending: PendingImportedFile) -> Bool {
+        pending.allowedCategories.contains(option.baseCategory)
     }
     // MARK: - Export
 
