@@ -10,6 +10,8 @@ struct MenuSheetView: View {
     @State private var showMissingMapSetPrompt = false
     @State private var showMapSetsSheet = false
     @State private var startMapSetCreationFlowOnOpen = false
+    @State private var pendingTrackName = ""
+    @State private var showNewTrackNamePrompt = false
     @State private var sessionPendingDeletion: MusterSession? = nil
 
     private var previousSessions: [MusterSession] {
@@ -116,11 +118,8 @@ struct MenuSheetView: View {
 
                 Section {
                     Button {
-                        if app.muster.startSmartSession() {
-                            dismiss()
-                        } else {
-                            showMissingMapSetPrompt = true
-                        }
+                        pendingTrackName = app.muster.makeSmartSessionName()
+                        showNewTrackNamePrompt = true
                     } label: {
                         Label("New Track", systemImage: "plus.circle.fill")
                     }
@@ -179,6 +178,19 @@ struct MenuSheetView: View {
         .sheet(isPresented: $showMapSetsSheet) {
             MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                 .environmentObject(app)
+        }
+        .alert("New Track", isPresented: $showNewTrackNamePrompt) {
+            TextField("Track name", text: $pendingTrackName)
+            Button("Cancel", role: .cancel) {}
+            Button("Start") {
+                if app.muster.startSession(name: pendingTrackName) {
+                    dismiss()
+                } else {
+                    showMissingMapSetPrompt = true
+                }
+            }
+        } message: {
+            Text("Choose a track name.")
         }
         .onChange(of: showMapSetsSheet) { _, isPresented in
             if isPresented == false {

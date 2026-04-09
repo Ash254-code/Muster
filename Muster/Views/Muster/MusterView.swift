@@ -4,6 +4,9 @@ struct MusterView: View {
     @EnvironmentObject private var app: AppState
     @State private var showMissingMapSetPrompt = false
     @State private var showMapSetsSheet = false
+    @State private var startMapSetCreationFlowOnOpen = false
+    @State private var pendingTrackName = ""
+    @State private var showNewTrackNamePrompt = false
 
     private var sortedSessions: [MusterSession] {
         app.muster.sessions.sorted { $0.startedAt > $1.startedAt }
@@ -25,9 +28,8 @@ struct MusterView: View {
                             }
                             Spacer()
                             Button {
-                                if app.muster.startSmartSession() == false {
-                                    showMissingMapSetPrompt = true
-                                }
+                                pendingTrackName = app.muster.makeSmartSessionName()
+                                showNewTrackNamePrompt = true
                             } label: {
                                 Label("New Muster", systemImage: "plus")
                             }
@@ -103,9 +105,11 @@ struct MusterView: View {
             titleVisibility: .visible
         ) {
             Button("Create New Map Set") {
-                _ = app.muster.createMapSet()
+                startMapSetCreationFlowOnOpen = true
+                showMapSetsSheet = true
             }
             Button("Select Map Set From List") {
+                startMapSetCreationFlowOnOpen = false
                 showMapSetsSheet = true
             }
             Button("Cancel", role: .cancel) {}
@@ -113,8 +117,24 @@ struct MusterView: View {
             Text("New track can’t be started without a Map Set selected.")
         }
         .sheet(isPresented: $showMapSetsSheet) {
-            MapSetsSheetView()
+            MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                 .environmentObject(app)
+        }
+        .alert("New Track", isPresented: $showNewTrackNamePrompt) {
+            TextField("Track name", text: $pendingTrackName)
+            Button("Cancel", role: .cancel) {}
+            Button("Start") {
+                if app.muster.startSession(name: pendingTrackName) == false {
+                    showMissingMapSetPrompt = true
+                }
+            }
+        } message: {
+            Text("Choose a track name.")
+        }
+        .onChange(of: showMapSetsSheet) { _, isPresented in
+            if isPresented == false {
+                startMapSetCreationFlowOnOpen = false
+            }
         }
     }
 }
