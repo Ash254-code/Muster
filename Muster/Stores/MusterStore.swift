@@ -58,8 +58,8 @@ final class MusterStore: ObservableObject, Codable {
     }
 
     init() {
-        seedDefaultMarkerTemplatesIfNeeded()
         seedDefaultImportCategoryStylesIfNeeded()
+        syncMarkerTemplatesFromImportCategories()
         configureAutosaveObservers()
     }
 
@@ -77,8 +77,8 @@ final class MusterStore: ObservableObject, Codable {
         activeSheepTargetMarkerID = try c.decodeIfPresent(UUID.self, forKey: .activeSheepTargetMarkerID)
         showPreviousTracksOnMap = try c.decodeIfPresent(Bool.self, forKey: .showPreviousTracksOnMap) ?? true
 
-        seedDefaultMarkerTemplatesIfNeeded()
         seedDefaultImportCategoryStylesIfNeeded()
+        syncMarkerTemplatesFromImportCategories()
         normalizeImportedMapFilesIfNeeded()
         normalizeMapSetAssignmentsIfNeeded()
         normalizeSessionMapSetAssignmentsIfNeeded()
@@ -419,16 +419,16 @@ final class MusterStore: ObservableObject, Codable {
             self.activeSheepTargetMarkerID = loaded.activeSheepTargetMarkerID
             self.showPreviousTracksOnMap = loaded.showPreviousTracksOnMap
 
-            seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            syncMarkerTemplatesFromImportCategories()
             normalizeImportedMapFilesIfNeeded()
             normalizeMapSetAssignmentsIfNeeded()
             normalizeSessionMapSetAssignmentsIfNeeded()
             normalizeSelectedMapSetIfNeeded()
             validateActiveSheepTarget()
         } else {
-            seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            syncMarkerTemplatesFromImportCategories()
         }
 
         hasPendingChanges = false
@@ -1057,6 +1057,7 @@ final class MusterStore: ObservableObject, Codable {
         }
 
         applyCurrentCategoryStylesToExistingImports()
+        syncMarkerTemplatesFromImportCategories()
         save()
     }
 
@@ -1113,80 +1114,34 @@ final class MusterStore: ObservableObject, Codable {
     }
 
     // =========================================================
-    // MARK: - Default marker templates
-    // =========================================================
-
-    private func seedDefaultMarkerTemplatesIfNeeded() {
-        guard markerTemplates.isEmpty else { return }
-
-        markerTemplates = [
-            MarkerTemplate(description: "Dam", emoji: "🔵"),
-            MarkerTemplate(description: "Gate", emoji: "🚪"),
-            MarkerTemplate(description: "Tank", emoji: "🔷"),
-            MarkerTemplate(description: "Trough", emoji: "🚰"),
-            MarkerTemplate(description: "Yards", emoji: "𝐘"),
-            MarkerTemplate(description: "Shed", emoji: "🏠"),
-            MarkerTemplate(description: "Hazard", emoji: "⚠️"),
-            MarkerTemplate(description: "Tree", emoji: "🌳")
-        ]
-    }
-
-    // =========================================================
     // MARK: - Marker templates
     // =========================================================
 
-    func addMarkerTemplate(description: String, emoji: String) {
-        let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !cleanDescription.isEmpty else { return }
-        guard !cleanEmoji.isEmpty else { return }
-
-        markerTemplates.append(
-            MarkerTemplate(
-                description: cleanDescription,
-                emoji: cleanEmoji
-            )
-        )
-        save()
+    private func syncMarkerTemplatesFromImportCategories() {
+        markerTemplates = ImportCategory.allCases
+            .filter(\.isMarkerCategory)
+            .map { category in
+                MarkerTemplate(
+                    id: markerTemplateID(for: category),
+                    description: category.title,
+                    emoji: iconForImportCategory(category)
+                )
+            }
     }
 
-    func updateMarkerTemplate(id: UUID, description: String, emoji: String) {
-        guard let i = markerTemplates.firstIndex(where: { $0.id == id }) else { return }
-
-        let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !cleanDescription.isEmpty else { return }
-        guard !cleanEmoji.isEmpty else { return }
-
-        markerTemplates[i].description = cleanDescription
-        markerTemplates[i].emoji = cleanEmoji
-        save()
-    }
-
-    func deleteMarkerTemplate(id: UUID) {
-        markerTemplates.removeAll { $0.id == id }
-        save()
-    }
-
-    func moveMarkerTemplates(fromOffsets: IndexSet, toOffset: Int) {
-        let sortedOffsets = fromOffsets.sorted()
-        let movingItems = sortedOffsets.map { markerTemplates[$0] }
-
-        for index in sortedOffsets.reversed() {
-            markerTemplates.remove(at: index)
+    private func markerTemplateID(for category: ImportCategory) -> UUID {
+        switch category {
+        case .waterPoints:
+            return UUID(uuidString: "893EBD4A-E0C0-4F76-B3CE-0DF5FA493A57") ?? UUID()
+        case .yards:
+            return UUID(uuidString: "B267A95D-468A-4F84-B527-5DAAAC938AA0") ?? UUID()
+        case .other:
+            return UUID(uuidString: "BDACB73F-0836-424A-BF69-C2D29A22A8B6") ?? UUID()
+        case .boundaries:
+            return UUID(uuidString: "5676D188-82FF-4E9C-B5E7-C370E48A82A8") ?? UUID()
+        case .tracks:
+            return UUID(uuidString: "A7E798F6-A7E9-49C0-B1FF-4989A63859A7") ?? UUID()
         }
-
-        var destination = toOffset
-        for index in sortedOffsets where index < toOffset {
-            destination -= 1
-        }
-
-        destination = max(0, min(destination, markerTemplates.count))
-        markerTemplates.insert(contentsOf: movingItems, at: destination)
-
-        save()
     }
 
     // =========================================================

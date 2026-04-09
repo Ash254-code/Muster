@@ -39,43 +39,55 @@ struct MarkerSheet: View {
                 }
             }
         }
-        .presentationDetents(step == .pickEmoji ? [.height(250)] : [.height(220)])
+        .presentationDetents(step == .pickEmoji ? [.height(380)] : [.height(220)])
         .presentationDragIndicator(.visible)
     }
 
     private var pickEmojiView: some View {
         VStack(spacing: 16) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(templates) { template in
-                        Button {
-                            selectedTemplateID = template.id
-                        } label: {
-                            Text(template.emoji)
-                                .font(.system(size: 34))
-                                .frame(width: 58, height: 58)
+            if templates.isEmpty {
+                Text("No marker templates available.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ScrollView {
+                    VStack(spacing: 10) {
+                        ForEach(templates) { template in
+                            Button {
+                                selectedTemplateID = template.id
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text(template.emoji)
+                                        .font(.title2)
+
+                                    Text(template.displayTitle)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(.primary)
+
+                                    Spacer()
+
+                                    if selectedTemplateID == template.id {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.accent)
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                                .frame(maxWidth: .infinity, minHeight: 48)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 14)
+                                    RoundedRectangle(cornerRadius: 12)
                                         .fill(
                                             selectedTemplateID == template.id
                                             ? Color.accentColor.opacity(0.18)
                                             : Color.secondary.opacity(0.10)
                                         )
                                 )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(
-                                            selectedTemplateID == template.id
-                                            ? Color.accentColor
-                                            : Color.clear,
-                                            lineWidth: 2
-                                        )
-                                )
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 2)
+                .frame(maxHeight: 240)
             }
 
             Button {
