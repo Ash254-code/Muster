@@ -660,6 +660,10 @@ private struct MapSetDetailView: View {
     @State private var editingName = ""
     @State private var selectedTrackPreview: TrackPreviewTarget? = nil
     @State private var pendingTrackDeletion: TrackPreviewTarget? = nil
+    @State private var selectedTrackActions: TrackPreviewTarget? = nil
+    @State private var pendingTrackMove: TrackPreviewTarget? = nil
+    @State private var editingTrackTarget: TrackPreviewTarget? = nil
+    @State private var editingTrackName = ""
 
     private var mapSet: MapSet? {
         app.muster.mapSets.first(where: { $0.id == mapSetID })
@@ -690,32 +694,6 @@ private struct MapSetDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Menu {
-                            Button("Display") {
-                                app.muster.selectMapSet(mapSet.id)
-                            }
-                            Button("Edit") {
-                                editingName = mapSet.displayTitle
-                                isEditingName = true
-                            }
-                            Button("Duplicate") {
-                                if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
-                                    duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
-                                }
-                            }
-                            Button("Export") {
-                                exportMapSet(mapSet)
-                            }
-                            Button("Delete", role: .destructive) {
-                                showDeleteConfirmation = true
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.body.weight(.semibold))
-                                .frame(width: 30, height: 30)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Map set actions")
                     }
 
                     if app.muster.selectedMapSetID == mapSet.id {
@@ -748,14 +726,14 @@ private struct MapSetDetailView: View {
                                 }
                                 Spacer()
                                 Button {
-                                    selectedTrackPreview = .recorded(session)
+                                    selectedTrackActions = .recorded(session)
                                 } label: {
-                                    Image(systemName: "eye")
+                                    Image(systemName: "square.and.pencil")
                                         .font(.body.weight(.semibold))
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Preview \(session.name)")
+                                .accessibilityLabel("Edit actions for \(session.name)")
                             }
                         }
                         ForEach(importedTracks, id: \.track.id) { pair in
@@ -763,14 +741,14 @@ private struct MapSetDetailView: View {
                                 Text(pair.track.displayTitle)
                                 Spacer()
                                 Button {
-                                    selectedTrackPreview = .imported(track: pair.track)
+                                    selectedTrackActions = .imported(track: pair.track)
                                 } label: {
-                                    Image(systemName: "eye")
+                                    Image(systemName: "square.and.pencil")
                                         .font(.body.weight(.semibold))
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Preview \(pair.track.displayTitle)")
+                                .accessibilityLabel("Edit actions for \(pair.track.displayTitle)")
                             }
                         }
                     }
@@ -850,6 +828,38 @@ private struct MapSetDetailView: View {
         }
         .navigationTitle(mapSet?.displayTitle ?? "Map Set")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let mapSet {
+                    Menu {
+                        Button("Display", systemImage: "eye") {
+                            app.muster.selectMapSet(mapSet.id)
+                        }
+                        Button("Edit", systemImage: "pencil") {
+                            editingName = mapSet.displayTitle
+                            isEditingName = true
+                        }
+                        Button("Duplicate", systemImage: "plus.square.on.square") {
+                            if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
+                                duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
+                            }
+                        }
+                        Button("Export", systemImage: "square.and.arrow.up") {
+                            exportMapSet(mapSet)
+                        }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            showDeleteConfirmation = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Map set actions")
+                }
+            }
+        }
         .sheet(
             isPresented: Binding(
                 get: { !shareSheetItems.isEmpty },
@@ -870,9 +880,77 @@ private struct MapSetDetailView: View {
                 }
             )
         }
+        .confirmationDialog(
+            selectedTrackActions?.title ?? "Track Actions",
+            isPresented: Binding(
+                get: { selectedTrackActions != nil },
+                set: { if !$0 { selectedTrackActions = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let track = selectedTrackActions {
+                Button("Display", systemImage: "eye") {
+                    selectedTrackPreview = track
+                }
+                Button("Edit", systemImage: "pencil") {
+                    editingTrackTarget = track
+                    editingTrackName = track.title
+                }
+                Button("Move", systemImage: "arrow.left.arrow.right") {
+                    pendingTrackMove = track
+                }
+                Button("Export", systemImage: "square.and.arrow.up") {
+                    exportTrack(track)
+                }
+                Button("Delete", systemImage: "trash", role: .destructive) {
+                    pendingTrackDeletion = track
+                }
+            }
+        }
+        .sheet(item: $pendingTrackMove) { track in
+            NavigationStack {
+                List {
+                    Section("Move to Map Set") {
+                        ForEach(app.muster.mapSets, id: \.id) { targetMapSet in
+                            Button(targetMapSet.displayTitle) {
+                                moveTrack(track, to: targetMapSet.id)
+                                pendingTrackMove = nil
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Move Track")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            pendingTrackMove = nil
+                        }
+                    }
+                }
+            }
+        }
         .onChange(of: mapSet?.id) { _, _ in
             isEditingName = false
             editingName = mapSet?.displayTitle ?? ""
+        }
+        .alert(
+            "Edit Track Name",
+            isPresented: Binding(
+                get: { editingTrackTarget != nil },
+                set: { if !$0 { editingTrackTarget = nil } }
+            )
+        ) {
+            TextField("Track name", text: $editingTrackName)
+            Button("Save") {
+                guard let target = editingTrackTarget else { return }
+                renameTrack(target, to: editingTrackName)
+                editingTrackTarget = nil
+                editingTrackName = ""
+            }
+            Button("Cancel", role: .cancel) {
+                editingTrackTarget = nil
+                editingTrackName = ""
+            }
         }
         .alert(
             "Map Set Duplicated",
@@ -981,6 +1059,27 @@ private struct MapSetDetailView: View {
         } catch {
             alertTitle = "Export Failed"
             alertMessage = "Could not export GPX track: \(error.localizedDescription)"
+        }
+    }
+
+    private func renameTrack(_ track: TrackPreviewTarget, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        switch track {
+        case .recorded(let session):
+            app.muster.renameSession(sessionID: session.id, newName: trimmed)
+        case .imported(let importedTrack):
+            app.muster.renameImportedTrack(trackID: importedTrack.id, newName: trimmed)
+        }
+    }
+
+    private func moveTrack(_ track: TrackPreviewTarget, to mapSetID: UUID) {
+        switch track {
+        case .recorded(let session):
+            app.muster.moveSession(sessionID: session.id, to: mapSetID)
+        case .imported(let importedTrack):
+            guard let fileID = app.muster.fileID(containingTrackID: importedTrack.id) else { return }
+            app.muster.assignImportedTrack(fileID: fileID, trackID: importedTrack.id, to: mapSetID)
         }
     }
 
