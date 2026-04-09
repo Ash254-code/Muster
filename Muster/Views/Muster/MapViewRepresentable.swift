@@ -240,7 +240,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     private func applyMapStyle(_ map: MKMapView) {
         switch mapStyleRaw {
         case "satellite":
-            map.mapType = .satelliteFlyover
+            map.mapType = .satellite
         case "hybrid":
             map.mapType = .hybrid
         case "plain":
