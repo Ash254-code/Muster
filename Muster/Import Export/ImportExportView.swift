@@ -92,6 +92,14 @@ struct ImportExportView: View {
         app.muster.importedMapFiles.reduce(0) { $0 + $1.tracks.count }
     }
 
+    private var importedFilesByCategory: [(category: ImportCategory, files: [ImportedMapFile])] {
+        ImportCategory.allCases.compactMap { category in
+            let files = app.muster.importedMapFiles.filter { $0.assignedCategory == category }
+            guard !files.isEmpty else { return nil }
+            return (category: category, files: files)
+        }
+    }
+
     private var exportableSessions: [MusterSession] {
         app.muster.sessions
             .filter { !$0.points.isEmpty }
@@ -172,59 +180,50 @@ struct ImportExportView: View {
                         Text("No imported files yet.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(app.muster.importedMapFiles) { file in
-                            NavigationLink {
-                                ImportedMapFileDetailView(fileID: file.id)
-                                    .environmentObject(app)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        HStack(spacing: 8) {
-                                            Text(file.displayTitle)
-                                                .foregroundStyle(.primary)
+                        ForEach(importedFilesByCategory, id: \.category) { categoryGroup in
+                            Section {
+                                ForEach(categoryGroup.files) { file in
+                                    NavigationLink {
+                                        ImportedMapFileDetailView(fileID: file.id)
+                                            .environmentObject(app)
+                                    } label: {
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                HStack(spacing: 8) {
+                                                    Text(file.displayTitle)
+                                                        .foregroundStyle(.primary)
 
-                                            Text(file.format.title)
-                                                .font(.caption2.weight(.semibold))
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 3)
-                                                .background(.thinMaterial, in: Capsule())
-                                        }
+                                                    Text(file.format.title)
+                                                        .font(.caption2.weight(.semibold))
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 3)
+                                                        .background(.thinMaterial, in: Capsule())
+                                                }
 
-                                        HStack(spacing: 8) {
-                                            if file.assignedCategory == .waterPoints ||
-                                                file.assignedCategory == .yards ||
-                                                file.assignedCategory == .other {
-                                                Text(categoryIcon(for: file.assignedCategory))
+                                                Text("\(file.boundaries.count) boundaries • \(file.markers.count) markers • \(file.tracks.count) tracks")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
                                             }
 
-                                            Text(file.assignedCategory.title)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                            Spacer()
+
+                                            Toggle(
+                                                "",
+                                                isOn: Binding(
+                                                    get: { file.isVisible },
+                                                    set: { app.muster.setImportedMapFileVisibility(fileID: file.id, isVisible: $0) }
+                                                )
+                                            )
+                                            .labelsHidden()
                                         }
-
-                                        Text("\(file.boundaries.count) boundaries • \(file.markers.count) markers • \(file.tracks.count) tracks")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        .padding(.vertical, 2)
                                     }
-
-                                    Spacer()
-
-                                    Toggle(
-                                        "",
-                                        isOn: Binding(
-                                            get: { file.isVisible },
-                                            set: { app.muster.setImportedMapFileVisibility(fileID: file.id, isVisible: $0) }
-                                        )
-                                    )
-                                    .labelsHidden()
                                 }
-                                .padding(.vertical, 2)
-                            }
-                        }
-                        .onDelete { offsets in
-                            let ids = offsets.map { app.muster.importedMapFiles[$0].id }
-                            for id in ids {
-                                app.muster.deleteImportedMapFile(fileID: id)
+                                .onDelete { offsets in
+                                    deleteImportedFiles(at: offsets, in: categoryGroup.files)
+                                }
+                            } header: {
+                                Text("\(categoryIcon(for: categoryGroup.category)) \(categoryGroup.category.title)")
                             }
                         }
                     }
@@ -371,6 +370,13 @@ struct ImportExportView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func deleteImportedFiles(at offsets: IndexSet, in files: [ImportedMapFile]) {
+        let ids = offsets.map { files[$0].id }
+        for id in ids {
+            app.muster.deleteImportedMapFile(fileID: id)
         }
     }
 
