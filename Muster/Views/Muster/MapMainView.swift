@@ -695,7 +695,7 @@ private var selectedMapModeOption: MapModeOption {
                 message: longPressedMapMarkerDialogMessage
             )
             .confirmationDialog(
-                longPressedTrackTarget?.name ?? "Track",
+                "Track",
                 isPresented: $showLongPressedTrackDialog,
                 titleVisibility: .visible,
                 actions: longPressedTrackDialogActions
@@ -705,9 +705,6 @@ private var selectedMapModeOption: MapModeOption {
                 isPresented: $showTrackDeleteConfirmationAlert,
                 presenting: pendingTrackDeleteConfirmation
             ) { track in
-                Button("Cancel", role: .cancel) {
-                    pendingTrackDeleteConfirmation = nil
-                }
                 Button("Delete", role: .destructive) {
                     deleteLongPressedTrack(track)
                     pendingTrackDeleteConfirmation = nil
