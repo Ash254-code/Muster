@@ -645,6 +645,11 @@ private struct MarkerTemplateEditorSheet: View {
 private struct ImportCategoriesSettingsView: View {
     @EnvironmentObject private var app: AppState
     @State private var isPresentingAddCustomCategory = false
+    private let navigationTitle: String
+
+    init(navigationTitle: String = "Import Categories") {
+        self.navigationTitle = navigationTitle
+    }
 
     var body: some View {
         List {
@@ -744,7 +749,7 @@ private struct ImportCategoriesSettingsView: View {
                 .foregroundStyle(.red)
             }
         }
-        .navigationTitle("Import Categories")
+        .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
