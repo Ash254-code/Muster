@@ -9,6 +9,7 @@ struct MenuSheetView: View {
     @EnvironmentObject private var app: AppState
     @State private var showMissingMapSetPrompt = false
     @State private var showMapSetsSheet = false
+    @State private var startMapSetCreationFlowOnOpen = false
     @State private var sessionPendingDeletion: MusterSession? = nil
 
     private var previousSessions: [MusterSession] {
@@ -144,9 +145,11 @@ struct MenuSheetView: View {
             titleVisibility: .visible
         ) {
             Button("Create New Map Set") {
-                _ = app.muster.createMapSet()
+                startMapSetCreationFlowOnOpen = true
+                showMapSetsSheet = true
             }
             Button("Select Map Set From List") {
+                startMapSetCreationFlowOnOpen = false
                 showMapSetsSheet = true
             }
             Button("Cancel", role: .cancel) {}
@@ -174,8 +177,13 @@ struct MenuSheetView: View {
             }
         }
         .sheet(isPresented: $showMapSetsSheet) {
-            MapSetsSheetView()
+            MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                 .environmentObject(app)
+        }
+        .onChange(of: showMapSetsSheet) { _, isPresented in
+            if isPresented == false {
+                startMapSetCreationFlowOnOpen = false
+            }
         }
     }
 
@@ -215,6 +223,7 @@ struct MenuSheetView: View {
 struct MapSetsSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
+    let startInCreateFlow: Bool
 
     @State private var pendingMapSetName: String = ""
     @State private var stagedMapSetName: String = ""
@@ -230,6 +239,11 @@ struct MapSetsSheetView: View {
     @State private var alertMessage: String? = nil
     @State private var showImportActions = false
     @State private var showExportActions = false
+    @State private var didAutoStartCreateFlow = false
+
+    init(startInCreateFlow: Bool = false) {
+        self.startInCreateFlow = startInCreateFlow
+    }
     private var trimmedPendingMapSetName: String {
         pendingMapSetName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -495,6 +509,16 @@ struct MapSetsSheetView: View {
                 }
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .onAppear {
+            guard startInCreateFlow, didAutoStartCreateFlow == false else { return }
+            didAutoStartCreateFlow = true
+            pendingMapSetName = ""
+            stagedMapSetName = ""
+            selectedBoundaryKeys = []
+            selectedMarkerKeys = []
+            selectedTrackKeys = []
+            showCreateNamePrompt = true
         }
     }
 
