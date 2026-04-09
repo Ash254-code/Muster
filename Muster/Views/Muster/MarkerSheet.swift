@@ -2,6 +2,9 @@ import SwiftUI
 
 struct MarkerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppState
+
+    @State private var showAddCustomCategorySheet = false
 
     let templates: [MarkerTemplate]
     let onDrop: (MarkerTemplate, String?) -> Void
@@ -37,6 +40,21 @@ struct MarkerSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddCustomCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add marker category")
+                }
+            }
+        }
+        .sheet(isPresented: $showAddCustomCategorySheet) {
+            NavigationStack {
+                NewCustomImportCategoryView()
+                    .environmentObject(app)
             }
         }
         .presentationDetents(step == .pickEmoji ? [.height(380)] : [.height(220)])

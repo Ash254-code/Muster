@@ -544,7 +544,7 @@ private struct MarkerTemplatesSettingsView: View {
     }
 }
 
-private struct NewCustomImportCategoryView: View {
+struct NewCustomImportCategoryView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
 
