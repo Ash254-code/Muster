@@ -2606,22 +2606,26 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             }
             .padding(.horizontal, 14)
 
-            HStack(spacing: 12) {
-                quickStat(title: "Km For Day", value: km)
-
-                quickStatButton(
+            HStack(spacing: 10) {
+                bottomActionButton(
                     title: "TPMS",
-                    value: "Open",
                     systemImage: "tirepressure"
                 ) {
                     panelDetent = .collapsed
                     showTPMSDashboard = true
                 }
 
-                quickStatButton(
+                bottomActionButton(
                     title: "Settings",
-                    value: "Open",
                     systemImage: "gearshape.fill"
+                ) {
+                    panelDetent = .collapsed
+                    showSettings = true
+                }
+
+                bottomActionButton(
+                    title: "Rings",
+                    systemImage: "scope"
                 ) {
                     panelDetent = .collapsed
                     showSettings = true
@@ -2637,6 +2641,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 ) {
                     cycleActiveTrackAppearanceMode()
                 }
+
+                panelRow(
+                    title: "Km For Day",
+                    value: km,
+                    systemImage: "road.lanes"
+                )
 
                 panelButtonRow(
                     title: "Current Track",
