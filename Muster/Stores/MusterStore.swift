@@ -354,11 +354,7 @@ final class MusterStore: ObservableObject, Codable {
 
         autosaveTask = Task { [weak self] in
             guard nanos > 0 else {
-                await MainActor.run {
-                    guard let self else { return }
-                    self.autosaveTask = nil
-                    self.flushSave()
-                }
+                await self?.completeAutosaveTask()
                 return
             }
 
@@ -368,12 +364,14 @@ final class MusterStore: ObservableObject, Codable {
                 return
             }
 
-            await MainActor.run {
-                guard let self else { return }
-                self.autosaveTask = nil
-                self.flushSave()
-            }
+            await self?.completeAutosaveTask()
         }
+    }
+
+    @MainActor
+    private func completeAutosaveTask() {
+        autosaveTask = nil
+        flushSave()
     }
 
     private func flushSave(now: Date = Date()) {
@@ -402,10 +400,7 @@ final class MusterStore: ObservableObject, Codable {
 
         appLifecycleObservers = names.map { name in
             nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self = self else { return }
-                    self.flushSave()
-                }
+                self?.flushSave()
             }
         }
     }

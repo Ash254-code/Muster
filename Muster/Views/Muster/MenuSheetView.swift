@@ -808,18 +808,27 @@ private struct MapSetDetailView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(availableBoundaries.prefix(10), id: \.1.id) { pair in
-                            Button("Add boundary: \(pair.1.displayTitle)") {
+                            let boundaryName = pair.1.displayTitle
+                            Button {
                                 app.muster.assignImportedBoundary(fileID: pair.0, boundaryID: pair.1.id, to: mapSet.id)
+                            } label: {
+                                Text("Add boundary: \(boundaryName)")
                             }
                         }
                         ForEach(availableMarkers.prefix(10), id: \.1.id) { pair in
-                            Button("Add marker: \(pair.1.displayTitle)") {
+                            let markerName = pair.1.displayTitle
+                            Button {
                                 app.muster.assignImportedMarker(fileID: pair.0, markerID: pair.1.id, to: mapSet.id)
+                            } label: {
+                                Text("Add marker: \(markerName)")
                             }
                         }
                         ForEach(availableTracks.prefix(10), id: \.1.id) { pair in
-                            Button("Move track: \(pair.1.displayTitle)") {
+                            let trackName = pair.1.displayTitle
+                            Button {
                                 app.muster.assignImportedTrack(fileID: pair.0, trackID: pair.1.id, to: mapSet.id)
+                            } label: {
+                                Text("Move track: \(trackName)")
                             }
                         }
                     }
