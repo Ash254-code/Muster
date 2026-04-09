@@ -611,6 +611,42 @@ final class MusterStore: ObservableObject, Codable {
         save()
     }
 
+    func fileID(containingTrackID trackID: UUID) -> UUID? {
+        importedMapFiles.first(where: { file in
+            file.tracks.contains(where: { $0.id == trackID })
+        })?.id
+    }
+
+    func renameImportedTrack(trackID: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        for fileIndex in importedMapFiles.indices {
+            if let trackIndex = importedMapFiles[fileIndex].tracks.firstIndex(where: { $0.id == trackID }) {
+                importedMapFiles[fileIndex].tracks[trackIndex].name = trimmed
+                save()
+                return
+            }
+        }
+    }
+
+    func renameSession(sessionID: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        sessions[sessionIndex].name = trimmed
+        save()
+    }
+
+    func moveSession(sessionID: UUID, to mapSetID: UUID) {
+        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        sessions[sessionIndex].mapSetID = mapSetID
+        save()
+    }
+
     func mapSetName(for id: UUID?) -> String {
         guard let id, let mapSet = mapSets.first(where: { $0.id == id }) else { return "None" }
         return mapSet.displayTitle
