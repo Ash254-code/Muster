@@ -434,6 +434,7 @@ final class MusterStore: ObservableObject, Codable {
 
             seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            seedDefaultCustomImportCategoriesIfNeeded()
             normalizeImportedMapFilesIfNeeded()
             normalizeMapSetAssignmentsIfNeeded()
             normalizeSessionMapSetAssignmentsIfNeeded()
@@ -442,6 +443,7 @@ final class MusterStore: ObservableObject, Codable {
         } else {
             seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            seedDefaultCustomImportCategoriesIfNeeded()
         }
 
         hasPendingChanges = false
@@ -1045,6 +1047,7 @@ final class MusterStore: ObservableObject, Codable {
         customImportCategories.removeAll { $0.id == id }
 
         if customImportCategories.count != originalCount {
+            seedDefaultCustomImportCategoriesIfNeeded()
             save()
         }
     }
@@ -1162,6 +1165,14 @@ final class MusterStore: ObservableObject, Codable {
 
         applyCurrentCategoryStylesToExistingImports()
         save()
+    }
+
+    private func seedDefaultCustomImportCategoriesIfNeeded() {
+        guard customImportCategories.isEmpty else { return }
+
+        customImportCategories = [
+            CustomImportCategory(title: "POI", icon: "📍", isVisibleByDefault: true)
+        ]
     }
 
     // =========================================================

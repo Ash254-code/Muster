@@ -57,14 +57,14 @@ struct MarkerSheet: View {
                     .environmentObject(app)
             }
         }
-        .presentationDetents(step == .pickEmoji ? [.height(380)] : [.height(220)])
+        .presentationDetents(step == .pickEmoji ? [.height(340)] : [.height(240)])
         .presentationDragIndicator(.visible)
     }
 
     private var pickEmojiView: some View {
         VStack(spacing: 16) {
             if templates.isEmpty {
-                Text("No marker templates available.")
+                Text("No custom marker categories yet. Tap + to add POI types.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -79,25 +79,13 @@ struct MarkerSheet: View {
                 .frame(maxHeight: 240)
             }
 
-            Button(action: {
-                guard selectedTemplate != nil else { return }
-                step = .enterName
-            }) {
-                Text("Drop")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(dropButtonBackgroundColor)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(selectedTemplate == nil)
         }
     }
 
     private func templateRow(_ template: MarkerTemplate) -> some View {
         Button(action: {
             selectedTemplateID = template.id
+            step = .enterName
         }) {
             HStack(spacing: 12) {
                 Text(template.emoji)
@@ -129,10 +117,6 @@ struct MarkerSheet: View {
         }
     }
 
-    private var dropButtonBackgroundColor: Color {
-        selectedTemplate == nil ? Color.gray.opacity(0.25) : Color.accentColor
-    }
-
     private var enterNameView: some View {
         VStack(spacing: 16) {
             if let template = selectedTemplate {
@@ -140,10 +124,21 @@ struct MarkerSheet: View {
                     .font(.system(size: 42))
             }
 
-            TextField("Name", text: $markerName)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(.secondary)
+
+                TextField("Marker name", text: $markerName)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.secondary.opacity(0.2), lineWidth: 1)
+            )
 
             HStack(spacing: 12) {
                 Button {
