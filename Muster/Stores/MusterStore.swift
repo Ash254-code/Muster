@@ -287,6 +287,12 @@ final class MusterStore: ObservableObject, Codable {
             .sorted { $0.startedAt > $1.startedAt }
     }
 
+    func totalTrackCount(in mapSetID: UUID) -> Int {
+        let importedTrackCount = importedTracks(in: mapSetID).count
+        let recordedTrackCount = recordedSessions(in: mapSetID).filter(\.hasTrack).count
+        return importedTrackCount + recordedTrackCount
+    }
+
     func markerTemplate(withID id: UUID?) -> MarkerTemplate? {
         guard let id else { return nil }
         return markerTemplates.first(where: { $0.id == id })
