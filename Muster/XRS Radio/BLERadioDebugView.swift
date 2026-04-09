@@ -128,6 +128,12 @@ struct BLERadioDebugView: View {
                             }
                         }
                         .padding(.top, 4)
+
+                        Toggle("Show all incoming data", isOn: $ble.showAllIncomingData)
+
+                        Text("When enabled, every incoming candidate is shown in the log and duplicate suppression is disabled so you can confirm what the radio is actually sending.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
 
                     Section("Discovered Devices") {

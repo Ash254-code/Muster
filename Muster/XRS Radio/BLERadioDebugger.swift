@@ -75,6 +75,13 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         }
     }
 
+    @Published var showAllIncomingData: Bool = false {
+        didSet {
+            UserDefaults.standard.set(showAllIncomingData, forKey: Self.showAllIncomingDataKey)
+            appendLog("All incoming data logging \(showAllIncomingData ? "enabled" : "disabled")")
+        }
+    }
+
     var onDecodedContact: ((XRSRadioContact) -> Void)?
     var onTransmitActivity: (() -> Void)?
     var onConnectionChanged: ((Bool) -> Void)?
@@ -120,6 +127,7 @@ final class BLERadioDebugger: NSObject, ObservableObject {
     private static let lastPeripheralIDKey = "bleradiodebugger.lastPeripheralID"
     private static let parserModeKey = "bleradiodebugger.parserMode"
     private static let savedRadiosKey = "bleradiodebugger.savedRadios"
+    private static let showAllIncomingDataKey = "bleradiodebugger.showAllIncomingData"
 
     override init() {
         if let raw = UserDefaults.standard.string(forKey: Self.parserModeKey) {
@@ -136,6 +144,8 @@ final class BLERadioDebugger: NSObject, ObservableObject {
                 }
             }
         }
+
+        showAllIncomingData = UserDefaults.standard.bool(forKey: Self.showAllIncomingDataKey)
 
         super.init()
         loadSavedRadios()
@@ -851,8 +861,16 @@ final class BLERadioDebugger: NSObject, ObservableObject {
 
         let now = Date()
 
+        if showAllIncomingData {
+            appendTransmissionLog(
+                title: "CANDIDATE \(characteristic.uuid.uuidString)",
+                body: message
+            )
+        }
+
         if let lastSeen = recentMessageFingerprints[message],
-           now.timeIntervalSince(lastSeen) < 0.75 {
+           now.timeIntervalSince(lastSeen) < 0.75,
+           !showAllIncomingData {
             return
         }
 
@@ -860,7 +878,8 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         pruneRecentMessageFingerprints(now: now)
 
         if lastCompleteMessage == message,
-           now.timeIntervalSince(lastCompleteMessageAt) < 1.0 {
+           now.timeIntervalSince(lastCompleteMessageAt) < 1.0,
+           !showAllIncomingData {
             return
         }
 
