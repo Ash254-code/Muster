@@ -793,21 +793,15 @@ private struct MapSetDetailView: View {
                 }
 
                 Section("Move Existing Items Here") {
-                    let availableBoundaries = app.muster.importedMapFiles
-                        .flatMap { file in file.boundaries.map { (file.id, $0) } }
-                        .filter { $0.1.mapSetID != mapSet.id }
-                    let availableMarkers = app.muster.importedMapFiles
-                        .flatMap { file in file.markers.map { (file.id, $0) } }
-                        .filter { $0.1.mapSetID != mapSet.id }
-                    let availableTracks = app.muster.importedMapFiles
-                        .flatMap { file in file.tracks.map { (file.id, $0) } }
-                        .filter { $0.1.mapSetID != mapSet.id }
+                    let availableBoundaries = availableBoundaries(for: mapSet.id)
+                    let availableMarkers = availableMarkers(for: mapSet.id)
+                    let availableTracks = availableTracks(for: mapSet.id)
 
                     if availableBoundaries.isEmpty && availableMarkers.isEmpty && availableTracks.isEmpty {
                         Text("No additional imported items available.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(availableBoundaries.prefix(10), id: \.1.id) { pair in
+                        ForEach(availableBoundaries.prefix(10), id: \.boundary.id) { pair in
                             let boundaryName = pair.1.displayTitle
                             Button {
                                 app.muster.assignImportedBoundary(fileID: pair.0, boundaryID: pair.1.id, to: mapSet.id)
@@ -815,7 +809,7 @@ private struct MapSetDetailView: View {
                                 Text("Add boundary: \(boundaryName)")
                             }
                         }
-                        ForEach(availableMarkers.prefix(10), id: \.1.id) { pair in
+                        ForEach(availableMarkers.prefix(10), id: \.marker.id) { pair in
                             let markerName = pair.1.displayTitle
                             Button {
                                 app.muster.assignImportedMarker(fileID: pair.0, markerID: pair.1.id, to: mapSet.id)
@@ -823,7 +817,7 @@ private struct MapSetDetailView: View {
                                 Text("Add marker: \(markerName)")
                             }
                         }
-                        ForEach(availableTracks.prefix(10), id: \.1.id) { pair in
+                        ForEach(availableTracks.prefix(10), id: \.track.id) { pair in
                             let trackName = pair.1.displayTitle
                             Button {
                                 app.muster.assignImportedTrack(fileID: pair.0, trackID: pair.1.id, to: mapSet.id)
@@ -1090,6 +1084,36 @@ private struct MapSetDetailView: View {
             guard let fileID = app.muster.fileID(containingTrackID: importedTrack.id) else { return }
             app.muster.assignImportedTrack(fileID: fileID, trackID: importedTrack.id, to: mapSetID)
         }
+    }
+
+    private func availableBoundaries(for mapSetID: UUID) -> [(fileID: UUID, boundary: ImportedBoundary)] {
+        var results: [(fileID: UUID, boundary: ImportedBoundary)] = []
+        for file in app.muster.importedMapFiles {
+            for boundary in file.boundaries where boundary.mapSetID != mapSetID {
+                results.append((fileID: file.id, boundary: boundary))
+            }
+        }
+        return results
+    }
+
+    private func availableMarkers(for mapSetID: UUID) -> [(fileID: UUID, marker: ImportedMarker)] {
+        var results: [(fileID: UUID, marker: ImportedMarker)] = []
+        for file in app.muster.importedMapFiles {
+            for marker in file.markers where marker.mapSetID != mapSetID {
+                results.append((fileID: file.id, marker: marker))
+            }
+        }
+        return results
+    }
+
+    private func availableTracks(for mapSetID: UUID) -> [(fileID: UUID, track: ImportedTrack)] {
+        var results: [(fileID: UUID, track: ImportedTrack)] = []
+        for file in app.muster.importedMapFiles {
+            for track in file.tracks where track.mapSetID != mapSetID {
+                results.append((fileID: file.id, track: track))
+            }
+        }
+        return results
     }
 
     private func writeGPXTrackFile(for track: TrackPreviewTarget) throws -> URL {
