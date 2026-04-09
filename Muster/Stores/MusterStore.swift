@@ -354,11 +354,7 @@ final class MusterStore: ObservableObject, Codable {
 
         autosaveTask = Task { [weak self] in
             guard nanos > 0 else {
-                await MainActor.run {
-                    guard let self else { return }
-                    self.autosaveTask = nil
-                    self.flushSave()
-                }
+                await self?.completeAutosaveTask()
                 return
             }
 
@@ -368,12 +364,14 @@ final class MusterStore: ObservableObject, Codable {
                 return
             }
 
-            await MainActor.run {
-                guard let self else { return }
-                self.autosaveTask = nil
-                self.flushSave()
-            }
+            await self?.completeAutosaveTask()
         }
+    }
+
+    @MainActor
+    private func completeAutosaveTask() {
+        autosaveTask = nil
+        flushSave()
     }
 
     private func flushSave(now: Date = Date()) {
@@ -402,10 +400,7 @@ final class MusterStore: ObservableObject, Codable {
 
         appLifecycleObservers = names.map { name in
             nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self = self else { return }
-                    self.flushSave()
-                }
+                self?.flushSave()
             }
         }
     }
@@ -619,6 +614,42 @@ final class MusterStore: ObservableObject, Codable {
               let trackIndex = importedMapFiles[fileIndex].tracks.firstIndex(where: { $0.id == trackID }) else { return }
 
         importedMapFiles[fileIndex].tracks[trackIndex].mapSetID = mapSetID
+        save()
+    }
+
+    func fileID(containingTrackID trackID: UUID) -> UUID? {
+        importedMapFiles.first(where: { file in
+            file.tracks.contains(where: { $0.id == trackID })
+        })?.id
+    }
+
+    func renameImportedTrack(trackID: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        for fileIndex in importedMapFiles.indices {
+            if let trackIndex = importedMapFiles[fileIndex].tracks.firstIndex(where: { $0.id == trackID }) {
+                importedMapFiles[fileIndex].tracks[trackIndex].name = trimmed
+                save()
+                return
+            }
+        }
+    }
+
+    func renameSession(sessionID: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        sessions[sessionIndex].name = trimmed
+        save()
+    }
+
+    func moveSession(sessionID: UUID, to mapSetID: UUID) {
+        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        sessions[sessionIndex].mapSetID = mapSetID
         save()
     }
 
