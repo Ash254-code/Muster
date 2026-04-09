@@ -639,7 +639,6 @@ private var selectedMapModeOption: MapModeOption {
         return .explore
     }
 }
-
     var body: some View {
         observedMainContent
     }

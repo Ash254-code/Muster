@@ -118,7 +118,7 @@ struct ImportExportView: View {
                     Button {
                         showImporter = true
                     } label: {
-                        Label("Import Files or Folder", systemImage: "square.and.arrow.down")
+                        Label("Import Files", systemImage: "square.and.arrow.down")
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -166,23 +166,6 @@ struct ImportExportView: View {
                     Text("Imported Data")
                 }
 
-                Section {
-                    Button {
-                        app.muster.showAllImportedMapFiles()
-                    } label: {
-                        Text("Show All Imported Files")
-                    }
-                    .disabled(importedFileCount == 0)
-
-                    Button {
-                        app.muster.hideAllImportedMapFiles()
-                    } label: {
-                        Text("Hide All Imported Files")
-                    }
-                    .disabled(importedFileCount == 0)
-                } header: {
-                    Text("Manage Visibility")
-                }
 
                 Section {
                     if app.muster.importedMapFiles.isEmpty {
