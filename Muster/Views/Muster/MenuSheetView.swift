@@ -216,41 +216,61 @@ struct MapSetsSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
 
-    @State private var newMapSetName: String = ""
+    @State private var pendingMapSetName: String = ""
+    @State private var stagedMapSetName: String = ""
+    @State private var selectedBoundaryKeys: Set<MapItemSelectionKey> = []
+    @State private var selectedMarkerKeys: Set<MapItemSelectionKey> = []
+    @State private var selectedTrackKeys: Set<MapItemSelectionKey> = []
+    @State private var showCreateNamePrompt = false
+    @State private var showBoundarySelection = false
+    @State private var showMarkerSelection = false
     @State private var showImportPicker = false
     @State private var shareSheetItems: [Any] = []
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
     @State private var showImportActions = false
     @State private var showExportActions = false
-    private var trimmedNewMapSetName: String {
-        newMapSetName.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var trimmedPendingMapSetName: String {
+        pendingMapSetName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var availableBoundaryChoices: [MapItemChoice] {
+        app.muster.importedMapFiles.flatMap { file in
+            file.boundaries.map { boundary in
+                MapItemChoice(
+                    key: MapItemSelectionKey(fileID: file.id, itemID: boundary.id),
+                    title: boundary.displayTitle
+                )
+            }
+        }
+    }
+
+    private var availableMarkerChoices: [MapItemChoice] {
+        app.muster.importedMapFiles.flatMap { file in
+            file.markers.map { marker in
+                MapItemChoice(
+                    key: MapItemSelectionKey(fileID: file.id, itemID: marker.id),
+                    title: marker.displayTitle
+                )
+            }
+        }
+    }
+
+    private var availableTrackChoices: [MapItemChoice] {
+        app.muster.importedMapFiles.flatMap { file in
+            file.tracks.map { track in
+                MapItemChoice(
+                    key: MapItemSelectionKey(fileID: file.id, itemID: track.id),
+                    title: track.displayTitle
+                )
+            }
+        }
     }
 
     var body: some View {
         NavigationStack {
             List {
                 
-                Section("Create") {
-                    HStack(spacing: 12) {
-                        TextField("Map set name", text: $newMapSetName)
-
-                        Button {
-                            app.muster.createMapSet(named: trimmedNewMapSetName)
-                            newMapSetName = ""
-                        } label: {
-                            Text("Create")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .tint(trimmedNewMapSetName.isEmpty ? .gray : .accentColor)
-                        .disabled(trimmedNewMapSetName.isEmpty)
-                    }
-                }
                 Section("Map Sets") {
                     if app.muster.mapSets.isEmpty {
                         Text("No map sets yet.")
@@ -320,6 +340,122 @@ struct MapSetsSheetView: View {
                             .font(.body.weight(.semibold))
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        pendingMapSetName = ""
+                        stagedMapSetName = ""
+                        selectedBoundaryKeys = []
+                        selectedMarkerKeys = []
+                        selectedTrackKeys = []
+                        showCreateNamePrompt = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.body.weight(.semibold))
+                    }
+                    .accessibilityLabel("Create map set")
+                }
+            }
+        }
+        .alert("New Map Set", isPresented: $showCreateNamePrompt) {
+            TextField("Map set name", text: $pendingMapSetName)
+            Button("Cancel", role: .cancel) {
+                pendingMapSetName = ""
+            }
+            Button("Next") {
+                stagedMapSetName = trimmedPendingMapSetName
+                showBoundarySelection = true
+            }
+            .disabled(trimmedPendingMapSetName.isEmpty)
+        } message: {
+            Text("Enter a name for the new map set.")
+        }
+        .sheet(isPresented: $showBoundarySelection) {
+            NavigationStack {
+                List {
+                    Section("Boundaries") {
+                        if availableBoundaryChoices.isEmpty {
+                            Text("No boundaries available.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(availableBoundaryChoices) { choice in
+                                selectionRow(
+                                    title: choice.title,
+                                    isSelected: selectedBoundaryKeys.contains(choice.key)
+                                ) {
+                                    toggleSelection(choice.key, in: &selectedBoundaryKeys)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Include Boundaries")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            showBoundarySelection = false
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Next") {
+                            showBoundarySelection = false
+                            showMarkerSelection = true
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showMarkerSelection) {
+            NavigationStack {
+                List {
+                    Section("Markers") {
+                        if availableMarkerChoices.isEmpty {
+                            Text("No markers available.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(availableMarkerChoices) { choice in
+                                selectionRow(
+                                    title: choice.title,
+                                    isSelected: selectedMarkerKeys.contains(choice.key)
+                                ) {
+                                    toggleSelection(choice.key, in: &selectedMarkerKeys)
+                                }
+                            }
+                        }
+                    }
+
+                    Section("Waypoints") {
+                        if availableTrackChoices.isEmpty {
+                            Text("No waypoints available.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(availableTrackChoices) { choice in
+                                selectionRow(
+                                    title: choice.title,
+                                    isSelected: selectedTrackKeys.contains(choice.key)
+                                ) {
+                                    toggleSelection(choice.key, in: &selectedTrackKeys)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Include Markers")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Back") {
+                            showMarkerSelection = false
+                            showBoundarySelection = true
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Create") {
+                            finishMapSetCreation()
+                            showMarkerSelection = false
+                        }
+                    }
+                }
             }
         }
         .fileImporter(
@@ -360,6 +496,50 @@ struct MapSetsSheetView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+    }
+
+    @ViewBuilder
+    private func selectionRow(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? .accentColor : .secondary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleSelection(_ key: MapItemSelectionKey, in set: inout Set<MapItemSelectionKey>) {
+        if set.contains(key) {
+            set.remove(key)
+        } else {
+            set.insert(key)
+        }
+    }
+
+    private func finishMapSetCreation() {
+        let mapSetID = app.muster.createMapSet(named: stagedMapSetName)
+
+        for choice in selectedBoundaryKeys {
+            app.muster.assignImportedBoundary(fileID: choice.fileID, boundaryID: choice.itemID, to: mapSetID)
+        }
+
+        for choice in selectedMarkerKeys {
+            app.muster.assignImportedMarker(fileID: choice.fileID, markerID: choice.itemID, to: mapSetID)
+        }
+
+        for choice in selectedTrackKeys {
+            app.muster.assignImportedTrack(fileID: choice.fileID, trackID: choice.itemID, to: mapSetID)
+        }
+
+        pendingMapSetName = ""
+        stagedMapSetName = ""
+        selectedBoundaryKeys = []
+        selectedMarkerKeys = []
+        selectedTrackKeys = []
     }
 
     private func summary(for mapSetID: UUID) -> String {
@@ -450,6 +630,18 @@ struct MapSetsSheetView: View {
             alertMessage = error.localizedDescription
         }
     }
+}
+
+private struct MapItemSelectionKey: Hashable {
+    let fileID: UUID
+    let itemID: UUID
+}
+
+private struct MapItemChoice: Identifiable {
+    let key: MapItemSelectionKey
+    let title: String
+
+    var id: MapItemSelectionKey { key }
 }
 
 private struct MapSetActivityView: UIViewControllerRepresentable {
