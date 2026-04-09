@@ -564,7 +564,7 @@ struct MapSetsSheetView: View {
     private func summary(for mapSetID: UUID) -> String {
         let boundaries = app.muster.importedBoundaries(in: mapSetID).count
         let markers = app.muster.importedMarkers(in: mapSetID).count
-        let tracks = app.muster.importedTracks(in: mapSetID).count
+        let tracks = app.muster.totalTrackCount(in: mapSetID)
         return "\(boundaries) boundaries • \(markers) markers • \(tracks) tracks"
     }
 
