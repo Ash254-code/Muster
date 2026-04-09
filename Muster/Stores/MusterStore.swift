@@ -452,7 +452,7 @@ final class MusterStore: ObservableObject, Codable {
         let trimmed = rawName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let finalName = trimmed.isEmpty ? nextMapSetName() : trimmed
 
-        let newSet = MapSet(name: finalName)
+        let newSet = MapSet(createdAt: Date(), lastUsedAt: Date(), name: finalName)
         mapSets.insert(newSet, at: 0)
         selectedMapSetID = newSet.id
         save()
@@ -469,8 +469,9 @@ final class MusterStore: ObservableObject, Codable {
     }
 
     func selectMapSet(_ mapSetID: UUID) {
-        guard mapSets.contains(where: { $0.id == mapSetID }) else { return }
+        guard let index = mapSets.firstIndex(where: { $0.id == mapSetID }) else { return }
         selectedMapSetID = mapSetID
+        mapSets[index].lastUsedAt = Date()
         save()
     }
 
@@ -480,6 +481,7 @@ final class MusterStore: ObservableObject, Codable {
         var duplicate = source
         duplicate.id = UUID()
         duplicate.createdAt = Date()
+        duplicate.lastUsedAt = nil
         duplicate.name = "\(source.displayTitle) Copy"
 
         mapSets.insert(duplicate, at: 0)
@@ -865,7 +867,7 @@ final class MusterStore: ObservableObject, Codable {
         }
 
         let newID = UUID()
-        mapSets.insert(MapSet(id: newID, createdAt: Date(), name: nextMapSetName()), at: 0)
+        mapSets.insert(MapSet(id: newID, createdAt: Date(), lastUsedAt: nil, name: nextMapSetName()), at: 0)
         return newID
     }
 
