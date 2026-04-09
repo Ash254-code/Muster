@@ -154,7 +154,7 @@ struct MenuSheetView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("New Muster or track can’t be started without a Map Set selected.")
+            Text("New track can’t be started without a Map Set selected.")
         }
         .confirmationDialog(
             "Delete Previous Muster?",
@@ -530,7 +530,7 @@ struct MapSetsSheetView: View {
                     .foregroundStyle(.primary)
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? .accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
             }
         }
         .buttonStyle(.plain)

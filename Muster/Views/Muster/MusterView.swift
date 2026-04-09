@@ -110,7 +110,7 @@ struct MusterView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("New Muster or track can’t be started without a Map Set selected.")
+            Text("New track can’t be started without a Map Set selected.")
         }
         .sheet(isPresented: $showMapSetsSheet) {
             MapSetsSheetView()

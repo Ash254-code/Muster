@@ -15,7 +15,7 @@ struct StartSessionView: View {
             VStack(spacing: 14) {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("New Muster")
+                        Text("New Tack")
                             .font(.title2.weight(.semibold))
 
                         Text("A smart name will be created automatically.")
@@ -50,7 +50,7 @@ struct StartSessionView: View {
                 }
             }
             .padding(14)
-            .navigationTitle("New Muster")
+            .navigationTitle("New Track")
             .navigationBarTitleDisplayMode(.inline)
         }
         .confirmationDialog(
@@ -66,7 +66,7 @@ struct StartSessionView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("New Muster or track can’t be started without a Map Set selected.")
+            Text("New track can’t be started without a Map Set selected.")
         }
         .sheet(isPresented: $showMapSetsSheet) {
             MapSetsSheetView()
