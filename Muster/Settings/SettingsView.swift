@@ -644,10 +644,11 @@ private struct MarkerTemplateEditorSheet: View {
 
 private struct ImportCategoriesSettingsView: View {
     @EnvironmentObject private var app: AppState
+    @State private var isPresentingAddCustomCategory = false
 
     var body: some View {
         List {
-            Section {
+            Section("Built-in Categories") {
                 ForEach(ImportCategory.allCases) { category in
                     NavigationLink {
                         ImportCategoryEditorView(category: category)
@@ -680,10 +681,38 @@ private struct ImportCategoriesSettingsView: View {
                         }
                     }
                 }
-            } header: {
-                Text("Categories")
             } footer: {
                 Text("Choose the icon or emoji used for each imported category. Boundaries and Tracks can also have their own colours. Visibility here sets the default filter state used on the map.")
+            }
+
+            if !app.muster.customImportCategories.isEmpty {
+                Section("Custom Categories") {
+                    ForEach(app.muster.customImportCategories) { category in
+                        NavigationLink {
+                            CustomImportCategoryEditorView(categoryID: category.id)
+                                .environmentObject(app)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Text(category.icon)
+                                    .font(.title3)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(category.title)
+                                    Text("Tap to edit icon / emoji")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: category.isVisibleByDefault ? "eye.fill" : "eye.slash.fill")
+                                    .foregroundStyle(category.isVisibleByDefault ? .primary : .secondary)
+                            }
+                        }
+                    }
+                } footer: {
+                    Text("Custom categories are used for organizing imported marker-like points.")
+                }
             }
 
             Section("Quick visibility") {
@@ -713,6 +742,22 @@ private struct ImportCategoriesSettingsView: View {
         }
         .navigationTitle("Import Categories")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPresentingAddCustomCategory = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Add category")
+            }
+        }
+        .sheet(isPresented: $isPresentingAddCustomCategory) {
+            NavigationStack {
+                NewCustomImportCategoryView()
+                    .environmentObject(app)
+            }
+        }
     }
 
     private func categorySummary(for category: ImportCategory) -> String {
@@ -730,6 +775,54 @@ private struct ImportCategoriesSettingsView: View {
         return ImportColorPreset.allCases.first {
             $0.strokeHex.caseInsensitiveCompare(currentStroke) == .orderedSame
         }
+    }
+}
+
+private struct NewCustomImportCategoryView: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var title: String = ""
+    @State private var icon: String = ""
+    @State private var isVisibleByDefault: Bool = true
+
+    var body: some View {
+        Form {
+            Section("Category") {
+                TextField("Name", text: $title)
+                TextField("Icon or emoji", text: $icon)
+                    .autocorrectionDisabled()
+            }
+
+            Section("Visibility") {
+                Toggle("Visible in map filter by default", isOn: $isVisibleByDefault)
+            }
+        }
+        .navigationTitle("New Category")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Add") {
+                    save()
+                }
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private func save() {
+        app.muster.addCustomImportCategory(
+            title: title,
+            icon: icon,
+            isVisibleByDefault: isVisibleByDefault
+        )
+        dismiss()
     }
 }
 
@@ -958,6 +1051,76 @@ private struct ImportCategoryEditorView: View {
         }
 
         return Color(.sRGB, red: r, green: g, blue: b, opacity: a)
+    }
+}
+
+private struct CustomImportCategoryEditorView: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    let categoryID: UUID
+
+    @State private var title: String = ""
+    @State private var icon: String = ""
+    @State private var isVisibleByDefault: Bool = true
+
+    var body: some View {
+        Form {
+            Section("Category") {
+                TextField("Name", text: $title)
+                TextField("Icon or emoji", text: $icon)
+                    .autocorrectionDisabled()
+
+                HStack {
+                    Text("Preview")
+                    Spacer()
+                    Text(previewIcon)
+                        .font(.title2)
+                }
+            }
+
+            Section("Visibility") {
+                Toggle("Visible in map filter by default", isOn: $isVisibleByDefault)
+            }
+
+            Section {
+                Button("Delete Category", role: .destructive) {
+                    app.muster.deleteCustomImportCategory(id: categoryID)
+                    dismiss()
+                }
+            }
+        }
+        .navigationTitle(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Category" : title)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            load()
+        }
+        .onChange(of: title) { _, _ in saveIfValid() }
+        .onChange(of: icon) { _, _ in saveIfValid() }
+        .onChange(of: isVisibleByDefault) { _, _ in saveIfValid() }
+    }
+
+    private var previewIcon: String {
+        let trimmed = icon.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "📍" : trimmed
+    }
+
+    private func load() {
+        guard let category = app.muster.customImportCategories.first(where: { $0.id == categoryID }) else { return }
+        title = category.title
+        icon = category.icon
+        isVisibleByDefault = category.isVisibleByDefault
+    }
+
+    private func saveIfValid() {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        app.muster.updateCustomImportCategory(
+            id: categoryID,
+            title: title,
+            icon: icon,
+            isVisibleByDefault: isVisibleByDefault
+        )
     }
 }
 

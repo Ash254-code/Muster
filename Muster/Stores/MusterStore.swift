@@ -20,6 +20,7 @@ final class MusterStore: ObservableObject, Codable {
 
     /// Per-category map filter visibility
     @Published var importCategoryVisibility: ImportCategoryVisibility = .init()
+    @Published var customImportCategories: [CustomImportCategory] = []
 
     @Published var activeSessionID: UUID? = nil
     @Published var activeSheepTargetMarkerID: UUID? = nil
@@ -52,6 +53,7 @@ final class MusterStore: ObservableObject, Codable {
         case selectedMapSetID
         case importCategoryStyles
         case importCategoryVisibility
+        case customImportCategories
         case activeSessionID
         case activeSheepTargetMarkerID
         case showPreviousTracksOnMap
@@ -73,6 +75,7 @@ final class MusterStore: ObservableObject, Codable {
         selectedMapSetID = try c.decodeIfPresent(UUID.self, forKey: .selectedMapSetID)
         importCategoryStyles = try c.decodeIfPresent([ImportCategoryStyle].self, forKey: .importCategoryStyles) ?? .default
         importCategoryVisibility = try c.decodeIfPresent(ImportCategoryVisibility.self, forKey: .importCategoryVisibility) ?? .init()
+        customImportCategories = try c.decodeIfPresent([CustomImportCategory].self, forKey: .customImportCategories) ?? []
         activeSessionID = try c.decodeIfPresent(UUID.self, forKey: .activeSessionID)
         activeSheepTargetMarkerID = try c.decodeIfPresent(UUID.self, forKey: .activeSheepTargetMarkerID)
         showPreviousTracksOnMap = try c.decodeIfPresent(Bool.self, forKey: .showPreviousTracksOnMap) ?? true
@@ -162,6 +165,7 @@ final class MusterStore: ObservableObject, Codable {
         try c.encode(selectedMapSetID, forKey: .selectedMapSetID)
         try c.encode(importCategoryStyles, forKey: .importCategoryStyles)
         try c.encode(importCategoryVisibility, forKey: .importCategoryVisibility)
+        try c.encode(customImportCategories, forKey: .customImportCategories)
         try c.encode(activeSessionID, forKey: .activeSessionID)
         try c.encode(activeSheepTargetMarkerID, forKey: .activeSheepTargetMarkerID)
         try c.encode(showPreviousTracksOnMap, forKey: .showPreviousTracksOnMap)
@@ -993,6 +997,45 @@ final class MusterStore: ObservableObject, Codable {
 
         if changed {
             importCategoryVisibility = updated
+            save()
+        }
+    }
+
+    func addCustomImportCategory(title: String, icon: String, isVisibleByDefault: Bool) {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return }
+
+        let trimmedIcon = icon.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalIcon = trimmedIcon.isEmpty ? "📍" : trimmedIcon
+
+        customImportCategories.append(
+            CustomImportCategory(
+                title: trimmedTitle,
+                icon: finalIcon,
+                isVisibleByDefault: isVisibleByDefault
+            )
+        )
+        save()
+    }
+
+    func updateCustomImportCategory(id: UUID, title: String, icon: String, isVisibleByDefault: Bool) {
+        guard let index = customImportCategories.firstIndex(where: { $0.id == id }) else { return }
+
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return }
+
+        let trimmedIcon = icon.trimmingCharacters(in: .whitespacesAndNewlines)
+        customImportCategories[index].title = trimmedTitle
+        customImportCategories[index].icon = trimmedIcon.isEmpty ? "📍" : trimmedIcon
+        customImportCategories[index].isVisibleByDefault = isVisibleByDefault
+        save()
+    }
+
+    func deleteCustomImportCategory(id: UUID) {
+        let originalCount = customImportCategories.count
+        customImportCategories.removeAll { $0.id == id }
+
+        if customImportCategories.count != originalCount {
             save()
         }
     }
