@@ -669,37 +669,55 @@ private struct MapSetDetailView: View {
         List {
             if let mapSet {
                 Section("Name") {
-                    HStack(spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         if isEditingName {
                             TextField("Map set name", text: $editingName)
                                 .textFieldStyle(.roundedBorder)
                                 .onSubmit {
                                     saveNameEdits(for: mapSet)
                                 }
+                            Button {
+                                saveNameEdits(for: mapSet)
+                            } label: {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
                         } else {
                             Text(mapSet.displayTitle)
+                            Text(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        Button {
-                            if isEditingName {
-                                saveNameEdits(for: mapSet)
-                            } else {
+                        Spacer()
+                        Menu {
+                            Button("Display") {
+                                app.muster.selectMapSet(mapSet.id)
+                            }
+                            Button("Edit") {
                                 editingName = mapSet.displayTitle
                                 isEditingName = true
                             }
+                            Button("Duplicate") {
+                                if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
+                                    duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
+                                }
+                            }
+                            Button("Export") {
+                                exportMapSet(mapSet)
+                            }
+                            Button("Delete", role: .destructive) {
+                                showDeleteConfirmation = true
+                            }
                         } label: {
-                            Image(systemName: isEditingName ? "checkmark" : "pencil")
-                                .font(.caption.weight(.semibold))
+                            Image(systemName: "ellipsis")
+                                .font(.body.weight(.semibold))
+                                .frame(width: 30, height: 30)
                         }
-                        .buttonStyle(.borderless)
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Map set actions")
                     }
 
-                    Text("Created \(mapSet.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Actions") {
                     if app.muster.selectedMapSetID == mapSet.id {
                         HStack {
                             Text("Current Map Set")
@@ -710,23 +728,9 @@ private struct MapSetDetailView: View {
                                 .background(.green.opacity(0.14), in: Capsule())
                             Spacer()
                         }
-                    } else {
-                        Button("Set as Current Map Set") {
-                            app.muster.selectMapSet(mapSet.id)
-                        }
-                    }
-                    Button("Duplicate") {
-                        if let duplicatedMapSet = app.muster.duplicateMapSet(mapSetID: mapSet.id) {
-                            duplicateAlertMessage = "\"\(duplicatedMapSet.displayTitle)\" was created."
-                        }
-                    }
-                    Button("Export") {
-                        exportMapSet(mapSet)
-                    }
-                    Button("Delete", role: .destructive) {
-                        showDeleteConfirmation = true
                     }
                 }
+
                 Section("Tracks") {
                     let importedTracks = app.muster.importedTracks(in: mapSet.id)
                     let recordedSessions = app.muster.recordedSessions(in: mapSet.id)
