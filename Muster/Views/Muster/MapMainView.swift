@@ -768,66 +768,8 @@ private var selectedMapModeOption: MapModeOption {
             } message: {
                 Text("Update the marker name.")
             }
-            .onAppear {
-                longPressedSessionMarker = nil
-                longPressedMapMarker = nil
-                showLongPressedSessionMarkerDialog = false
-                showLongPressedMapMarkerDialog = false
-                longPressedTrackTarget = nil
-                showLongPressedTrackDialog = false
-                pendingTrackDeleteConfirmation = nil
-                showTrackDeleteConfirmationAlert = false
-
-                editingSessionMarker = nil
-                editingSessionMarkerName = ""
-                movingSessionMarker = nil
-
-                editingMapMarker = nil
-                editingMapMarkerName = ""
-                movingMapMarker = nil
-
-                showEditSessionMarkerAlert = false
-                showEditMapMarkerAlert = false
-
-                manualGoToTarget = nil
-                pendingMarkerCoordinate = nil
-
-                location.start()
-                normalizeQuickZoomSettings()
-                normalizeHeadsUpPitchSetting()
-                normalizeHeadsUpUserVerticalOffsetSetting()
-                normalizeTopPillSettings()
-                selectedQuickZoomMeters = normalizedQuickZooms[1]
-                postQuickZoomRequest(normalizedQuickZooms[1])
-                
-                if activeTrackAppearanceRaw != "altitude",
-                   activeTrackAppearanceRaw != "speed",
-                   activeTrackAppearanceRaw != "off" {
-                    activeTrackAppearanceRaw = "altitude"
-                }
-
-                selectedQuickZoomMeters = normalizedQuickZoomValue(quickZoom2M)
-                app.xrs.removeStaleContacts()
-                smartETA.reset()
-                syncDisplayedActiveTrackPoints()
-                resetSheepCountSelection()
-
-                Task {
-                    await refreshWeatherIfNeeded()
-                }
-            }
-            .onDisappear {
-                location.stop()
-                smartETA.reset()
-                isSheepScrubbing = false
-                sheepScrubStartY = nil
-                sheepLastHapticIndex = nil
-                showSheepCountPopover = false
-            
-                Task {
-                    await GoToLiveActivityManager.shared.stop()
-                }
-            }
+            .onAppear(perform: handleMainViewAppear)
+            .onDisappear(perform: handleMainViewDisappear)
             .onChange(of: quickZoom1M) { _, newValue in
                 quickZoom1M = normalizedQuickZoomValue(newValue)
                 syncSelectedQuickZoomIfNeeded()
@@ -2692,6 +2634,68 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func startNewTrackFlow() {
         pendingTrackName = app.muster.makeSmartSessionName()
         showNewTrackNamePrompt = true
+    }
+
+    private func handleMainViewAppear() {
+        longPressedSessionMarker = nil
+        longPressedMapMarker = nil
+        showLongPressedSessionMarkerDialog = false
+        showLongPressedMapMarkerDialog = false
+        longPressedTrackTarget = nil
+        showLongPressedTrackDialog = false
+        pendingTrackDeleteConfirmation = nil
+        showTrackDeleteConfirmationAlert = false
+
+        editingSessionMarker = nil
+        editingSessionMarkerName = ""
+        movingSessionMarker = nil
+
+        editingMapMarker = nil
+        editingMapMarkerName = ""
+        movingMapMarker = nil
+
+        showEditSessionMarkerAlert = false
+        showEditMapMarkerAlert = false
+
+        manualGoToTarget = nil
+        pendingMarkerCoordinate = nil
+
+        location.start()
+        normalizeQuickZoomSettings()
+        normalizeHeadsUpPitchSetting()
+        normalizeHeadsUpUserVerticalOffsetSetting()
+        normalizeTopPillSettings()
+        selectedQuickZoomMeters = normalizedQuickZooms[1]
+        postQuickZoomRequest(normalizedQuickZooms[1])
+
+        if activeTrackAppearanceRaw != "altitude",
+           activeTrackAppearanceRaw != "speed",
+           activeTrackAppearanceRaw != "off" {
+            activeTrackAppearanceRaw = "altitude"
+        }
+
+        selectedQuickZoomMeters = normalizedQuickZoomValue(quickZoom2M)
+        app.xrs.removeStaleContacts()
+        smartETA.reset()
+        syncDisplayedActiveTrackPoints()
+        resetSheepCountSelection()
+
+        Task {
+            await refreshWeatherIfNeeded()
+        }
+    }
+
+    private func handleMainViewDisappear() {
+        location.stop()
+        smartETA.reset()
+        isSheepScrubbing = false
+        sheepScrubStartY = nil
+        sheepLastHapticIndex = nil
+        showSheepCountPopover = false
+
+        Task {
+            await GoToLiveActivityManager.shared.stop()
+        }
     }
     private var leftSideFloatingPills: some View {
         VStack(spacing: 10) {
