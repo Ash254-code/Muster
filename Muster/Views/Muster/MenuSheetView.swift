@@ -660,7 +660,6 @@ private struct MapSetDetailView: View {
     @State private var editingName = ""
     @State private var selectedTrackPreview: TrackPreviewTarget? = nil
     @State private var pendingTrackDeletion: TrackPreviewTarget? = nil
-    @State private var selectedTrackActions: TrackPreviewTarget? = nil
     @State private var pendingTrackMove: TrackPreviewTarget? = nil
     @State private var editingTrackTarget: TrackPreviewTarget? = nil
     @State private var editingTrackName = ""
@@ -726,14 +725,14 @@ private struct MapSetDetailView: View {
                                 }
                                 Spacer()
                                 Button {
-                                    selectedTrackActions = .recorded(session)
+                                    selectedTrackPreview = .recorded(session)
                                 } label: {
                                     Image(systemName: "square.and.pencil")
                                         .font(.body.weight(.semibold))
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Edit actions for \(session.name)")
+                                .accessibilityLabel("Track actions for \(session.name)")
                             }
                         }
                         ForEach(importedTracks, id: \.track.id) { pair in
@@ -741,14 +740,14 @@ private struct MapSetDetailView: View {
                                 Text(pair.track.displayTitle)
                                 Spacer()
                                 Button {
-                                    selectedTrackActions = .imported(track: pair.track)
+                                    selectedTrackPreview = .imported(track: pair.track)
                                 } label: {
                                     Image(systemName: "square.and.pencil")
                                         .font(.body.weight(.semibold))
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Edit actions for \(pair.track.displayTitle)")
+                                .accessibilityLabel("Track actions for \(pair.track.displayTitle)")
                             }
                         }
                     }
@@ -835,9 +834,6 @@ private struct MapSetDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 if let mapSet {
                     Menu {
-                        Button("Display", systemImage: "eye") {
-                            app.muster.selectMapSet(mapSet.id)
-                        }
                         Button("Edit", systemImage: "pencil") {
                             editingName = mapSet.displayTitle
                             isEditingName = true
@@ -878,37 +874,17 @@ private struct MapSetDetailView: View {
                 onExport: {
                     exportTrack(track)
                 },
+                onMove: {
+                    pendingTrackMove = track
+                },
+                onEdit: {
+                    editingTrackTarget = track
+                    editingTrackName = track.title
+                },
                 onDelete: {
                     pendingTrackDeletion = track
                 }
             )
-        }
-        .confirmationDialog(
-            selectedTrackActions?.title ?? "Track Actions",
-            isPresented: Binding(
-                get: { selectedTrackActions != nil },
-                set: { if !$0 { selectedTrackActions = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let track = selectedTrackActions {
-                Button("Display", systemImage: "eye") {
-                    selectedTrackPreview = track
-                }
-                Button("Edit", systemImage: "pencil") {
-                    editingTrackTarget = track
-                    editingTrackName = track.title
-                }
-                Button("Move", systemImage: "arrow.left.arrow.right") {
-                    pendingTrackMove = track
-                }
-                Button("Export", systemImage: "square.and.arrow.up") {
-                    exportTrack(track)
-                }
-                Button("Delete", systemImage: "trash", role: .destructive) {
-                    pendingTrackDeletion = track
-                }
-            }
         }
         .sheet(item: $pendingTrackMove) { track in
             NavigationStack {
@@ -1215,6 +1191,8 @@ private struct TrackPreviewSheet: View {
     let title: String
     let coordinates: [CLLocationCoordinate2D]
     let onExport: () -> Void
+    let onMove: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -1232,7 +1210,23 @@ private struct TrackPreviewSheet: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    Button {
+                        onMove()
+                    } label: {
+                        Label("Move", systemImage: "arrow.left.arrow.right")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
 
+                HStack(spacing: 12) {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                     Button(role: .destructive) {
                         onDelete()
                     } label: {
