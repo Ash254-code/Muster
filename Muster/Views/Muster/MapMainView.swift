@@ -43,13 +43,20 @@ struct MapMainView: View {
     }
 
     private enum LongPressedTrackTarget {
-        case previousSession(sessionID: UUID, name: String)
-        case imported(trackID: UUID, name: String)
+        case previousSession(sessionID: UUID, name: String, createdAt: Date)
+        case imported(trackID: UUID, name: String, createdAt: Date)
 
         var name: String {
             switch self {
-            case .previousSession(_, let name), .imported(_, let name):
+            case .previousSession(_, let name, _), .imported(_, let name, _):
                 return name
+            }
+        }
+
+        var createdAt: Date {
+            switch self {
+            case .previousSession(_, _, let createdAt), .imported(_, _, let createdAt):
+                return createdAt
             }
         }
     }
@@ -698,7 +705,8 @@ private var selectedMapModeOption: MapModeOption {
                 "Track",
                 isPresented: $showLongPressedTrackDialog,
                 titleVisibility: .visible,
-                actions: longPressedTrackDialogActions
+                actions: longPressedTrackDialogActions,
+                message: longPressedTrackDialogMessage
             )
             .alert(
                 "Confirm Delete",
@@ -1148,8 +1156,10 @@ private var selectedMapModeOption: MapModeOption {
                     showLongPressedMapMarkerDialog = false
                     showLongPressedSessionMarkerDialog = false
 
-                    let sessionName = app.muster.sessions.first(where: { $0.id == sessionID })?.name ?? "Track"
-                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName)
+                    let session = app.muster.sessions.first(where: { $0.id == sessionID })
+                    let sessionName = session?.name ?? "Track"
+                    let createdAt = session?.startedAt ?? Date()
+                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
                     showLongPressedTrackDialog = true
                 }
             },
@@ -1162,7 +1172,9 @@ private var selectedMapModeOption: MapModeOption {
                     showLongPressedMapMarkerDialog = false
                     showLongPressedSessionMarkerDialog = false
 
-                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName)
+                    let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
+                    let createdAt = importedTrack?.createdAt ?? Date()
+                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
                     showLongPressedTrackDialog = true
                 }
             }
@@ -1280,6 +1292,11 @@ private var selectedMapModeOption: MapModeOption {
 
     @ViewBuilder
     private func longPressedTrackDialogActions() -> some View {
+        Button("Cancel", role: .cancel) {
+            showLongPressedTrackDialog = false
+            longPressedTrackTarget = nil
+        }
+
         Button("Delete", role: .destructive) {
             guard let target = longPressedTrackTarget else { return }
             pendingTrackDeleteConfirmation = target
@@ -1287,10 +1304,12 @@ private var selectedMapModeOption: MapModeOption {
             longPressedTrackTarget = nil
             showTrackDeleteConfirmationAlert = true
         }
+    }
 
-        Button("Cancel", role: .cancel) {
-            showLongPressedTrackDialog = false
-            longPressedTrackTarget = nil
+    @ViewBuilder
+    private func longPressedTrackDialogMessage() -> some View {
+        if let target = longPressedTrackTarget {
+            Text("Created \(target.createdAt.formatted(date: .abbreviated, time: .shortened))")
         }
     }
 
@@ -3002,9 +3021,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
     private func deleteLongPressedTrack(_ track: LongPressedTrackTarget) {
         switch track {
-        case .previousSession(let sessionID, _):
+        case .previousSession(let sessionID, _, _):
             app.muster.deleteSession(sessionID: sessionID)
-        case .imported(let trackID, _):
+        case .imported(let trackID, _, _):
             app.muster.deleteImportedTrack(trackID: trackID)
         }
     }
