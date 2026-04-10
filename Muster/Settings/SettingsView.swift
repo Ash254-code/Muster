@@ -91,6 +91,18 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
+                        AutosteerSettingsView()
+                    } label: {
+                        Label("Autosteer", systemImage: "steeringwheel")
+                    }
+
+                    NavigationLink {
+                        CruiseControlSettingsView()
+                    } label: {
+                        Label("Cruise Control", systemImage: "speedometer")
+                    }
+
+                    NavigationLink {
                         BluetoothSettingsView()
                     } label: {
                         Label("XRS Radio", systemImage: "dot.radiowaves.left.and.right")
@@ -244,18 +256,6 @@ private struct AppSettingsView: View {
                 MediaSettingsView()
             } label: {
                 Label("Media", systemImage: "speaker.wave.2")
-            }
-
-            NavigationLink {
-                AutosteerSettingsView()
-            } label: {
-                Label("Autosteer", systemImage: "steeringwheel")
-            }
-
-            NavigationLink {
-                CruiseControlSettingsView()
-            } label: {
-                Label("Cruise Control", systemImage: "speedometer")
             }
         }
         .navigationTitle("Settings")
