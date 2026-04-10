@@ -2610,7 +2610,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
         let collapsedHeight = 78.0
         let mediumHeight = max(250, totalHeight * 0.31)
-        let largeHeight = max(430, totalHeight * 0.64)
+        let largeHeight = max(520, totalHeight * 0.74)
 
         switch panelDetent {
         case .collapsed:
@@ -2757,7 +2757,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         )
         .shadow(color: .black.opacity(0.22), radius: 18, y: 4)
         .padding(.horizontal, 6)
-        .padding(.bottom, 6)
+        .padding(.bottom, 2)
         .contentShape(Rectangle())
         .gesture(bottomPanelDragGesture)
     }
