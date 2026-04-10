@@ -709,7 +709,7 @@ private var selectedMapModeOption: MapModeOption {
         observedMainContent
     }
 
-    private var presentedMainContent: some View {
+    private var sheetHostedMainContent: some View {
         mainContent
             .sheet(isPresented: $showSettings) {
                 settingsSheet
@@ -790,6 +790,10 @@ private var selectedMapModeOption: MapModeOption {
             .fullScreenCover(isPresented: $showCurrentTrack) {
                 currentTrackCover
             }
+    }
+
+    private var dialogHostedMainContent: some View {
+        sheetHostedMainContent
             .confirmationDialog(
                 longPressedSessionMarker?.displayTitle ?? "Marker",
                 isPresented: $showLongPressedSessionMarkerDialog,
@@ -842,6 +846,10 @@ private var selectedMapModeOption: MapModeOption {
             } message: { track in
                 Text("Delete \(track.name)? This cannot be undone.")
             }
+    }
+
+    private var presentedMainContent: some View {
+        dialogHostedMainContent
             .confirmationDialog(
                 topPillPickerTitle,
                 isPresented: topPillPickerPresented,
