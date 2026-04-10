@@ -461,6 +461,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             orientationRaw: String,
             followUser: Bool
         ) {
+            if parent.useCrosshairUserMarker {
+                if let existing = userLocationAnnotation {
+                    map.removeAnnotation(existing)
+                    userLocationAnnotation = nil
+                }
+                return
+            }
+
             guard let userLocation else {
                 if let existing = userLocationAnnotation {
                     map.removeAnnotation(existing)

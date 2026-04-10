@@ -295,6 +295,7 @@ struct MapMainView: View {
     @State private var showAutosteerHeadingPrompt = false
     @State private var curveTrackRecording = false
     @State private var curvePulse = false
+    @State private var curveRecordedCenters: [CLLocationCoordinate2D] = []
     @State private var showAutosteerTrackSaveSheet = false
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
@@ -754,6 +755,15 @@ private var selectedMapModeOption: MapModeOption {
                     followUser = false
                 }
             }
+            .onChange(of: mapCenterCoordinate) { _, newCenter in
+                guard curveTrackRecording, let center = newCenter else { return }
+                if let last = curveRecordedCenters.last {
+                    let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
+                    let nextLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
+                    if nextLoc.distance(from: lastLoc) < 2 { return }
+                }
+                curveRecordedCenters.append(center)
+            }
             .confirmationDialog(
                 "Map Set Required",
                 isPresented: $showMissingMapSetPrompt,
@@ -1127,6 +1137,15 @@ private var selectedMapModeOption: MapModeOption {
                     autosteerTrackSetupOverlay
                         .padding(.top, 76)
                         .padding(.horizontal, 12)
+                }
+            }
+            .overlay(alignment: .center) {
+                if isAutosteerTrackSetupActive {
+                    Image(systemName: "plus")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.red)
+                        .shadow(radius: 4)
+                        .allowsHitTesting(false)
                 }
             }
         }
@@ -1812,11 +1831,6 @@ private var selectedMapModeOption: MapModeOption {
 
     private var autosteerTrackSetupOverlay: some View {
         VStack(spacing: 10) {
-            Image(systemName: "plus")
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(.white.opacity(0.95))
-                .shadow(radius: 4)
-
             Button(action: handleAutosteerSetupPrimaryAction) {
                 HStack(spacing: 8) {
                     if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
@@ -1911,7 +1925,8 @@ private var selectedMapModeOption: MapModeOption {
                                 farmName: autosteerSaveFarm,
                                 paddockName: autosteerSavePaddock,
                                 trackName: autosteerSaveTrackName,
-                                mode: autosteerSetupModeRaw
+                                mode: autosteerSetupModeRaw,
+                                previewCoordinates: previewCoordinatesForPendingSetup()
                             )
                             resetAutosteerSetupFlow()
                             showAutosteerTrackSaveSheet = false
@@ -1982,6 +1997,7 @@ private var selectedMapModeOption: MapModeOption {
         autosteerHeadingInput = ""
         curveTrackRecording = false
         curvePulse = false
+        curveRecordedCenters = []
         autosteerSaveFarm = ""
         autosteerSavePaddock = ""
         autosteerSaveTrackName = ""
@@ -1993,6 +2009,37 @@ private var selectedMapModeOption: MapModeOption {
         autosteerSetupModeRaw = mode
         autosteerSetupActive = true
         followUser = false
+        curveRecordedCenters = []
+    }
+
+    private func previewCoordinatesForPendingSetup() -> [[Double]] {
+        func coords(_ c: CLLocationCoordinate2D) -> [Double] { [c.latitude, c.longitude] }
+
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            if let a = autosteerPointA, let b = autosteerPointB {
+                return [coords(a), coords(b)]
+            }
+        case "A+Heading":
+            if let a = autosteerPointA {
+                let heading = Double(autosteerHeadingInput) ?? 0
+                let distanceMeters: CLLocationDistance = 120
+                let radians = heading * .pi / 180
+                let earth = 6_378_137.0
+                let dLat = (distanceMeters * cos(radians)) / earth
+                let dLon = (distanceMeters * sin(radians)) / (earth * cos(a.latitude * .pi / 180))
+                let b = CLLocationCoordinate2D(
+                    latitude: a.latitude + (dLat * 180 / .pi),
+                    longitude: a.longitude + (dLon * 180 / .pi)
+                )
+                return [coords(a), coords(b)]
+            }
+        case "Curve Track":
+            return curveRecordedCenters.map(coords)
+        default:
+            break
+        }
+        return []
     }
 
     // MARK: - Right side controls

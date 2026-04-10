@@ -1,6 +1,8 @@
 import SwiftUI
 import UIKit
 import Combine
+import MapKit
+import CoreLocation
 
 #if canImport(UIKit)
 import UIKit
@@ -2824,12 +2826,24 @@ private struct AutosteerDatabaseView: View {
     @State private var showTrackActions = false
     @State private var showRenamePrompt = false
     @State private var renameValue = ""
+    @State private var previewTrack: AutosteerTrackRecord?
 
     var body: some View {
         List {
             ForEach(farms) { farm in
                 NavigationLink(farm.name) {
                     paddockList(for: farm)
+                }
+                .contextMenu {
+                    Button("Rename") {
+                        selectedFarm = farm
+                        renameValue = farm.name
+                        showRenamePrompt = true
+                    }
+                    Button("Delete", role: .destructive) {
+                        farms.removeAll { $0.id == farm.id }
+                        AutosteerLibraryStore.save(farms)
+                    }
                 }
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
                     selectedFarm = farm
@@ -2856,6 +2870,9 @@ private struct AutosteerDatabaseView: View {
                 applyRename()
             }
         }
+        .sheet(item: $previewTrack) { track in
+            TrackPreviewMapSheet(track: track)
+        }
     }
 
     private func paddockList(for farm: AutosteerFarmRecord) -> some View {
@@ -2863,6 +2880,20 @@ private struct AutosteerDatabaseView: View {
             ForEach(farm.paddocks) { paddock in
                 NavigationLink(paddock.name) {
                     trackList(for: farm, paddock: paddock)
+                }
+                .contextMenu {
+                    Button("Rename") {
+                        selectedFarm = farm
+                        selectedPaddock = paddock
+                        selectedTrack = nil
+                        renameValue = paddock.name
+                        showRenamePrompt = true
+                    }
+                    Button("Delete", role: .destructive) {
+                        guard let farmIndex = farms.firstIndex(where: { $0.id == farm.id }) else { return }
+                        farms[farmIndex].paddocks.removeAll { $0.id == paddock.id }
+                        AutosteerLibraryStore.save(farms)
+                    }
                 }
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
                     selectedFarm = farm
@@ -2889,7 +2920,42 @@ private struct AutosteerDatabaseView: View {
     private func trackList(for farm: AutosteerFarmRecord, paddock: AutosteerPaddockRecord) -> some View {
         List {
             ForEach(paddock.tracks) { track in
-                Text(track.name)
+                HStack {
+                    Text(track.name)
+                    Spacer()
+                    Button {
+                        previewTrack = track
+                    } label: {
+                        Label("Preview", systemImage: "eye.fill")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .contextMenu {
+                    Button("Rename") {
+                        selectedFarm = farm
+                        selectedPaddock = paddock
+                        selectedTrack = track
+                        renameValue = track.name
+                        showRenamePrompt = true
+                    }
+                    Button("Move to another paddock") {
+                        selectedFarm = farm
+                        selectedPaddock = paddock
+                        moveTrackToFirstAvailablePaddock(track)
+                    }
+                    Button("Delete", role: .destructive) {
+                        guard
+                            let farmID = selectedFarm?.id ?? farm.id,
+                            let paddockID = selectedPaddock?.id ?? paddock.id,
+                            let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
+                            let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID })
+                        else { return }
+                        farms[farmIndex].paddocks[paddockIndex].tracks.removeAll { $0.id == track.id }
+                        AutosteerLibraryStore.save(farms)
+                    }
+                }
                     .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
                         selectedFarm = farm
                         selectedPaddock = paddock
@@ -2971,6 +3037,7 @@ struct AutosteerTrackRecord: Codable, Identifiable, Equatable {
     var name: String
     var mode: String
     var createdAt: Date
+    var previewCoordinates: [[Double]]
 }
 
 struct AutosteerPaddockRecord: Codable, Identifiable, Equatable {
@@ -3001,7 +3068,13 @@ enum AutosteerLibraryStore {
         UserDefaults.standard.set(data, forKey: storageKey)
     }
 
-    static func upsertTrack(farmName: String, paddockName: String, trackName: String, mode: String) {
+    static func upsertTrack(
+        farmName: String,
+        paddockName: String,
+        trackName: String,
+        mode: String,
+        previewCoordinates: [[Double]]
+    ) {
         var farms = load()
         let farm = farmName.trimmingCharacters(in: .whitespacesAndNewlines)
         let paddock = paddockName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3012,9 +3085,10 @@ enum AutosteerLibraryStore {
             if let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame }) {
                 if let trackIndex = farms[farmIndex].paddocks[paddockIndex].tracks.firstIndex(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame }) {
                     farms[farmIndex].paddocks[paddockIndex].tracks[trackIndex].mode = mode
+                    farms[farmIndex].paddocks[paddockIndex].tracks[trackIndex].previewCoordinates = previewCoordinates
                 } else {
                     farms[farmIndex].paddocks[paddockIndex].tracks.insert(
-                        AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now),
+                        AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now, previewCoordinates: previewCoordinates),
                         at: 0
                     )
                 }
@@ -3023,7 +3097,7 @@ enum AutosteerLibraryStore {
                     AutosteerPaddockRecord(
                         id: UUID(),
                         name: paddock,
-                        tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now)]
+                        tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now, previewCoordinates: previewCoordinates)]
                     ),
                     at: 0
                 )
@@ -3037,7 +3111,7 @@ enum AutosteerLibraryStore {
                         AutosteerPaddockRecord(
                             id: UUID(),
                             name: paddock,
-                            tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now)]
+                            tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now, previewCoordinates: previewCoordinates)]
                         )
                     ]
                 ),
@@ -3045,6 +3119,66 @@ enum AutosteerLibraryStore {
             )
         }
         save(farms)
+    }
+}
+
+private struct TrackPreviewMapSheet: View {
+    let track: AutosteerTrackRecord
+    @Environment(\.dismiss) private var dismiss
+
+    private var coordinates: [CLLocationCoordinate2D] {
+        track.previewCoordinates.compactMap { pair in
+            guard pair.count == 2 else { return nil }
+            return CLLocationCoordinate2D(latitude: pair[0], longitude: pair[1])
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            TrackPreviewMapView(coordinates: coordinates)
+                .navigationTitle(track.name)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+private struct TrackPreviewMapView: UIViewRepresentable {
+    let coordinates: [CLLocationCoordinate2D]
+
+    func makeUIView(context: Context) -> MKMapView {
+        MKMapView(frame: .zero)
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {
+        map.removeOverlays(map.overlays)
+        guard coordinates.count >= 2 else { return }
+        let polyline = MKPolyline(coordinates: coordinates, count: coordinates.count)
+        map.addOverlay(polyline)
+        map.delegate = context.coordinator
+        map.setVisibleMapRect(
+            polyline.boundingMapRect.insetBy(dx: -300, dy: -300),
+            edgePadding: UIEdgeInsets(top: 40, left: 24, bottom: 40, right: 24),
+            animated: true
+        )
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            guard let line = overlay as? MKPolyline else { return MKOverlayRenderer(overlay: overlay) }
+            let renderer = MKPolylineRenderer(polyline: line)
+            renderer.strokeColor = UIColor.systemBlue
+            renderer.lineWidth = 4
+            return renderer
+        }
     }
 }
 // =========================================================
