@@ -676,6 +676,11 @@ struct MapMainView: View {
         sheepCountDisplayText(for: selectedSheepCountValue)
     }
 
+    private var mapCenterChangeToken: String {
+        guard let center = mapCenterCoordinate else { return "nil" }
+        return "\(center.latitude),\(center.longitude)"
+    }
+
     private var sheepCountPopoverLabelText: String {
         switch sheepPinIconRaw {
         case "cattle":
@@ -747,7 +752,9 @@ private var selectedMapModeOption: MapModeOption {
             }
             .onChange(of: showMapSetsSheet, perform: handleMapSetsSheetChanged)
             .onChange(of: autosteerSetupActive, perform: handleAutosteerSetupActiveChanged)
-            .onChange(of: mapCenterCoordinate, perform: handleMapCenterCoordinateChanged)
+            .onChange(of: mapCenterChangeToken) { _, _ in
+                handleMapCenterCoordinateChanged(mapCenterCoordinate)
+            }
             .confirmationDialog(
                 "Map Set Required",
                 isPresented: $showMissingMapSetPrompt,
