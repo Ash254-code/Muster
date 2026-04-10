@@ -44,6 +44,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     let destinationCoordinate: CLLocationCoordinate2D?
     let activeDestinationMarkerID: UUID?
+    let temporaryPointA: CLLocationCoordinate2D?
+    let temporaryPointB: CLLocationCoordinate2D?
 
     let onRequestGoToMarker: (MusterMarker) -> Void
     let onArriveAtDestination: () -> Void
@@ -225,6 +227,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             userLocation: userLocation,
             destinationCoordinate: destinationCoordinate
         )
+        context.coordinator.updateTemporaryABPreview(
+            map: map,
+            pointA: temporaryPointA,
+            pointB: temporaryPointB
+        )
     }
 
     static func dismantleUIView(_ uiView: MKMapView, coordinator: Coordinator) {
@@ -264,6 +271,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var importedBoundaryPolygons: [ImportedBoundaryPolygon] = []
         private var xrsTrailPolylines: [XRSTrailPolyline] = []
         private var destinationLine: MKPolyline?
+        private var temporaryABLine: MKPolyline?
+        private var temporaryPointAAnnotation: TemporaryPointAnnotation?
+        private var temporaryPointBAnnotation: TemporaryPointAnnotation?
         private var ringOverlays: [MKCircle] = []
         private var ringLabelAnnotations: [RingLabelAnnotation] = []
 
@@ -1706,6 +1716,46 @@ struct MapViewRepresentable: UIViewRepresentable {
             map.addOverlay(poly, level: .aboveLabels)
         }
 
+        func updateTemporaryABPreview(
+            map: MKMapView,
+            pointA: CLLocationCoordinate2D?,
+            pointB: CLLocationCoordinate2D?
+        ) {
+            if let line = temporaryABLine {
+                map.removeOverlay(line)
+                temporaryABLine = nil
+            }
+
+            if let ann = temporaryPointAAnnotation {
+                map.removeAnnotation(ann)
+                temporaryPointAAnnotation = nil
+            }
+
+            if let ann = temporaryPointBAnnotation {
+                map.removeAnnotation(ann)
+                temporaryPointBAnnotation = nil
+            }
+
+            if let pointA {
+                let ann = TemporaryPointAnnotation(coordinate: pointA, label: "A")
+                temporaryPointAAnnotation = ann
+                map.addAnnotation(ann)
+            }
+
+            if let pointB {
+                let ann = TemporaryPointAnnotation(coordinate: pointB, label: "B")
+                temporaryPointBAnnotation = ann
+                map.addAnnotation(ann)
+            }
+
+            if let pointA, let pointB {
+                var coords = [pointA, pointB]
+                let poly = MKPolyline(coordinates: &coords, count: 2)
+                temporaryABLine = poly
+                map.addOverlay(poly, level: .aboveLabels)
+            }
+        }
+
         func updateSessionMarkers(
             map: MKMapView,
             markers: [MusterMarker],
@@ -2046,7 +2096,12 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                if polyline === destinationLine {
+                if polyline === temporaryABLine {
+                    renderer.strokeColor = UIColor.systemGreen
+                    renderer.lineWidth = 4 * strokeScale
+                    renderer.lineCap = .round
+                    renderer.lineJoin = .round
+                } else if polyline === destinationLine {
                     renderer.strokeColor = UIColor.systemOrange
                     renderer.lineWidth = 3 * strokeScale
                     renderer.lineCap = .round
@@ -2113,6 +2168,17 @@ struct MapViewRepresentable: UIViewRepresentable {
                 view.annotation = ann
                 view.displayPriority = .required
                 view.layer.zPosition = 6000
+                return view
+            }
+
+            if let ann = annotation as? TemporaryPointAnnotation {
+                let id = "temporaryPoint"
+                let view = (mapView.dequeueReusableAnnotationView(withIdentifier: id) as? TemporaryPointAnnotationView)
+                    ?? TemporaryPointAnnotationView(annotation: ann, reuseIdentifier: id)
+                view.annotation = ann
+                view.configure(label: ann.label)
+                view.displayPriority = .required
+                view.layer.zPosition = 6500
                 return view
             }
 
@@ -2183,6 +2249,13 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             if let ann = view.annotation as? XRSRadioAnnotation {
+                DispatchQueue.main.async {
+                    mapView.deselectAnnotation(ann, animated: false)
+                }
+                return
+            }
+
+            if let ann = view.annotation as? TemporaryPointAnnotation {
                 DispatchQueue.main.async {
                     mapView.deselectAnnotation(ann, animated: false)
                 }
@@ -2586,6 +2659,16 @@ final class RingLabelAnnotation: NSObject, MKAnnotation {
     var subtitle: String? { nil }
 }
 
+final class TemporaryPointAnnotation: NSObject, MKAnnotation {
+    dynamic var coordinate: CLLocationCoordinate2D
+    let label: String
+
+    init(coordinate: CLLocationCoordinate2D, label: String) {
+        self.coordinate = coordinate
+        self.label = label
+    }
+}
+
 final class UserLocationAnnotationView: MKAnnotationView {
 
     private let glyphView = UIImageView()
@@ -2695,6 +2778,57 @@ final class RingLabelAnnotationView: MKAnnotationView {
             height: label.bounds.height + (verticalPadding * 2)
         )
         frame = label.frame
+    }
+}
+
+final class TemporaryPointAnnotationView: MKAnnotationView {
+    private let labelView = UILabel()
+    private let circleView = UIView()
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    func configure(label: String) {
+        labelView.text = label
+    }
+
+    private func setup() {
+        canShowCallout = false
+        frame = CGRect(x: 0, y: 0, width: 28, height: 28)
+        centerOffset = CGPoint(x: 0, y: -14)
+        backgroundColor = .clear
+
+        circleView.translatesAutoresizingMaskIntoConstraints = false
+        circleView.backgroundColor = UIColor.systemGreen
+        circleView.layer.cornerRadius = 14
+        circleView.layer.borderWidth = 2
+        circleView.layer.borderColor = UIColor.white.withAlphaComponent(0.85).cgColor
+        circleView.isUserInteractionEnabled = false
+
+        labelView.translatesAutoresizingMaskIntoConstraints = false
+        labelView.font = .systemFont(ofSize: 12, weight: .bold)
+        labelView.textColor = .white
+        labelView.textAlignment = .center
+        labelView.isUserInteractionEnabled = false
+
+        addSubview(circleView)
+        addSubview(labelView)
+
+        NSLayoutConstraint.activate([
+            circleView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            circleView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            circleView.widthAnchor.constraint(equalToConstant: 28),
+            circleView.heightAnchor.constraint(equalToConstant: 28),
+            labelView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            labelView.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
     }
 }
 

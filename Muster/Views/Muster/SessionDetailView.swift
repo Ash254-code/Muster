@@ -82,6 +82,8 @@ struct SessionDetailView: View {
             headsUpBottomObstructionHeight: 0,
             destinationCoordinate: gotoTarget?.coordinate,
             activeDestinationMarkerID: gotoTarget?.id,
+            temporaryPointA: nil,
+            temporaryPointB: nil,
             onRequestGoToMarker: { marker in
                 gotoTarget = marker
             },
@@ -244,7 +246,13 @@ struct SessionDetailView: View {
             MarkerSheet(
                 templates: app.muster.customImportCategories.map {
                     MarkerTemplate(id: $0.id, description: $0.title, emoji: $0.icon)
-                }
+                },
+                currentCoordinate: location.lastLocation?.coordinate,
+                markedPointA: nil,
+                markedPointB: nil,
+                onMarkPointA: { _ in },
+                onMarkPointB: { _ in },
+                onUndoPointB: {}
             ) { template, name in
                 guard let coordinate = location.lastLocation?.coordinate else { return }
 

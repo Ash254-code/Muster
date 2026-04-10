@@ -176,6 +176,8 @@ struct MapMainView: View {
     @State private var showPreviousMusters = false
     @State private var showCurrentTrack = false
     @State private var pendingMarkerCoordinate: CLLocationCoordinate2D? = nil
+    @State private var markerSheetPointA: CLLocationCoordinate2D? = nil
+    @State private var markerSheetPointB: CLLocationCoordinate2D? = nil
     @State private var selectedQuickZoomMeters: Double? = nil
     @State private var showMapLayerSheet = false
     @State private var showArrivedBanner = false
@@ -654,6 +656,8 @@ private var selectedMapModeOption: MapModeOption {
             }
             .sheet(isPresented: $showMarkerSheet, onDismiss: {
                 pendingMarkerCoordinate = nil
+                markerSheetPointA = nil
+                markerSheetPointB = nil
             }) {
                 markerSheet
             }
@@ -1063,6 +1067,8 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
+            temporaryPointA: markerSheetPointA,
+            temporaryPointB: markerSheetPointB,
             onRequestGoToMarker: { marker in
                 startGoTo(marker)
             },
@@ -1190,6 +1196,19 @@ private var selectedMapModeOption: MapModeOption {
         MarkerSheet(
             templates: app.muster.customImportCategories.map {
                 MarkerTemplate(id: $0.id, description: $0.title, emoji: $0.icon)
+            },
+            currentCoordinate: location.lastLocation?.coordinate,
+            markedPointA: markerSheetPointA,
+            markedPointB: markerSheetPointB,
+            onMarkPointA: { coordinate in
+                markerSheetPointA = coordinate
+                markerSheetPointB = nil
+            },
+            onMarkPointB: { coordinate in
+                markerSheetPointB = coordinate
+            },
+            onUndoPointB: {
+                markerSheetPointB = nil
             }
         ) { template, markerName in
             guard let coordinate = pendingMarkerCoordinate else { return }
@@ -1201,6 +1220,8 @@ private var selectedMapModeOption: MapModeOption {
             )
 
             pendingMarkerCoordinate = nil
+            markerSheetPointA = nil
+            markerSheetPointB = nil
         }
         .environmentObject(app)
         .presentationDetents([.medium, .large])
