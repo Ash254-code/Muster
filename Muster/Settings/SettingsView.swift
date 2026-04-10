@@ -370,6 +370,14 @@ struct AutosteerSettingsView: View {
             }
 
             Section {
+                NavigationLink("Track Database") {
+                    AutosteerDatabaseView()
+                }
+            } header: {
+                Text("Database")
+            }
+
+            Section {
                 TextField("Farm", text: $farmName)
                 TextField("Paddock", text: $paddockName)
                 TextField("Track Name", text: $trackName)
@@ -2803,6 +2811,240 @@ private struct MediaSettingsView: View {
         }
         .navigationTitle("Media")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct AutosteerDatabaseView: View {
+    @State private var farms: [AutosteerFarmRecord] = AutosteerLibraryStore.load()
+    @State private var selectedFarm: AutosteerFarmRecord?
+    @State private var selectedPaddock: AutosteerPaddockRecord?
+    @State private var selectedTrack: AutosteerTrackRecord?
+    @State private var showFarmActions = false
+    @State private var showPaddockActions = false
+    @State private var showTrackActions = false
+    @State private var showRenamePrompt = false
+    @State private var renameValue = ""
+
+    var body: some View {
+        List {
+            ForEach(farms) { farm in
+                NavigationLink(farm.name) {
+                    paddockList(for: farm)
+                }
+                .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                    selectedFarm = farm
+                    showFarmActions = true
+                })
+            }
+        }
+        .navigationTitle("Track Database")
+        .confirmationDialog("Farm", isPresented: $showFarmActions, presenting: selectedFarm) { farm in
+            Button("Rename") {
+                renameValue = farm.name
+                showRenamePrompt = true
+            }
+            Button("Delete", role: .destructive) {
+                farms.removeAll { $0.id == farm.id }
+                AutosteerLibraryStore.save(farms)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Rename", isPresented: $showRenamePrompt) {
+            TextField("Name", text: $renameValue)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                applyRename()
+            }
+        }
+    }
+
+    private func paddockList(for farm: AutosteerFarmRecord) -> some View {
+        List {
+            ForEach(farm.paddocks) { paddock in
+                NavigationLink(paddock.name) {
+                    trackList(for: farm, paddock: paddock)
+                }
+                .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                    selectedFarm = farm
+                    selectedPaddock = paddock
+                    showPaddockActions = true
+                })
+            }
+        }
+        .navigationTitle(farm.name)
+        .confirmationDialog("Paddock", isPresented: $showPaddockActions, presenting: selectedPaddock) { paddock in
+            Button("Rename") {
+                renameValue = paddock.name
+                showRenamePrompt = true
+            }
+            Button("Delete", role: .destructive) {
+                guard let farmID = selectedFarm?.id, let farmIndex = farms.firstIndex(where: { $0.id == farmID }) else { return }
+                farms[farmIndex].paddocks.removeAll { $0.id == paddock.id }
+                AutosteerLibraryStore.save(farms)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func trackList(for farm: AutosteerFarmRecord, paddock: AutosteerPaddockRecord) -> some View {
+        List {
+            ForEach(paddock.tracks) { track in
+                Text(track.name)
+                    .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                        selectedFarm = farm
+                        selectedPaddock = paddock
+                        selectedTrack = track
+                        showTrackActions = true
+                    })
+            }
+        }
+        .navigationTitle(paddock.name)
+        .confirmationDialog("Track", isPresented: $showTrackActions, presenting: selectedTrack) { track in
+            Button("Rename") {
+                renameValue = track.name
+                showRenamePrompt = true
+            }
+            Button("Move to another paddock") {
+                moveTrackToFirstAvailablePaddock(track)
+            }
+            Button("Delete", role: .destructive) {
+                guard
+                    let farmID = selectedFarm?.id,
+                    let paddockID = selectedPaddock?.id,
+                    let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
+                    let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID })
+                else { return }
+                farms[farmIndex].paddocks[paddockIndex].tracks.removeAll { $0.id == track.id }
+                AutosteerLibraryStore.save(farms)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func moveTrackToFirstAvailablePaddock(_ track: AutosteerTrackRecord) {
+        guard farms.count > 1 || farms.contains(where: { $0.paddocks.count > 1 }) else { return }
+        guard
+            let farmID = selectedFarm?.id,
+            let paddockID = selectedPaddock?.id,
+            let sourceFarmIndex = farms.firstIndex(where: { $0.id == farmID }),
+            let sourcePaddockIndex = farms[sourceFarmIndex].paddocks.firstIndex(where: { $0.id == paddockID })
+        else { return }
+
+        farms[sourceFarmIndex].paddocks[sourcePaddockIndex].tracks.removeAll { $0.id == track.id }
+        for farmIndex in farms.indices {
+            for paddockIndex in farms[farmIndex].paddocks.indices {
+                if farms[farmIndex].paddocks[paddockIndex].id != paddockID {
+                    farms[farmIndex].paddocks[paddockIndex].tracks.insert(track, at: 0)
+                    AutosteerLibraryStore.save(farms)
+                    return
+                }
+            }
+        }
+    }
+
+    private func applyRename() {
+        if let farmID = selectedFarm?.id, selectedPaddock == nil, selectedTrack == nil,
+           let farmIndex = farms.firstIndex(where: { $0.id == farmID }) {
+            farms[farmIndex].name = renameValue
+        } else if
+            let farmID = selectedFarm?.id,
+            let paddockID = selectedPaddock?.id,
+            selectedTrack == nil,
+            let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
+            let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID }) {
+            farms[farmIndex].paddocks[paddockIndex].name = renameValue
+        } else if
+            let farmID = selectedFarm?.id,
+            let paddockID = selectedPaddock?.id,
+            let trackID = selectedTrack?.id,
+            let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
+            let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID }),
+            let trackIndex = farms[farmIndex].paddocks[paddockIndex].tracks.firstIndex(where: { $0.id == trackID }) {
+            farms[farmIndex].paddocks[paddockIndex].tracks[trackIndex].name = renameValue
+        }
+        AutosteerLibraryStore.save(farms)
+    }
+}
+
+struct AutosteerTrackRecord: Codable, Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    var mode: String
+    var createdAt: Date
+}
+
+struct AutosteerPaddockRecord: Codable, Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    var tracks: [AutosteerTrackRecord]
+}
+
+struct AutosteerFarmRecord: Codable, Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    var paddocks: [AutosteerPaddockRecord]
+}
+
+enum AutosteerLibraryStore {
+    static let storageKey = "autosteer_library_records_v1"
+
+    static func load() -> [AutosteerFarmRecord] {
+        guard
+            let data = UserDefaults.standard.data(forKey: storageKey),
+            let decoded = try? JSONDecoder().decode([AutosteerFarmRecord].self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    static func save(_ farms: [AutosteerFarmRecord]) {
+        guard let data = try? JSONEncoder().encode(farms) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+    }
+
+    static func upsertTrack(farmName: String, paddockName: String, trackName: String, mode: String) {
+        var farms = load()
+        let farm = farmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let paddock = paddockName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let track = trackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !farm.isEmpty, !paddock.isEmpty, !track.isEmpty else { return }
+
+        if let farmIndex = farms.firstIndex(where: { $0.name.caseInsensitiveCompare(farm) == .orderedSame }) {
+            if let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame }) {
+                if let trackIndex = farms[farmIndex].paddocks[paddockIndex].tracks.firstIndex(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame }) {
+                    farms[farmIndex].paddocks[paddockIndex].tracks[trackIndex].mode = mode
+                } else {
+                    farms[farmIndex].paddocks[paddockIndex].tracks.insert(
+                        AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now),
+                        at: 0
+                    )
+                }
+            } else {
+                farms[farmIndex].paddocks.insert(
+                    AutosteerPaddockRecord(
+                        id: UUID(),
+                        name: paddock,
+                        tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now)]
+                    ),
+                    at: 0
+                )
+            }
+        } else {
+            farms.insert(
+                AutosteerFarmRecord(
+                    id: UUID(),
+                    name: farm,
+                    paddocks: [
+                        AutosteerPaddockRecord(
+                            id: UUID(),
+                            name: paddock,
+                            tracks: [AutosteerTrackRecord(id: UUID(), name: track, mode: mode, createdAt: .now)]
+                        )
+                    ]
+                ),
+                at: 0
+            )
+        }
+        save(farms)
     }
 }
 // =========================================================

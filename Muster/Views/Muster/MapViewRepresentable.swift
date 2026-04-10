@@ -38,6 +38,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     @Binding var metersPerPoint: Double
     @Binding var activeTrackAppearanceRaw: String   // "altitude" | "speed" | "off"
+    @Binding var mapCenterCoordinate: CLLocationCoordinate2D?
 
     let headsUpPitchDegrees: Double
     let headsUpUserVerticalOffset: Double
@@ -2205,6 +2206,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            parent.mapCenterCoordinate = mapView.centerCoordinate
             let rect = mapView.visibleMapRect
             let p1 = MKMapPoint(x: rect.minX, y: rect.midY)
             let p2 = MKMapPoint(x: rect.maxX, y: rect.midY)
