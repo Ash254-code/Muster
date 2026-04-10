@@ -268,6 +268,10 @@ struct ImportExportView: View {
                 }
             }
         }
+        .onAppear {
+            guard mode == .import, startImporterOnAppear else { return }
+            showImporter = true
+        }
         .navigationTitle(mode.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
