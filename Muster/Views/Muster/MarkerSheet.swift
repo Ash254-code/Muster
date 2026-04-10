@@ -45,7 +45,6 @@ struct MarkerSheet: View {
     @State private var step: Step = .pickEmoji
     @State private var selectedTemplateID: UUID? = nil
     @State private var markerName: String = ""
-    @State private var showPointBActionPopup = false
 
     private var selectedTemplate: MarkerTemplate? {
         templates.first(where: { $0.id == selectedTemplateID })
@@ -188,7 +187,6 @@ struct MarkerSheet: View {
             Button("Mark point B") {
                 guard let currentCoordinate else { return }
                 onMarkPointB(currentCoordinate)
-                showPointBActionPopup = true
             }
             .buttonStyle(.bordered)
             .disabled(markedPointA == nil || currentCoordinate == nil)
@@ -221,17 +219,6 @@ struct MarkerSheet: View {
                 step = .pickEmoji
             }
             .padding(.top, 4)
-        }
-        .alert("Point B marked", isPresented: $showPointBActionPopup) {
-            Button("Undo Point B", role: .destructive) {
-                onUndoPointB()
-            }
-            Button("Save Track") {
-                step = .enterName
-            }
-            Button("Keep Editing", role: .cancel) { }
-        } message: {
-            Text("A and B are marked and connected. Undo Point B or save this track to continue naming it.")
         }
     }
 
