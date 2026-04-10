@@ -307,7 +307,16 @@ final class MusterStore: ObservableObject, Codable {
 
     func markerTemplate(withID id: UUID?) -> MarkerTemplate? {
         guard let id else { return nil }
-        return markerTemplates.first(where: { $0.id == id })
+
+        if let template = markerTemplates.first(where: { $0.id == id }) {
+            return template
+        }
+
+        if let category = customImportCategories.first(where: { $0.id == id }) {
+            return MarkerTemplate(id: category.id, description: category.title, emoji: category.icon)
+        }
+
+        return nil
     }
 
     func importCategoryStyle(for category: ImportCategory) -> ImportCategoryStyle {
@@ -425,6 +434,7 @@ final class MusterStore: ObservableObject, Codable {
 
             seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            seedDefaultCustomImportCategoriesIfNeeded()
             normalizeImportedMapFilesIfNeeded()
             normalizeMapSetAssignmentsIfNeeded()
             normalizeSessionMapSetAssignmentsIfNeeded()
@@ -433,6 +443,7 @@ final class MusterStore: ObservableObject, Codable {
         } else {
             seedDefaultMarkerTemplatesIfNeeded()
             seedDefaultImportCategoryStylesIfNeeded()
+            seedDefaultCustomImportCategoriesIfNeeded()
         }
 
         hasPendingChanges = false
@@ -1036,6 +1047,7 @@ final class MusterStore: ObservableObject, Codable {
         customImportCategories.removeAll { $0.id == id }
 
         if customImportCategories.count != originalCount {
+            seedDefaultCustomImportCategoriesIfNeeded()
             save()
         }
     }
@@ -1153,6 +1165,14 @@ final class MusterStore: ObservableObject, Codable {
 
         applyCurrentCategoryStylesToExistingImports()
         save()
+    }
+
+    private func seedDefaultCustomImportCategoriesIfNeeded() {
+        guard customImportCategories.isEmpty else { return }
+
+        customImportCategories = [
+            CustomImportCategory(title: "POI", icon: "📍", isVisibleByDefault: true)
+        ]
     }
 
     // =========================================================

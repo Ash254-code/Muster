@@ -149,13 +149,6 @@ struct SettingsView: View {
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
-
-                    NavigationLink {
-                        ImportCategoriesSettingsView()
-                            .environmentObject(app)
-                    } label: {
-                        Label("Import Categories", systemImage: "folder.badge.plus")
-                    }
                 }
 
                 Section("Admin") {
@@ -434,222 +427,12 @@ private struct TopPillsSettingsView: View {
 
 private struct MarkerTemplatesSettingsView: View {
     @EnvironmentObject private var app: AppState
-    @State private var showAddSheet = false
-    @State private var editingTemplate: MarkerTemplate? = nil
-
-    var body: some View {
-        List {
-            Section {
-                if app.muster.markerTemplates.isEmpty {
-                    Text("No marker templates yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(app.muster.markerTemplates) { template in
-                        Button {
-                            editingTemplate = template
-                        } label: {
-                            HStack(spacing: 12) {
-                                Text(template.emoji)
-                                    .font(.title3)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(template.displayTitle)
-                                        .foregroundStyle(.primary)
-
-                                    Text("Tap to edit")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .onDelete { indexSet in
-                        let ids = indexSet.map { app.muster.markerTemplates[$0].id }
-                        for id in ids {
-                            app.muster.deleteMarkerTemplate(id: id)
-                        }
-                    }
-                    .onMove { from, to in
-                        app.muster.moveMarkerTemplates(fromOffsets: from, toOffset: to)
-                    }
-                }
-            } header: {
-                Text("Templates")
-            } footer: {
-                Text("These are the marker types you’ll choose from when long-pressing the map.")
-            }
-
-            Section {
-                Button {
-                    showAddSheet = true
-                } label: {
-                    Label("Add Marker Template", systemImage: "plus")
-                }
-            }
-        }
-        .navigationTitle("Marker Templates")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                EditButton()
-            }
-        }
-        .sheet(isPresented: $showAddSheet) {
-            MarkerTemplateEditorSheet(mode: .add)
-                .environmentObject(app)
-        }
-        .sheet(item: $editingTemplate) { template in
-            MarkerTemplateEditorSheet(mode: .edit(template))
-                .environmentObject(app)
-        }
-    }
-}
-
-private struct MarkerTemplateEditorSheet: View {
-    enum Mode: Identifiable {
-        case add
-        case edit(MarkerTemplate)
-
-        var id: String {
-            switch self {
-            case .add:
-                return "add"
-            case .edit(let template):
-                return template.id.uuidString
-            }
-        }
-    }
-
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var app: AppState
-
-    let mode: Mode
-
-    @State private var descriptionText: String = ""
-    @State private var emojiText: String = ""
-
-    private var title: String {
-        switch mode {
-        case .add: return "Add Template"
-        case .edit: return "Edit Template"
-        }
-    }
-
-    private var saveTitle: String {
-        switch mode {
-        case .add: return "Add"
-        case .edit: return "Save"
-        }
-    }
-
-    private var canSave: Bool {
-        !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !emojiText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Marker Details") {
-                    TextField("Description", text: $descriptionText)
-                        .textInputAutocapitalization(.words)
-
-                    TextField("Emoji", text: $emojiText)
-                        .autocorrectionDisabled()
-
-                    if !emojiText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        HStack {
-                            Text("Preview")
-                            Spacer()
-                            Text(emojiText.trimmingCharacters(in: .whitespacesAndNewlines))
-                                .font(.title2)
-                        }
-                    }
-                }
-
-                Section("Examples") {
-                    Text("Dam + 💧")
-                    Text("Gate + 🚪")
-                    Text("Tank + 🛢️")
-                }
-                .foregroundStyle(.secondary)
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(saveTitle) {
-                        save()
-                    }
-                    .disabled(!canSave)
-                }
-            }
-            .onAppear {
-                configureInitialValues()
-            }
-        }
-    }
-
-    private func configureInitialValues() {
-        switch mode {
-        case .add:
-            if descriptionText.isEmpty && emojiText.isEmpty {
-                descriptionText = ""
-                emojiText = ""
-            }
-
-        case .edit(let template):
-            if descriptionText.isEmpty && emojiText.isEmpty {
-                descriptionText = template.description
-                emojiText = template.emoji
-            }
-        }
-    }
-
-    private func save() {
-        let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanEmoji = emojiText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !cleanDescription.isEmpty, !cleanEmoji.isEmpty else { return }
-
-        switch mode {
-        case .add:
-            app.muster.addMarkerTemplate(description: cleanDescription, emoji: cleanEmoji)
-
-        case .edit(let template):
-            app.muster.updateMarkerTemplate(
-                id: template.id,
-                description: cleanDescription,
-                emoji: cleanEmoji
-            )
-        }
-
-        dismiss()
-    }
-}
-
-// =========================================================
-// MARK: - Import Categories
-// =========================================================
-
-private struct ImportCategoriesSettingsView: View {
-    @EnvironmentObject private var app: AppState
     @State private var isPresentingAddCustomCategory = false
 
     var body: some View {
         List {
             Section {
-                ForEach(ImportCategory.allCases) { category in
+                ForEach(builtInCategories) { category in
                     NavigationLink {
                         ImportCategoryEditorView(category: category)
                             .environmentObject(app)
@@ -718,33 +501,8 @@ private struct ImportCategoriesSettingsView: View {
                     Text("Custom categories are used for organizing imported marker-like points.")
                 }
             }
-
-            Section("Quick visibility") {
-                ForEach(ImportCategory.allCases) { category in
-                    Toggle(isOn: Binding(
-                        get: { app.muster.isImportCategoryVisible(category) },
-                        set: { app.muster.setImportCategoryVisibility($0, for: category) }
-                    )) {
-                        HStack(spacing: 10) {
-                            Text(app.muster.iconForImportCategory(category))
-                            Text(category.title)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                Button("Show All Categories") {
-                    app.muster.showAllImportCategories()
-                }
-
-                Button("Hide All Categories") {
-                    app.muster.hideAllImportCategories()
-                }
-                .foregroundStyle(.red)
-            }
         }
-        .navigationTitle("Import Categories")
+        .navigationTitle("Marker Templates")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -762,6 +520,10 @@ private struct ImportCategoriesSettingsView: View {
                     .environmentObject(app)
             }
         }
+    }
+
+    private var builtInCategories: [ImportCategory] {
+        [.boundaries, .tracks]
     }
 
     private func categorySummary(for category: ImportCategory) -> String {
@@ -782,7 +544,7 @@ private struct ImportCategoriesSettingsView: View {
     }
 }
 
-private struct NewCustomImportCategoryView: View {
+struct NewCustomImportCategoryView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
 

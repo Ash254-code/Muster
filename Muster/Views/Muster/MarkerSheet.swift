@@ -2,6 +2,9 @@ import SwiftUI
 
 struct MarkerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppState
+
+    @State private var showAddCustomCategorySheet = false
 
     let templates: [MarkerTemplate]
     let onDrop: (MarkerTemplate, String?) -> Void
@@ -37,16 +40,31 @@ struct MarkerSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddCustomCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add marker category")
+                }
             }
         }
-        .presentationDetents(step == .pickEmoji ? [.height(380)] : [.height(220)])
+        .sheet(isPresented: $showAddCustomCategorySheet) {
+            NavigationStack {
+                NewCustomImportCategoryView()
+                    .environmentObject(app)
+            }
+        }
+        .presentationDetents(step == .pickEmoji ? [.height(340)] : [.height(240)])
         .presentationDragIndicator(.visible)
     }
 
     private var pickEmojiView: some View {
         VStack(spacing: 16) {
             if templates.isEmpty {
-                Text("No marker templates available.")
+                Text("No custom marker categories yet. Tap + to add POI types.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -61,28 +79,16 @@ struct MarkerSheet: View {
                 .frame(maxHeight: 240)
             }
 
-            Button(action: {
-                guard selectedTemplate != nil else { return }
-                step = .enterName
-            }) {
-                Text("Drop")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(dropButtonBackgroundColor)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(selectedTemplate == nil)
         }
     }
 
     private func templateRow(_ template: MarkerTemplate) -> some View {
         Button(action: {
             selectedTemplateID = template.id
+            step = .enterName
         }) {
             HStack(spacing: 12) {
-                Text("🙂")
+                Text(template.emoji)
                     .font(.title2)
 
                 Text(template.displayTitle)
@@ -96,23 +102,20 @@ struct MarkerSheet: View {
                         .foregroundStyle(Color.accentColor)
                 }
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .background(rowBackground(for: template))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(.thinMaterial, in: Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        selectedTemplateID == template.id ? Color.accentColor.opacity(0.45) : .white.opacity(0.12),
+                        lineWidth: selectedTemplateID == template.id ? 1.5 : 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
-    }
-
-    private func rowBackground(for template: MarkerTemplate) -> some ShapeStyle {
-        if selectedTemplateID == template.id {
-            return Color.accentColor.opacity(0.18)
-        } else {
-            return Color.secondary.opacity(0.10)
-        }
-    }
-
-    private var dropButtonBackgroundColor: Color {
-        selectedTemplate == nil ? Color.gray.opacity(0.25) : Color.accentColor
     }
 
     private var enterNameView: some View {
@@ -122,10 +125,21 @@ struct MarkerSheet: View {
                     .font(.system(size: 42))
             }
 
-            TextField("Name", text: $markerName)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(.secondary)
+
+                TextField("Marker name", text: $markerName)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+            )
 
             HStack(spacing: 12) {
                 Button {
@@ -135,8 +149,11 @@ struct MarkerSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.secondary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .background(.thinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                        )
                 }
 
                 Button {
@@ -149,9 +166,12 @@ struct MarkerSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.accentColor)
+                        .background(Color.accentColor.gradient, in: Capsule())
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(.white.opacity(0.20), lineWidth: 1)
+                        )
                 }
             }
         }
