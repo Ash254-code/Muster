@@ -432,15 +432,19 @@ struct MapMainView: View {
         return farm.paddocks.map(\.name)
     }
 
-    private var selectedAutosteerTrackPath: String {
+    private var selectedAutosteerFarmDisplay: String {
         let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return farm.isEmpty ? "—" : farm
+    }
 
-        guard farm.isEmpty == false, paddock.isEmpty == false, track.isEmpty == false else {
-            return "No track selected"
-        }
-        return "\(farm) > \(paddock) > \(track)"
+    private var selectedAutosteerPaddockDisplay: String {
+        let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return paddock.isEmpty ? "—" : paddock
+    }
+
+    private var selectedAutosteerNameDisplay: String {
+        let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return track.isEmpty ? "—" : track
     }
 
     private var selectedAutosteerTrackRecord: AutosteerTrackRecord? {
@@ -924,7 +928,7 @@ private var selectedMapModeOption: MapModeOption {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Track\n\(selectedAutosteerTrackPath)")
+                Text("\(selectedAutosteerFarmDisplay)\n\(selectedAutosteerPaddockDisplay)\n\(selectedAutosteerNameDisplay)")
             }
             .alert(
                 "Confirm Delete",
