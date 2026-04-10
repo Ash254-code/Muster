@@ -25,6 +25,7 @@ struct MarkerSheet: View {
     @State private var step: Step = .pickEmoji
     @State private var selectedTemplateID: UUID? = nil
     @State private var markerName: String = ""
+    @State private var showPointBActionPopup = false
 
     private var selectedTemplate: MarkerTemplate? {
         templates.first(where: { $0.id == selectedTemplateID })
@@ -167,6 +168,7 @@ struct MarkerSheet: View {
             Button("Mark point B") {
                 guard let currentCoordinate else { return }
                 onMarkPointB(currentCoordinate)
+                showPointBActionPopup = true
             }
             .buttonStyle(.bordered)
             .disabled(markedPointA == nil || currentCoordinate == nil)
@@ -176,17 +178,9 @@ struct MarkerSheet: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 12) {
-                    Button("Undo Point B") {
-                        onUndoPointB()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Save") {
-                        step = .enterName
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                Text("Choose Undo or Save from the popup.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             if currentCoordinate == nil {
@@ -199,6 +193,23 @@ struct MarkerSheet: View {
                 step = .pickEmoji
             }
             .padding(.top, 4)
+        }
+        .confirmationDialog(
+            "Point B marked",
+            isPresented: $showPointBActionPopup,
+            titleVisibility: .visible
+        ) {
+            Button("Undo Point B", role: .destructive) {
+                onUndoPointB()
+            }
+
+            Button("Save Track") {
+                step = .enterName
+            }
+
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("A and B were marked and connected. Undo Point B or save this track to continue naming it.")
         }
     }
 
