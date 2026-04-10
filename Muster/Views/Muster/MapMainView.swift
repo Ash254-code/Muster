@@ -288,7 +288,7 @@ struct MapMainView: View {
     private let fenceWarningCooldownSeconds: TimeInterval = 8
 
     private var activeSession: MusterSession? { app.muster.activeSession }
-    private var mapMarkers: [MapMarker] { app.muster.mapMarkers }
+    private var mapMarkers: [MapMarker] { app.muster.visibleMapMarkers }
     private var activeSheepTarget: MusterMarker? { app.muster.activeSheepTarget }
 
     private var isSheepPinReady: Bool {

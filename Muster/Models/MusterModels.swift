@@ -60,6 +60,9 @@ struct MapMarker: Identifiable, Codable, Hashable {
     /// User-entered name for this specific placed marker
     var name: String
 
+    /// Marker belongs to a specific map set and is shown only when that set is selected.
+    var mapSetID: UUID? = nil
+
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
