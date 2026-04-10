@@ -2947,10 +2947,8 @@ private struct AutosteerDatabaseView: View {
                     }
                     Button("Delete", role: .destructive) {
                         guard
-                            let farmID = selectedFarm?.id ?? farm.id,
-                            let paddockID = selectedPaddock?.id ?? paddock.id,
-                            let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
-                            let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID })
+                            let farmIndex = farms.firstIndex(where: { $0.id == (selectedFarm?.id ?? farm.id) }),
+                            let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == (selectedPaddock?.id ?? paddock.id) })
                         else { return }
                         farms[farmIndex].paddocks[paddockIndex].tracks.removeAll { $0.id == track.id }
                         AutosteerLibraryStore.save(farms)
@@ -2975,10 +2973,8 @@ private struct AutosteerDatabaseView: View {
             }
             Button("Delete", role: .destructive) {
                 guard
-                    let farmID = selectedFarm?.id,
-                    let paddockID = selectedPaddock?.id,
-                    let farmIndex = farms.firstIndex(where: { $0.id == farmID }),
-                    let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == paddockID })
+                    let farmIndex = farms.firstIndex(where: { $0.id == (selectedFarm?.id ?? farm.id) }),
+                    let paddockIndex = farms[farmIndex].paddocks.firstIndex(where: { $0.id == (selectedPaddock?.id ?? paddock.id) })
                 else { return }
                 farms[farmIndex].paddocks[paddockIndex].tracks.removeAll { $0.id == track.id }
                 AutosteerLibraryStore.save(farms)
