@@ -23,6 +23,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     let userLocation: CLLocation?
     let userHeadingDegrees: Double?
+    let useCrosshairUserMarker: Bool = false
 
     let ringCount: Int
     let ringSpacingMeters: Double
@@ -474,12 +475,14 @@ struct MapViewRepresentable: UIViewRepresentable {
                 existing.coordinate = userLocation.coordinate
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
+                existing.useCrosshair = parent.useCrosshairUserMarker
 
                 if let view = map.view(for: existing) as? UserLocationAnnotationView {
                     view.annotation = existing
                     view.configure(
                         isHeadsUp: shouldShowTriangle,
-                        headingDegrees: heading
+                        headingDegrees: heading,
+                        useCrosshair: parent.useCrosshairUserMarker
                     )
                     view.layer.zPosition = 10000
                     map.bringSubviewToFront(view)
@@ -488,7 +491,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                 let annotation = UserLocationAnnotation(
                     coordinate: userLocation.coordinate,
                     isHeadsUp: shouldShowTriangle,
-                    headingDegrees: heading
+                    headingDegrees: heading,
+                    useCrosshair: parent.useCrosshairUserMarker
                 )
                 userLocationAnnotation = annotation
                 map.addAnnotation(annotation)
@@ -503,7 +507,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
                     view.configure(
                         isHeadsUp: shouldShowTriangle,
-                        headingDegrees: heading
+                        headingDegrees: heading,
+                        useCrosshair: parent.useCrosshairUserMarker
                     )
                     view.layer.zPosition = 10000
                     map.bringSubviewToFront(view)
@@ -2094,7 +2099,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                 view.annotation = ann
                 view.configure(
                     isHeadsUp: ann.isHeadsUp,
-                    headingDegrees: ann.headingDegrees
+                    headingDegrees: ann.headingDegrees,
+                    useCrosshair: ann.useCrosshair
                 )
                 view.layer.zPosition = 10000
                 view.displayPriority = .required
@@ -2497,11 +2503,13 @@ final class UserLocationAnnotation: NSObject, MKAnnotation {
     dynamic var coordinate: CLLocationCoordinate2D
     var isHeadsUp: Bool
     var headingDegrees: Double
+    var useCrosshair: Bool
 
-    init(coordinate: CLLocationCoordinate2D, isHeadsUp: Bool, headingDegrees: Double) {
+    init(coordinate: CLLocationCoordinate2D, isHeadsUp: Bool, headingDegrees: Double, useCrosshair: Bool) {
         self.coordinate = coordinate
         self.isHeadsUp = isHeadsUp
         self.headingDegrees = headingDegrees
+        self.useCrosshair = useCrosshair
         super.init()
     }
 
@@ -2605,7 +2613,8 @@ final class UserLocationAnnotationView: MKAnnotationView {
             guard let ann = annotation as? UserLocationAnnotation else { return }
             configure(
                 isHeadsUp: ann.isHeadsUp,
-                headingDegrees: ann.headingDegrees
+                headingDegrees: ann.headingDegrees,
+                useCrosshair: ann.useCrosshair
             )
         }
     }
@@ -2631,7 +2640,15 @@ final class UserLocationAnnotationView: MKAnnotationView {
         ])
     }
 
-    func configure(isHeadsUp: Bool, headingDegrees: Double) {
+    func configure(isHeadsUp: Bool, headingDegrees: Double, useCrosshair: Bool) {
+        if useCrosshair {
+            let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .bold)
+            glyphView.image = UIImage(systemName: "plus", withConfiguration: config)?
+                .withTintColor(.systemRed, renderingMode: .alwaysOriginal)
+            glyphView.transform = .identity
+            return
+        }
+
         if isHeadsUp {
             let config = UIImage.SymbolConfiguration(pointSize: 22, weight: .bold)
             glyphView.image = UIImage(systemName: "location.north.fill", withConfiguration: config)?

@@ -37,6 +37,8 @@ private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
 private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
+private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
@@ -269,6 +271,8 @@ struct MapMainView: View {
     @AppStorage(kAutosteerWorkingWidthKey) private var autosteerWorkingWidthM: Double = 36
     @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
+    @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
+    @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
     @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
     
@@ -284,6 +288,16 @@ struct MapMainView: View {
     @State private var showTPMSDashboard = false
     @State private var showAutosteerSettings = false
     @State private var autosteerActive = false
+    @State private var autosteerPointA: CLLocationCoordinate2D? = nil
+    @State private var autosteerPointB: CLLocationCoordinate2D? = nil
+    @State private var autosteerHeadingInput: String = ""
+    @State private var showAutosteerHeadingPrompt = false
+    @State private var curveTrackRecording = false
+    @State private var curvePulse = false
+    @State private var showAutosteerTrackSaveSheet = false
+    @State private var autosteerSaveFarm = ""
+    @State private var autosteerSavePaddock = ""
+    @State private var autosteerSaveTrackName = ""
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -347,6 +361,10 @@ struct MapMainView: View {
 
     private var autosteerReadinessCount: Int {
         [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerGoReady].filter { $0 }.count
+    }
+
+    private var isAutosteerTrackSetupActive: Bool {
+        autosteerSetupActive && autosteerSetupModeRaw != "none"
     }
 
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
@@ -1065,6 +1083,13 @@ private var selectedMapModeOption: MapModeOption {
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height))
                         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: panelDetent)
                         .transition(.opacity)
+                    }
+            }
+            .overlay(alignment: .top) {
+                if isAutosteerTrackSetupActive {
+                    autosteerTrackSetupOverlay
+                        .padding(.top, 76)
+                        .padding(.horizontal, 12)
                 }
             }
         }
@@ -1086,6 +1111,7 @@ private var selectedMapModeOption: MapModeOption {
             importedMarkers: importedMarkers,
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
+            useCrosshairUserMarker: isAutosteerTrackSetupActive,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
@@ -1744,6 +1770,143 @@ private var selectedMapModeOption: MapModeOption {
                     showAutosteerSettings = true
                 }
         )
+    }
+
+    private var autosteerTrackSetupOverlay: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(.white.opacity(0.95))
+                .shadow(radius: 4)
+
+            Button(action: handleAutosteerSetupPrimaryAction) {
+                HStack(spacing: 8) {
+                    if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 10, height: 10)
+                            .scaleEffect(curvePulse ? 1.25 : 0.8)
+                            .opacity(curvePulse ? 0.4 : 1.0)
+                            .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+                    }
+                    Text(autosteerSetupPrimaryButtonTitle)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Capsule().fill(.black.opacity(0.88)))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+        )
+        .alert("Enter Heading", isPresented: $showAutosteerHeadingPrompt) {
+            TextField("Heading (e.g. 123.4567)", text: $autosteerHeadingInput)
+                .keyboardType(.decimalPad)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                completeAutosteerSetupAndPromptForSave()
+            }
+        } message: {
+            Text("Enter heading to 4 decimal places.")
+        }
+        .sheet(isPresented: $showAutosteerTrackSaveSheet) {
+            NavigationStack {
+                Form {
+                    Section {
+                        TextField("Farm", text: $autosteerSaveFarm)
+                        TextField("Paddock", text: $autosteerSavePaddock)
+                        TextField("Track Name", text: $autosteerSaveTrackName)
+                    }
+                }
+                .navigationTitle("Save Track")
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            resetAutosteerSetupFlow()
+                            showAutosteerTrackSaveSheet = false
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Save") {
+                            resetAutosteerSetupFlow()
+                            showAutosteerTrackSaveSheet = false
+                        }
+                        .disabled(autosteerSaveFarm.isEmpty || autosteerSavePaddock.isEmpty || autosteerSaveTrackName.isEmpty)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if autosteerSetupModeRaw == "Curve Track" {
+                curvePulse = true
+            }
+        }
+    }
+
+    private var autosteerSetupPrimaryButtonTitle: String {
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            return autosteerPointA == nil ? "Mark point A" : "Mark point B"
+        case "A+Heading":
+            return "Mark point A"
+        case "Curve Track":
+            return curveTrackRecording ? "Stop" : "Rec"
+        default:
+            return "Start"
+        }
+    }
+
+    private func handleAutosteerSetupPrimaryAction() {
+        guard let coordinate = location.lastLocation?.coordinate else { return }
+
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            if autosteerPointA == nil {
+                autosteerPointA = coordinate
+            } else {
+                autosteerPointB = coordinate
+                completeAutosteerSetupAndPromptForSave()
+            }
+        case "A+Heading":
+            autosteerPointA = coordinate
+            showAutosteerHeadingPrompt = true
+        case "Curve Track":
+            curveTrackRecording.toggle()
+            if curveTrackRecording == false {
+                completeAutosteerSetupAndPromptForSave()
+            } else {
+                curvePulse = true
+            }
+        default:
+            break
+        }
+    }
+
+    private func completeAutosteerSetupAndPromptForSave() {
+        showAutosteerTrackSaveSheet = true
+    }
+
+    private func resetAutosteerSetupFlow() {
+        autosteerSetupActive = false
+        autosteerSetupModeRaw = "none"
+        autosteerPointA = nil
+        autosteerPointB = nil
+        autosteerHeadingInput = ""
+        curveTrackRecording = false
+        curvePulse = false
+        autosteerSaveFarm = ""
+        autosteerSavePaddock = ""
+        autosteerSaveTrackName = ""
     }
 
     // MARK: - Right side controls

@@ -70,6 +70,8 @@ private let kAutosteerPaddockNameKey = "autosteer_paddock_name" // String
 private let kAutosteerTrackNameKey = "autosteer_track_name" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double 0...1
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
+private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
@@ -278,6 +280,9 @@ struct AutosteerSettingsView: View {
     @AppStorage(kAutosteerTrackNameKey) private var trackName: String = ""
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
+    @AppStorage(kAutosteerSetupModeKey) private var setupModeRaw: String = "none"
+    @AppStorage(kAutosteerSetupActiveKey) private var setupActive: Bool = false
+    @Environment(\.dismiss) private var dismiss
     @State private var pointASet = false
     @State private var pointBSet = false
     @State private var headingSet = false
@@ -337,6 +342,12 @@ struct AutosteerSettingsView: View {
                     ForEach(TrackMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode.rawValue)
                     }
+                }
+
+                Button("Start \(selectedTrackMode.rawValue) on Map") {
+                    setupModeRaw = selectedTrackMode.rawValue
+                    setupActive = true
+                    dismiss()
                 }
 
                 switch selectedTrackMode {
