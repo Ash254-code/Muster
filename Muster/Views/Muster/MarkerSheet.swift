@@ -16,6 +16,26 @@ struct MarkerSheet: View {
     let onUndoPointB: () -> Void
     let onDrop: (MarkerTemplate, String?) -> Void
 
+    init(
+        templates: [MarkerTemplate],
+        currentCoordinate: CLLocationCoordinate2D?,
+        markedPointA: CLLocationCoordinate2D?,
+        markedPointB: CLLocationCoordinate2D?,
+        onMarkPointA: @escaping (CLLocationCoordinate2D) -> Void,
+        onMarkPointB: @escaping (CLLocationCoordinate2D) -> Void,
+        onUndoPointB: @escaping () -> Void,
+        onDrop: @escaping (MarkerTemplate, String?) -> Void
+    ) {
+        self.templates = templates
+        self.currentCoordinate = currentCoordinate
+        self.markedPointA = markedPointA
+        self.markedPointB = markedPointB
+        self.onMarkPointA = onMarkPointA
+        self.onMarkPointB = onMarkPointB
+        self.onUndoPointB = onUndoPointB
+        self.onDrop = onDrop
+    }
+
     private enum Step {
         case pickEmoji
         case markPoints
