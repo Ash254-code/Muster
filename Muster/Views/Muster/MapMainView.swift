@@ -184,6 +184,8 @@ struct MapMainView: View {
     @State private var showPreviousMusters = false
     @State private var showCurrentTrack = false
     @State private var pendingMarkerCoordinate: CLLocationCoordinate2D? = nil
+    @State private var markerSheetPointA: CLLocationCoordinate2D? = nil
+    @State private var markerSheetPointB: CLLocationCoordinate2D? = nil
     @State private var selectedQuickZoomMeters: Double? = nil
     @State private var showMapLayerSheet = false
     @State private var showArrivedBanner = false
@@ -322,7 +324,7 @@ struct MapMainView: View {
     private let fenceWarningCooldownSeconds: TimeInterval = 8
 
     private var activeSession: MusterSession? { app.muster.activeSession }
-    private var mapMarkers: [MapMarker] { app.muster.mapMarkers }
+    private var mapMarkers: [MapMarker] { app.muster.visibleMapMarkers }
     private var activeSheepTarget: MusterMarker? { app.muster.activeSheepTarget }
 
     private var isSheepPinReady: Bool {
@@ -724,6 +726,8 @@ private var selectedMapModeOption: MapModeOption {
             }
             .sheet(isPresented: $showMarkerSheet, onDismiss: {
                 pendingMarkerCoordinate = nil
+                markerSheetPointA = nil
+                markerSheetPointB = nil
             }) {
                 markerSheet
             }
@@ -1187,6 +1191,111 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
+            temporaryPointA: markerSheetPointA,
+            temporaryPointB: markerSheetPointB,
+            onRequestGoToMarker: { marker in
+                startGoTo(marker)
+            },
+            onArriveAtDestination: {
+                DispatchQueue.main.async {
+                    clearGoToTarget()
+                    showArrivedBanner = true
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        showArrivedBanner = false
+                    }
+
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            },
+            onLongPressAtCoordinate: { coordinate in
+                DispatchQueue.main.async {
+                    if let moving = movingSessionMarker {
+                        app.muster.moveSessionMarker(
+                            markerID: moving.id,
+                            in: activeSession?.id,
+                            to: coordinate
+                        )
+                        movingSessionMarker = nil
+                    } else if let moving = movingMapMarker {
+                        app.muster.moveMapMarker(markerID: moving.id, to: coordinate)
+                        movingMapMarker = nil
+                    } else {
+                        pendingMarkerCoordinate = coordinate
+                        showMarkerSheet = true
+                    }
+                }
+            },
+            onTapSessionMarker: { marker in
+                DispatchQueue.main.async {
+                    startGoTo(marker)
+                }
+            },
+            onTapMapMarker: { marker in
+                DispatchQueue.main.async {
+                    startGoTo(marker)
+                }
+            },
+            onTapImportedMarker: { marker in
+                DispatchQueue.main.async {
+                    startGoTo(marker)
+                }
+            },
+            onLongPressSessionMarker: { marker in
+                DispatchQueue.main.async {
+                    movingMapMarker = nil
+                    longPressedMapMarker = nil
+                    showLongPressedMapMarkerDialog = false
+                    editingMapMarker = nil
+                    showEditMapMarkerAlert = false
+
+                    longPressedSessionMarker = marker
+                    showLongPressedSessionMarkerDialog = true
+                }
+            },
+            onLongPressMapMarker: { marker in
+                DispatchQueue.main.async {
+                    movingSessionMarker = nil
+                    longPressedSessionMarker = nil
+                    showLongPressedSessionMarkerDialog = false
+                    editingSessionMarker = nil
+                    showEditSessionMarkerAlert = false
+
+                    longPressedMapMarker = marker
+                    showLongPressedMapMarkerDialog = true
+                }
+            },
+            onLongPressPreviousTrack: { sessionID in
+                DispatchQueue.main.async {
+                    movingSessionMarker = nil
+                    movingMapMarker = nil
+                    longPressedMapMarker = nil
+                    longPressedSessionMarker = nil
+                    showLongPressedMapMarkerDialog = false
+                    showLongPressedSessionMarkerDialog = false
+
+                    let session = app.muster.sessions.first(where: { $0.id == sessionID })
+                    let sessionName = session?.name ?? "Track"
+                    let createdAt = session?.startedAt ?? Date()
+                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
+                    showLongPressedTrackDialog = true
+                }
+            },
+            onLongPressImportedTrack: { trackID, trackName in
+                DispatchQueue.main.async {
+                    movingSessionMarker = nil
+                    movingMapMarker = nil
+                    longPressedMapMarker = nil
+                    longPressedSessionMarker = nil
+                    showLongPressedMapMarkerDialog = false
+                    showLongPressedSessionMarkerDialog = false
+
+                    let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
+                    let createdAt = importedTrack?.createdAt ?? Date()
+                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
+                    showLongPressedTrackDialog = true
+                }
+            }
             onRequestGoToMarker: startGoTo,
             onArriveAtDestination: handleArrivedAtDestination,
             onLongPressAtCoordinate: handleLongPressAtCoordinate,
@@ -1221,6 +1330,19 @@ private var selectedMapModeOption: MapModeOption {
         MarkerSheet(
             templates: app.muster.customImportCategories.map {
                 MarkerTemplate(id: $0.id, description: $0.title, emoji: $0.icon)
+            },
+            currentCoordinate: location.lastLocation?.coordinate,
+            markedPointA: markerSheetPointA,
+            markedPointB: markerSheetPointB,
+            onMarkPointA: { coordinate in
+                markerSheetPointA = coordinate
+                markerSheetPointB = nil
+            },
+            onMarkPointB: { coordinate in
+                markerSheetPointB = coordinate
+            },
+            onUndoPointB: {
+                markerSheetPointB = nil
             }
         ) { template, markerName in
             guard let coordinate = pendingMarkerCoordinate else { return }
@@ -1232,6 +1354,8 @@ private var selectedMapModeOption: MapModeOption {
             )
 
             pendingMarkerCoordinate = nil
+            markerSheetPointA = nil
+            markerSheetPointB = nil
         }
         .environmentObject(app)
         .presentationDetents([.medium, .large])

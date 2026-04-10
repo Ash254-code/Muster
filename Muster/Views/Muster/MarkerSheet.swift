@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct MarkerSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -7,10 +8,17 @@ struct MarkerSheet: View {
     @State private var showAddCustomCategorySheet = false
 
     let templates: [MarkerTemplate]
+    let currentCoordinate: CLLocationCoordinate2D?
+    let markedPointA: CLLocationCoordinate2D?
+    let markedPointB: CLLocationCoordinate2D?
+    let onMarkPointA: (CLLocationCoordinate2D) -> Void
+    let onMarkPointB: (CLLocationCoordinate2D) -> Void
+    let onUndoPointB: () -> Void
     let onDrop: (MarkerTemplate, String?) -> Void
 
     private enum Step {
         case pickEmoji
+        case markPoints
         case enterName
     }
 
@@ -22,32 +30,43 @@ struct MarkerSheet: View {
         templates.first(where: { $0.id == selectedTemplateID })
     }
 
+    private var selectedTemplateNeedsABPoints: Bool {
+        guard let template = selectedTemplate else { return false }
+        let title = template.displayTitle.lowercased()
+        return title == "a + b" || title == "a+ heading"
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 18) {
-                if step == .pickEmoji {
+                switch step {
+                case .pickEmoji:
                     pickEmojiView
-                } else {
+                case .markPoints:
+                    markPointsView
+                case .enterName:
                     enterNameView
                 }
 
                 Spacer(minLength: 0)
             }
             .padding()
-            .navigationTitle(step == .pickEmoji ? "Drop Marker" : "Marker Name")
+            .navigationTitle(step == .enterName ? "Marker Name" : "Drop Marker")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAddCustomCategorySheet = true
-                    } label: {
-                        Image(systemName: "plus")
+                if step == .pickEmoji {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showAddCustomCategorySheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Add marker category")
                     }
-                    .accessibilityLabel("Add marker category")
                 }
             }
         }
@@ -57,7 +76,7 @@ struct MarkerSheet: View {
                     .environmentObject(app)
             }
         }
-        .presentationDetents(step == .pickEmoji ? [.height(340)] : [.height(240)])
+        .presentationDetents(step == .pickEmoji ? [.height(340)] : [.height(280), .medium])
         .presentationDragIndicator(.visible)
     }
 
@@ -85,7 +104,12 @@ struct MarkerSheet: View {
     private func templateRow(_ template: MarkerTemplate) -> some View {
         Button(action: {
             selectedTemplateID = template.id
-            step = .enterName
+            let title = template.displayTitle.lowercased()
+            if title == "a + b" || title == "a+ heading" {
+                step = .markPoints
+            } else {
+                step = .enterName
+            }
         }) {
             HStack(spacing: 12) {
                 Text(template.emoji)
@@ -118,6 +142,66 @@ struct MarkerSheet: View {
         .buttonStyle(.plain)
     }
 
+    private var markPointsView: some View {
+        VStack(spacing: 14) {
+            Text("Mark Point A and Point B")
+                .font(.headline)
+
+            if markedPointA != nil {
+                Label("Point A marked", systemImage: "a.circle.fill")
+                    .foregroundStyle(.green)
+            }
+
+            if markedPointB != nil {
+                Label("Point B marked", systemImage: "b.circle.fill")
+                    .foregroundStyle(.green)
+            }
+
+            Button("Mark point A") {
+                guard let currentCoordinate else { return }
+                onMarkPointA(currentCoordinate)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(currentCoordinate == nil)
+
+            Button("Mark point B") {
+                guard let currentCoordinate else { return }
+                onMarkPointB(currentCoordinate)
+            }
+            .buttonStyle(.bordered)
+            .disabled(markedPointA == nil || currentCoordinate == nil)
+
+            if markedPointA != nil && markedPointB != nil {
+                Text("Line preview created between A and B.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    Button("Undo Point B") {
+                        onUndoPointB()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Save") {
+                        step = .enterName
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+
+            if currentCoordinate == nil {
+                Text("Current location unavailable. Wait for GPS fix to mark points.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Back") {
+                step = .pickEmoji
+            }
+            .padding(.top, 4)
+        }
+    }
+
     private var enterNameView: some View {
         VStack(spacing: 16) {
             if let template = selectedTemplate {
@@ -143,7 +227,7 @@ struct MarkerSheet: View {
 
             HStack(spacing: 12) {
                 Button {
-                    step = .pickEmoji
+                    step = selectedTemplateNeedsABPoints ? .markPoints : .pickEmoji
                 } label: {
                     Text("Back")
                         .font(.headline)
