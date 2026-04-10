@@ -298,6 +298,10 @@ struct MapMainView: View {
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
+    @State private var mapCenterCoordinate: CLLocationCoordinate2D? = nil
+    @State private var knownFarms: [AutosteerFarmRecord] = []
+    @State private var selectedFarmOption: String = "__new__"
+    @State private var selectedPaddockOption: String = "__new__"
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -365,6 +369,14 @@ struct MapMainView: View {
 
     private var isAutosteerTrackSetupActive: Bool {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
+    }
+
+    private var existingPaddocksForSelectedFarm: [String] {
+        let farmName = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let farm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(farmName) == .orderedSame }) else {
+            return []
+        }
+        return farm.paddocks.map(\.name)
     }
 
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
@@ -734,6 +746,11 @@ private var selectedMapModeOption: MapModeOption {
             .onChange(of: showMapSetsSheet) { _, isPresented in
                 if isPresented == false {
                     startMapSetCreationFlowOnOpen = false
+                }
+            }
+            .onChange(of: autosteerSetupActive) { _, isActive in
+                if isActive {
+                    followUser = false
                 }
             }
             .confirmationDialog(
@@ -1123,6 +1140,7 @@ private var selectedMapModeOption: MapModeOption {
             fitRadiosNonce: $fitRadiosNonce,
             metersPerPoint: $metersPerPoint,
             activeTrackAppearanceRaw: $activeTrackAppearanceRaw,
+            mapCenterCoordinate: $mapCenterCoordinate,
             headsUpPitchDegrees: effectiveMapPitchDegrees,
             headsUpUserVerticalOffset: normalizedHeadsUpUserVerticalOffset,
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
@@ -1822,9 +1840,40 @@ private var selectedMapModeOption: MapModeOption {
         .sheet(isPresented: $showAutosteerTrackSaveSheet) {
             NavigationStack {
                 Form {
-                    Section {
+                    Section("Farm") {
+                        Picker("Existing Farms", selection: $selectedFarmOption) {
+                            Text("Add New").tag("__new__")
+                            ForEach(knownFarms, id: \.id) { farm in
+                                Text(farm.name).tag(farm.name)
+                            }
+                        }
+                        .onChange(of: selectedFarmOption) { _, value in
+                            if value != "__new__" {
+                                autosteerSaveFarm = value
+                                selectedPaddockOption = "__new__"
+                            }
+                        }
+
                         TextField("Farm", text: $autosteerSaveFarm)
+                    }
+
+                    Section("Paddock") {
+                        Picker("Existing Paddocks", selection: $selectedPaddockOption) {
+                            Text("Add New").tag("__new__")
+                            ForEach(existingPaddocksForSelectedFarm, id: \.self) { paddock in
+                                Text(paddock).tag(paddock)
+                            }
+                        }
+                        .onChange(of: selectedPaddockOption) { _, value in
+                            if value != "__new__" {
+                                autosteerSavePaddock = value
+                            }
+                        }
+
                         TextField("Paddock", text: $autosteerSavePaddock)
+                    }
+
+                    Section("Track") {
                         TextField("Track Name", text: $autosteerSaveTrackName)
                     }
                 }
@@ -1838,6 +1887,12 @@ private var selectedMapModeOption: MapModeOption {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Save") {
+                            AutosteerLibraryStore.upsertTrack(
+                                farmName: autosteerSaveFarm,
+                                paddockName: autosteerSavePaddock,
+                                trackName: autosteerSaveTrackName,
+                                mode: autosteerSetupModeRaw
+                            )
                             resetAutosteerSetupFlow()
                             showAutosteerTrackSaveSheet = false
                         }
@@ -1867,7 +1922,7 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private func handleAutosteerSetupPrimaryAction() {
-        guard let coordinate = location.lastLocation?.coordinate else { return }
+        guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
 
         switch autosteerSetupModeRaw {
         case "A+B line":
@@ -1893,6 +1948,9 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private func completeAutosteerSetupAndPromptForSave() {
+        knownFarms = AutosteerLibraryStore.load()
+        selectedFarmOption = "__new__"
+        selectedPaddockOption = "__new__"
         showAutosteerTrackSaveSheet = true
     }
 
@@ -1907,6 +1965,8 @@ private var selectedMapModeOption: MapModeOption {
         autosteerSaveFarm = ""
         autosteerSavePaddock = ""
         autosteerSaveTrackName = ""
+        selectedFarmOption = "__new__"
+        selectedPaddockOption = "__new__"
     }
 
     // MARK: - Right side controls

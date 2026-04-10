@@ -20,6 +20,7 @@ struct SessionDetailView: View {
     @State private var metersPerPoint: Double = 1.0
     @State private var showArrivedBanner = false
     @State private var fitRadiosNonce: Int = 0
+    @State private var mapCenterCoordinate: CLLocationCoordinate2D? = nil
 
     @State private var selectedSessionMarker: MusterMarker?
     @State private var selectedMapMarker: MapMarker?
@@ -78,6 +79,7 @@ struct SessionDetailView: View {
             fitRadiosNonce: $fitRadiosNonce,
             metersPerPoint: $metersPerPoint,
             activeTrackAppearanceRaw: .constant("altitude"),
+            mapCenterCoordinate: $mapCenterCoordinate,
             headsUpPitchDegrees: 45,
             headsUpUserVerticalOffset: 10,
             headsUpBottomObstructionHeight: 0,
