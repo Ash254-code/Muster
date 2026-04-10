@@ -244,7 +244,9 @@ struct MapSetsSheetView: View {
     @State private var selectedTrackKeys: Set<MapItemSelectionKey> = []
     @State private var showCreateNamePrompt = false
     @State private var showBoundarySelection = false
-    @State private var showMarkerSelection = false
+    @State private var showTrackSelection = false
+    @State private var showMarkerCategorySelection = false
+    @State private var markerCategoryStepIndex: Int = 0
     @State private var showImportPicker = false
     @State private var alertTitle: String = ""
     @State private var alertMessage: String? = nil
@@ -262,7 +264,8 @@ struct MapSetsSheetView: View {
             file.boundaries.map { boundary in
                 MapItemChoice(
                     key: MapItemSelectionKey(fileID: file.id, itemID: boundary.id),
-                    title: boundary.displayTitle
+                    title: boundary.displayTitle,
+                    category: nil
                 )
             }
         }
@@ -273,7 +276,8 @@ struct MapSetsSheetView: View {
             file.markers.map { marker in
                 MapItemChoice(
                     key: MapItemSelectionKey(fileID: file.id, itemID: marker.id),
-                    title: marker.displayTitle
+                    title: marker.displayTitle,
+                    category: marker.category
                 )
             }
         }
@@ -284,10 +288,28 @@ struct MapSetsSheetView: View {
             file.tracks.map { track in
                 MapItemChoice(
                     key: MapItemSelectionKey(fileID: file.id, itemID: track.id),
-                    title: track.displayTitle
+                    title: track.displayTitle,
+                    category: nil
                 )
             }
         }
+    }
+
+    private var markerSelectionCategories: [ImportCategory] {
+        ImportCategory.allCases.filter { category in
+            category.isMarkerCategory &&
+            availableMarkerChoices.contains(where: { $0.category == category })
+        }
+    }
+
+    private var currentMarkerCategory: ImportCategory? {
+        guard markerCategoryStepIndex >= 0 && markerCategoryStepIndex < markerSelectionCategories.count else { return nil }
+        return markerSelectionCategories[markerCategoryStepIndex]
+    }
+
+    private var currentMarkerChoices: [MapItemChoice] {
+        guard let currentMarkerCategory else { return [] }
+        return availableMarkerChoices.filter { $0.category == currentMarkerCategory }
     }
 
     private var orderedMapSets: [MapSet] {
@@ -373,6 +395,7 @@ struct MapSetsSheetView: View {
                         selectedBoundaryKeys = []
                         selectedMarkerKeys = []
                         selectedTrackKeys = []
+                        markerCategoryStepIndex = 0
                         showCreateNamePrompt = true
                     } label: {
                         Image(systemName: "plus")
@@ -426,36 +449,31 @@ struct MapSetsSheetView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        if availableBoundaryChoices.isEmpty == false {
+                            Button(allSelected(availableBoundaryChoices, in: selectedBoundaryKeys) ? "Clear All" : "Select All") {
+                                toggleSelectAll(availableBoundaryChoices, in: &selectedBoundaryKeys)
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button("Next") {
                             showBoundarySelection = false
-                            showMarkerSelection = true
+                            if availableTrackChoices.isEmpty {
+                                advanceFromTracksStep()
+                            } else {
+                                showTrackSelection = true
+                            }
                         }
                     }
                 }
             }
         }
-        .sheet(isPresented: $showMarkerSelection) {
+        .sheet(isPresented: $showTrackSelection) {
             NavigationStack {
                 List {
-                    Section("Markers") {
-                        if availableMarkerChoices.isEmpty {
-                            Text("No markers available.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(availableMarkerChoices) { choice in
-                                selectionRow(
-                                    title: choice.title,
-                                    isSelected: selectedMarkerKeys.contains(choice.key)
-                                ) {
-                                    toggleSelection(choice.key, in: &selectedMarkerKeys)
-                                }
-                            }
-                        }
-                    }
-
-                    Section("Waypoints") {
+                    Section("Tracks") {
                         if availableTrackChoices.isEmpty {
-                            Text("No waypoints available.")
+                            Text("No tracks available.")
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(availableTrackChoices) { choice in
@@ -469,19 +487,68 @@ struct MapSetsSheetView: View {
                         }
                     }
                 }
-                .navigationTitle("Include Markers")
+                .navigationTitle("Include Tracks")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Back") {
-                            showMarkerSelection = false
+                            showTrackSelection = false
                             showBoundarySelection = true
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Create") {
-                            finishMapSetCreation()
-                            showMarkerSelection = false
+                        if availableTrackChoices.isEmpty == false {
+                            Button(allSelected(availableTrackChoices, in: selectedTrackKeys) ? "Clear All" : "Select All") {
+                                toggleSelectAll(availableTrackChoices, in: &selectedTrackKeys)
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Next") {
+                            showTrackSelection = false
+                            advanceFromTracksStep()
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showMarkerCategorySelection) {
+            NavigationStack {
+                List {
+                    Section(currentMarkerCategory?.title ?? "Markers") {
+                        ForEach(currentMarkerChoices) { choice in
+                            selectionRow(
+                                title: choice.title,
+                                isSelected: selectedMarkerKeys.contains(choice.key)
+                            ) {
+                                toggleSelection(choice.key, in: &selectedMarkerKeys)
+                            }
+                        }
+                    }
+                }
+                .navigationTitle(currentMarkerCategory.map { "Include \($0.title)" } ?? "Include Markers")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Back") {
+                            goBackFromMarkerCategoryStep()
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if currentMarkerChoices.isEmpty == false {
+                            Button(allSelected(currentMarkerChoices, in: selectedMarkerKeys) ? "Clear All" : "Select All") {
+                                toggleSelectAll(currentMarkerChoices, in: &selectedMarkerKeys)
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(isLastMarkerCategoryStep ? "Create" : "Next") {
+                            if isLastMarkerCategoryStep {
+                                finishMapSetCreation()
+                                showMarkerCategorySelection = false
+                            } else {
+                                markerCategoryStepIndex += 1
+                            }
                         }
                     }
                 }
@@ -513,6 +580,7 @@ struct MapSetsSheetView: View {
             selectedBoundaryKeys = []
             selectedMarkerKeys = []
             selectedTrackKeys = []
+            markerCategoryStepIndex = 0
             showCreateNamePrompt = true
         }
     }
@@ -539,6 +607,47 @@ struct MapSetsSheetView: View {
         }
     }
 
+    private func toggleSelectAll(_ choices: [MapItemChoice], in set: inout Set<MapItemSelectionKey>) {
+        let keys = Set(choices.map(\.key))
+        if keys.isSubset(of: set) {
+            set.subtract(keys)
+        } else {
+            set.formUnion(keys)
+        }
+    }
+
+    private func allSelected(_ choices: [MapItemChoice], in set: Set<MapItemSelectionKey>) -> Bool {
+        let keys = Set(choices.map(\.key))
+        return keys.isEmpty == false && keys.isSubset(of: set)
+    }
+
+    private var isLastMarkerCategoryStep: Bool {
+        markerCategoryStepIndex >= markerSelectionCategories.count - 1
+    }
+
+    private func advanceFromTracksStep() {
+        markerCategoryStepIndex = 0
+        if markerSelectionCategories.isEmpty {
+            finishMapSetCreation()
+        } else {
+            showMarkerCategorySelection = true
+        }
+    }
+
+    private func goBackFromMarkerCategoryStep() {
+        if markerCategoryStepIndex > 0 {
+            markerCategoryStepIndex -= 1
+            return
+        }
+
+        showMarkerCategorySelection = false
+        if availableTrackChoices.isEmpty {
+            showBoundarySelection = true
+        } else {
+            showTrackSelection = true
+        }
+    }
+
     private func finishMapSetCreation() {
         let mapSetID = app.muster.createMapSet(named: stagedMapSetName)
 
@@ -559,6 +668,7 @@ struct MapSetsSheetView: View {
         selectedBoundaryKeys = []
         selectedMarkerKeys = []
         selectedTrackKeys = []
+        markerCategoryStepIndex = 0
     }
 
     private func summary(for mapSetID: UUID) -> String {
@@ -632,6 +742,7 @@ private struct MapItemSelectionKey: Hashable {
 private struct MapItemChoice: Identifiable {
     let key: MapItemSelectionKey
     let title: String
+    let category: ImportCategory?
 
     var id: MapItemSelectionKey { key }
 }
