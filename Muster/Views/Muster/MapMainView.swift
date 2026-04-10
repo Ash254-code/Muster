@@ -973,10 +973,9 @@ private var selectedMapModeOption: MapModeOption {
                         mapLayerSheet
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.horizontal, 10)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, geo.safeAreaInsets.bottom + 8)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .ignoresSafeArea(edges: .bottom)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(20)
                 }
