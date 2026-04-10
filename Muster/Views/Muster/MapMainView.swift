@@ -1296,16 +1296,6 @@ private var selectedMapModeOption: MapModeOption {
                     showLongPressedTrackDialog = true
                 }
             }
-            onRequestGoToMarker: startGoTo,
-            onArriveAtDestination: handleArrivedAtDestination,
-            onLongPressAtCoordinate: handleLongPressAtCoordinate,
-            onTapSessionMarker: handleTapSessionMarker,
-            onTapMapMarker: handleTapMapMarker,
-            onTapImportedMarker: handleTapImportedMarker,
-            onLongPressSessionMarker: handleLongPressSessionMarker,
-            onLongPressMapMarker: handleLongPressMapMarker,
-            onLongPressPreviousTrack: handleLongPressPreviousTrack,
-            onLongPressImportedTrack: handleLongPressImportedTrack
         )
         .ignoresSafeArea()
     }
