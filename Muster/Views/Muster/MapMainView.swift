@@ -2616,6 +2616,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
             if panelDetent != .collapsed {
                 expandedPanelContent
+                    .padding(.bottom, safeAreaBottom)
             }
 
             Spacer(minLength: 0)
@@ -2632,7 +2633,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         )
         .shadow(color: .black.opacity(0.22), radius: 18, y: 4)
         .padding(.horizontal, 6)
-        .padding(.bottom, max(6, safeAreaBottom + 6))
+        .padding(.bottom, 6)
         .contentShape(Rectangle())
         .gesture(bottomPanelDragGesture)
     }
