@@ -294,6 +294,7 @@ struct MapMainView: View {
     @State private var autosteerPointA: CLLocationCoordinate2D? = nil
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
     @State private var autosteerHeadingInput: String = ""
+    @State private var showAutosteerPointBDecisionDialog = false
     @State private var showAutosteerHeadingPrompt = false
     @State private var curveTrackRecording = false
     @State private var curvePulse = false
@@ -365,6 +366,34 @@ struct MapMainView: View {
 
     private var autosteerGoReady: Bool {
         autosteerEnabled && gpsConnectedForAutosteer && autosteerConditionsReady
+    }
+
+    private var temporaryPreviewPointA: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointA
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line", "A+Heading":
+            return autosteerPointA
+        default:
+            return nil
+        }
+    }
+
+    private var temporaryPreviewPointB: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointB
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            return autosteerPointB
+        default:
+            return nil
+        }
     }
 
     private var autosteerReadinessCount: Int {
@@ -1191,8 +1220,8 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
-            temporaryPointA: markerSheetPointA,
-            temporaryPointB: markerSheetPointB,
+            temporaryPointA: temporaryPreviewPointA,
+            temporaryPointB: temporaryPreviewPointB,
             onRequestGoToMarker: { marker in
                 startGoTo(marker)
             },
@@ -2013,6 +2042,12 @@ private var selectedMapModeOption: MapModeOption {
                 .background(Capsule().fill(.black.opacity(0.88)))
             }
             .buttonStyle(.plain)
+
+            if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
+                Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -2033,6 +2068,23 @@ private var selectedMapModeOption: MapModeOption {
             }
         } message: {
             Text("Enter heading to 4 decimal places.")
+        }
+        .confirmationDialog(
+            "Point B marked",
+            isPresented: $showAutosteerPointBDecisionDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Undo Point B", role: .destructive) {
+                autosteerPointB = nil
+            }
+
+            Button("Save Track") {
+                completeAutosteerSetupAndPromptForSave()
+            }
+
+            Button("Keep Editing", role: .cancel) { }
+        } message: {
+            Text("Point A and Point B are marked with a connecting line. Undo Point B or save this track.")
         }
         .sheet(isPresented: $showAutosteerTrackSaveSheet) {
             NavigationStack {
@@ -2109,7 +2161,9 @@ private var selectedMapModeOption: MapModeOption {
     private var autosteerSetupPrimaryButtonTitle: String {
         switch autosteerSetupModeRaw {
         case "A+B line":
-            return autosteerPointA == nil ? "Mark point A" : "Mark point B"
+            if autosteerPointA == nil { return "Mark point A" }
+            if autosteerPointB == nil { return "Mark point B" }
+            return "Re-mark point B"
         case "A+Heading":
             return "Mark point A"
         case "Curve Track":
@@ -2128,7 +2182,7 @@ private var selectedMapModeOption: MapModeOption {
                 autosteerPointA = coordinate
             } else {
                 autosteerPointB = coordinate
-                completeAutosteerSetupAndPromptForSave()
+                showAutosteerPointBDecisionDialog = true
             }
         case "A+Heading":
             autosteerPointA = coordinate
@@ -2149,6 +2203,7 @@ private var selectedMapModeOption: MapModeOption {
         knownFarms = AutosteerLibraryStore.load()
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
+        showAutosteerPointBDecisionDialog = false
         showAutosteerTrackSaveSheet = true
     }
 
@@ -2158,6 +2213,7 @@ private var selectedMapModeOption: MapModeOption {
         autosteerPointA = nil
         autosteerPointB = nil
         autosteerHeadingInput = ""
+        showAutosteerPointBDecisionDialog = false
         curveTrackRecording = false
         curvePulse = false
         curveRecordedCenters = []
