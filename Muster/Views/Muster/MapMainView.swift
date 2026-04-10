@@ -787,9 +787,8 @@ private var selectedMapModeOption: MapModeOption {
     private var lifecycleMainContent: some View {
         presentedMainContent
             .onAppear(perform: handleMainViewAppear)
-            .onReceive(app.$pendingQuickAction.compactMap { $0 }) { action in
-                handleHomeScreenQuickAction(action)
-                app.clearPendingQuickAction()
+            .onReceive(app.$pendingQuickAction) { _ in
+                processPendingQuickActionIfNeeded()
             }
             .onDisappear(perform: handleMainViewDisappear)
             .onChange(of: quickZoom1M) { _, newValue in
@@ -2687,6 +2686,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         }
     }
 
+    private func processPendingQuickActionIfNeeded() {
+        guard let action = app.pendingQuickAction else { return }
+        handleHomeScreenQuickAction(action)
+        app.clearPendingQuickAction()
+    }
+
     private func handleHomeScreenQuickAction(_ action: HomeScreenQuickAction) {
         switch action {
         case .startNewTrack:
@@ -2743,6 +2748,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         Task {
             await refreshWeatherIfNeeded()
         }
+
+        processPendingQuickActionIfNeeded()
     }
 
     private func handleMainViewDisappear() {
