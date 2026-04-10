@@ -73,6 +73,8 @@ struct SessionDetailView: View {
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
+            autosteerTrackPreviewCoordinates: [],
+            autosteerTrackSpacingMeters: 36,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),
             recenterNonce: $recenterNonce,
