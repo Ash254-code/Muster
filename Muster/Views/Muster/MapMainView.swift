@@ -33,6 +33,12 @@ private let kTopRightPillMetricKey = "top_right_pill_metric"
 private let kMediaButtonEnabledKey = "media_button_enabled" // Bool
 private let kXRSRadioTrailsEnabledKey = "xrs_radio_trails_enabled" // Bool
 private let kXRSRadioTrailColorKey = "xrs_radio_trail_color" // String
+private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
+private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
+private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
+private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
+private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
 struct MapMainView: View {
 
@@ -258,6 +264,12 @@ struct MapMainView: View {
     @AppStorage(kMediaButtonEnabledKey) private var mediaButtonEnabled: Bool = true
     @AppStorage(kXRSRadioTrailsEnabledKey) private var xrsRadioTrailsEnabled: Bool = true
     @AppStorage(kXRSRadioTrailColorKey) private var xrsRadioTrailColorRaw: String = "blue"
+    @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
+    @AppStorage(kAutosteerWorkingWidthKey) private var autosteerWorkingWidthM: Double = 36
+    @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
+    @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
+    @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
+    @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
     
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
@@ -269,6 +281,8 @@ struct MapMainView: View {
     @State private var fitRadiosNonce: Int = 0
     @State private var showRadioList = false
     @State private var showTPMSDashboard = false
+    @State private var showAutosteerSettings = false
+    @State private var autosteerActive = false
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -313,6 +327,25 @@ struct MapMainView: View {
 
     private var shouldShowXRSTrailsOnMap: Bool {
         xrsRadioTrailsEnabled && activeSession?.isActive == true
+    }
+
+    private var gpsConnectedForAutosteer: Bool {
+        location.lastLocation != nil && location.lastError == nil
+    }
+
+    private var autosteerConditionsReady: Bool {
+        let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
+        let tuneReady = autosteerLookAheadM > 0 && autosteerAggressiveness >= 0
+        let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
+        return widthReady && tuneReady && cruiseReady && activeSession?.isActive == true
+    }
+
+    private var autosteerGoReady: Bool {
+        autosteerEnabled && gpsConnectedForAutosteer && autosteerConditionsReady
+    }
+
+    private var autosteerReadinessCount: Int {
+        [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerGoReady].filter { $0 }.count
     }
 
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
@@ -709,6 +742,11 @@ private var selectedMapModeOption: MapModeOption {
             .sheet(isPresented: $showTPMSDashboard) {
                 tpmsDashboardSheet
             }
+            .sheet(isPresented: $showAutosteerSettings) {
+                NavigationStack {
+                    AutosteerSettingsView()
+                }
+            }
             .fullScreenCover(isPresented: $showPreviousMusters) {
                 previousMustersCover
             }
@@ -997,6 +1035,8 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottomTrailing) {
                 if !showMapLayerSheet {
                     VStack(spacing: 10) {
+                        autosteerReadinessButton
+
                         if !followUser {
                             centerMapButton
                         }
@@ -1637,6 +1677,64 @@ private var selectedMapModeOption: MapModeOption {
                 .shadow(color: .red.opacity(0.28), radius: 3, y: 1)
                 .offset(y: -13)
         }
+    }
+
+    private var autosteerReadinessButton: some View {
+        let fraction = Double(autosteerReadinessCount) / 4.0
+        return Button {
+            if autosteerGoReady {
+                autosteerActive.toggle()
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(autosteerActive ? .success : .warning)
+            } else {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(.black.opacity(1.0))
+                    .frame(width: 64, height: 64)
+
+                Circle()
+                    .stroke(.white.opacity(0.18), lineWidth: 8)
+                    .frame(width: 58, height: 58)
+
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(
+                        autosteerGoReady ? .green : .orange,
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 58, height: 58)
+
+                VStack(spacing: 0) {
+                    Text(autosteerActive ? "ON" : "GO")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(autosteerActive ? .green : .white)
+                    Text("\(autosteerReadinessCount)/4")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(gpsConnectedForAutosteer ? .green : .red)
+                    .frame(width: 10, height: 10)
+                    .overlay(Circle().stroke(.white.opacity(0.6), lineWidth: 1))
+                    .offset(x: -6, y: -6)
+            }
+            .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+            .accessibilityLabel("Autosteer readiness")
+            .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
+        }
+        .buttonStyle(.plain)
+        .highPriorityGesture(
+            LongPressGesture(minimumDuration: 0.65)
+                .onEnded { _ in
+                    showAutosteerSettings = true
+                }
+        )
     }
 
     // MARK: - Right side controls
