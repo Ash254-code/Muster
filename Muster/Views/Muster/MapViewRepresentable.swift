@@ -23,7 +23,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     let userLocation: CLLocation?
     let userHeadingDegrees: Double?
-    let useCrosshairUserMarker: Bool = false
+    let useCrosshairUserMarker: Bool
 
     let ringCount: Int
     let ringSpacingMeters: Double
