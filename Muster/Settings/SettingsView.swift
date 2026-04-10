@@ -304,7 +304,7 @@ struct AutosteerSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Autosteer") {
+            Section {
                 Toggle("Enable Autosteer", isOn: $autosteerEnabled)
                 HStack {
                     Text("GPS Signal")
@@ -313,9 +313,11 @@ struct AutosteerSettingsView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(gpsStatusColor)
                 }
+            } header: {
+                Text("Autosteer")
             }
 
-            Section("Implement Setup") {
+            Section {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Working Width")
@@ -326,9 +328,11 @@ struct AutosteerSettingsView: View {
                     }
                     Slider(value: $workingWidthM, in: 1...1000, step: 1)
                 }
+            } header: {
+                Text("Implement Setup")
             }
 
-            Section("Track Options") {
+            Section {
                 Picker("Track Type", selection: $trackModeRaw) {
                     ForEach(TrackMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode.rawValue)
@@ -350,9 +354,11 @@ struct AutosteerSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            } header: {
+                Text("Track Options")
             }
 
-            Section("Save Track") {
+            Section {
                 TextField("Farm", text: $farmName)
                 TextField("Paddock", text: $paddockName)
                 TextField("Track Name", text: $trackName)
@@ -369,9 +375,11 @@ struct AutosteerSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            } header: {
+                Text("Save Track")
             }
 
-            Section("Tuning") {
+            Section {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Aggressiveness")
@@ -393,6 +401,8 @@ struct AutosteerSettingsView: View {
                     }
                     Slider(value: $lookAheadM, in: 1...150, step: 1)
                 }
+            } header: {
+                Text("Tuning")
             }
         }
         .navigationTitle("Autosteer")
@@ -413,7 +423,7 @@ struct CruiseControlSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Cruise Control") {
+            Section {
                 Toggle("Enable Cruise Control", isOn: $cruiseEnabled)
                 HStack {
                     Text("Target Speed")
@@ -423,6 +433,8 @@ struct CruiseControlSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Slider(value: $cruiseSpeedKPH, in: 0.5...35, step: 0.5)
+            } header: {
+                Text("Cruise Control")
             } footer: {
                 Text("Cruise control can be used independently, or together with autosteer.")
                     .font(.footnote)
