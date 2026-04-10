@@ -418,7 +418,7 @@ struct CruiseControlSettingsView: View {
                 HStack {
                     Text("Target Speed")
                     Spacer()
-                    Text("\(cruiseSpeedKPH, specifier: \"%.1f\") km/h")
+                    Text("\(cruiseSpeedKPH, specifier: "%.1f") km/h")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
