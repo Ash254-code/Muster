@@ -1188,109 +1188,16 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
-            onRequestGoToMarker: { marker in
-                startGoTo(marker)
-            },
-            onArriveAtDestination: {
-                DispatchQueue.main.async {
-                    clearGoToTarget()
-                    showArrivedBanner = true
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        showArrivedBanner = false
-                    }
-
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-            },
-            onLongPressAtCoordinate: { coordinate in
-                DispatchQueue.main.async {
-                    if let moving = movingSessionMarker {
-                        app.muster.moveSessionMarker(
-                            markerID: moving.id,
-                            in: activeSession?.id,
-                            to: coordinate
-                        )
-                        movingSessionMarker = nil
-                    } else if let moving = movingMapMarker {
-                        app.muster.moveMapMarker(markerID: moving.id, to: coordinate)
-                        movingMapMarker = nil
-                    } else {
-                        pendingMarkerCoordinate = coordinate
-                        showMarkerSheet = true
-                    }
-                }
-            },
-            onTapSessionMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onTapMapMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onTapImportedMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onLongPressSessionMarker: { marker in
-                DispatchQueue.main.async {
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    editingMapMarker = nil
-                    showEditMapMarkerAlert = false
-
-                    longPressedSessionMarker = marker
-                    showLongPressedSessionMarkerDialog = true
-                }
-            },
-            onLongPressMapMarker: { marker in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedSessionMarkerDialog = false
-                    editingSessionMarker = nil
-                    showEditSessionMarkerAlert = false
-
-                    longPressedMapMarker = marker
-                    showLongPressedMapMarkerDialog = true
-                }
-            },
-            onLongPressPreviousTrack: { sessionID in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    showLongPressedSessionMarkerDialog = false
-
-                    let session = app.muster.sessions.first(where: { $0.id == sessionID })
-                    let sessionName = session?.name ?? "Track"
-                    let createdAt = session?.startedAt ?? Date()
-                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
-                    showLongPressedTrackDialog = true
-                }
-            },
-            onLongPressImportedTrack: { trackID, trackName in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    showLongPressedSessionMarkerDialog = false
-
-                    let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
-                    let createdAt = importedTrack?.createdAt ?? Date()
-                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
-                    showLongPressedTrackDialog = true
-                }
-            }
+            onRequestGoToMarker: startGoTo,
+            onArriveAtDestination: handleArrivedAtDestination,
+            onLongPressAtCoordinate: handleLongPressAtCoordinate,
+            onTapSessionMarker: handleTapSessionMarker,
+            onTapMapMarker: handleTapMapMarker,
+            onTapImportedMarker: handleTapImportedMarker,
+            onLongPressSessionMarker: handleLongPressSessionMarker,
+            onLongPressMapMarker: handleLongPressMapMarker,
+            onLongPressPreviousTrack: handleLongPressPreviousTrack,
+            onLongPressImportedTrack: handleLongPressImportedTrack
         )
         .ignoresSafeArea()
     }
@@ -1344,6 +1251,115 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     // MARK: - Dialog actions
+
+    private func handleArrivedAtDestination() {
+        DispatchQueue.main.async {
+            clearGoToTarget()
+            showArrivedBanner = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                showArrivedBanner = false
+            }
+
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+
+    private func handleLongPressAtCoordinate(_ coordinate: CLLocationCoordinate2D) {
+        DispatchQueue.main.async {
+            if let moving = movingSessionMarker {
+                app.muster.moveSessionMarker(
+                    markerID: moving.id,
+                    in: activeSession?.id,
+                    to: coordinate
+                )
+                movingSessionMarker = nil
+            } else if let moving = movingMapMarker {
+                app.muster.moveMapMarker(markerID: moving.id, to: coordinate)
+                movingMapMarker = nil
+            } else {
+                pendingMarkerCoordinate = coordinate
+                showMarkerSheet = true
+            }
+        }
+    }
+
+    private func handleTapSessionMarker(_ marker: MusterMarker) {
+        DispatchQueue.main.async {
+            startGoTo(marker)
+        }
+    }
+
+    private func handleTapMapMarker(_ marker: MapMarker) {
+        DispatchQueue.main.async {
+            startGoTo(marker)
+        }
+    }
+
+    private func handleTapImportedMarker(_ marker: ImportedMarker) {
+        DispatchQueue.main.async {
+            startGoTo(marker)
+        }
+    }
+
+    private func handleLongPressSessionMarker(_ marker: MusterMarker) {
+        DispatchQueue.main.async {
+            movingMapMarker = nil
+            longPressedMapMarker = nil
+            showLongPressedMapMarkerDialog = false
+            editingMapMarker = nil
+            showEditMapMarkerAlert = false
+
+            longPressedSessionMarker = marker
+            showLongPressedSessionMarkerDialog = true
+        }
+    }
+
+    private func handleLongPressMapMarker(_ marker: MapMarker) {
+        DispatchQueue.main.async {
+            movingSessionMarker = nil
+            longPressedSessionMarker = nil
+            showLongPressedSessionMarkerDialog = false
+            editingSessionMarker = nil
+            showEditSessionMarkerAlert = false
+
+            longPressedMapMarker = marker
+            showLongPressedMapMarkerDialog = true
+        }
+    }
+
+    private func handleLongPressPreviousTrack(_ sessionID: UUID) {
+        DispatchQueue.main.async {
+            movingSessionMarker = nil
+            movingMapMarker = nil
+            longPressedMapMarker = nil
+            longPressedSessionMarker = nil
+            showLongPressedMapMarkerDialog = false
+            showLongPressedSessionMarkerDialog = false
+
+            let session = app.muster.sessions.first(where: { $0.id == sessionID })
+            let sessionName = session?.name ?? "Track"
+            let createdAt = session?.startedAt ?? Date()
+            longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
+            showLongPressedTrackDialog = true
+        }
+    }
+
+    private func handleLongPressImportedTrack(_ trackID: UUID, _ trackName: String) {
+        DispatchQueue.main.async {
+            movingSessionMarker = nil
+            movingMapMarker = nil
+            longPressedMapMarker = nil
+            longPressedSessionMarker = nil
+            showLongPressedMapMarkerDialog = false
+            showLongPressedSessionMarkerDialog = false
+
+            let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
+            let createdAt = importedTrack?.createdAt ?? Date()
+            longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
+            showLongPressedTrackDialog = true
+        }
+    }
 
     @ViewBuilder
     private func longPressedMapMarkerDialogActions() -> some View {

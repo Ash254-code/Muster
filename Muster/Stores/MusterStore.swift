@@ -273,6 +273,13 @@ final class MusterStore: ObservableObject, Codable {
         }
     }
 
+    /// Compatibility alias used by map screens.
+    /// Global map markers currently do not have per-map-set visibility,
+    /// so this mirrors `mapMarkers` directly.
+    var visibleMapMarkers: [MapMarker] {
+        mapMarkers
+    }
+
     func importedBoundaries(in mapSetID: UUID) -> [(fileID: UUID, boundary: ImportedBoundary)] {
         importedMapFiles.flatMap { file in
             file.boundaries.compactMap { boundary in
