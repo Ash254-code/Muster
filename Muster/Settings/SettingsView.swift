@@ -2926,7 +2926,9 @@ private struct AutosteerDatabaseView: View {
                     Button {
                         previewTrack = track
                     } label: {
-                        Image(systemName: "eye")
+                        Label("Preview", systemImage: "eye.fill")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(.blue)
                     }
                     .buttonStyle(.plain)
                 }

@@ -1158,7 +1158,7 @@ private var selectedMapModeOption: MapModeOption {
             importedMarkers: importedMarkers,
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
-            useCrosshairUserMarker: false,
+            useCrosshairUserMarker: isAutosteerTrackSetupActive,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
