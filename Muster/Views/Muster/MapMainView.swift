@@ -286,6 +286,7 @@ struct MapMainView: View {
     @State private var showRadioList = false
     @State private var showTPMSDashboard = false
     @State private var showAutosteerSettings = false
+    @State private var showAutosteerQuickActions = false
     @State private var autosteerActive = false
     @State private var autosteerPointA: CLLocationCoordinate2D? = nil
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
@@ -809,6 +810,25 @@ private var selectedMapModeOption: MapModeOption {
                 actions: longPressedTrackDialogActions,
                 message: longPressedTrackDialogMessage
             )
+            .confirmationDialog(
+                "Autosteer",
+                isPresented: $showAutosteerQuickActions,
+                titleVisibility: .visible
+            ) {
+                Button("Settings") {
+                    showAutosteerSettings = true
+                }
+                Button("New A + B Track") {
+                    beginAutosteerSetup(mode: "A+B line")
+                }
+                Button("New A + Heading") {
+                    beginAutosteerSetup(mode: "A+Heading")
+                }
+                Button("New Curve Track") {
+                    beginAutosteerSetup(mode: "Curve Track")
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .alert(
                 "Confirm Delete",
                 isPresented: $showTrackDeleteConfirmationAlert,
@@ -1776,7 +1796,7 @@ private var selectedMapModeOption: MapModeOption {
         .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.65)
                 .onEnded { _ in
-                    showAutosteerSettings = true
+                    showAutosteerQuickActions = true
                 }
         )
     }
@@ -1958,6 +1978,12 @@ private var selectedMapModeOption: MapModeOption {
         autosteerSaveTrackName = ""
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
+    }
+
+    private func beginAutosteerSetup(mode: String) {
+        autosteerSetupModeRaw = mode
+        autosteerSetupActive = true
+        followUser = false
     }
 
     // MARK: - Right side controls
