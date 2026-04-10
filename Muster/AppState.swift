@@ -16,6 +16,7 @@ final class AppState: ObservableObject {
             bindRadio()
         }
     }
+    @Published var pendingQuickAction: HomeScreenQuickAction? = nil
 
     private let ble = BLERadioDebugger.shared
     private let radioDuckHoldSeconds: TimeInterval = 10
@@ -32,6 +33,14 @@ final class AppState: ObservableObject {
         bindMuster()
         bindXRS()
         bindRadio()
+    }
+
+    func queueQuickAction(_ action: HomeScreenQuickAction) {
+        pendingQuickAction = action
+    }
+
+    func clearPendingQuickAction() {
+        pendingQuickAction = nil
     }
 
     func bootstrapIfNeeded() async {

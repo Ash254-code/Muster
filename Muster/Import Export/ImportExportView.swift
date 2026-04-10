@@ -5,6 +5,7 @@ import UIKit
 struct ImportExportView: View {
     @EnvironmentObject private var app: AppState
     let mode: Mode
+    let startImporterOnAppear: Bool
 
     enum Mode {
         case `import`
@@ -67,6 +68,7 @@ struct ImportExportView: View {
     }
 
     @State private var showImporter = false
+    @State private var didAutoStartImporter = false
     @State private var showImportCategoryPicker = false
     @State private var applyCategoryToAllPendingImports = false
 
@@ -138,6 +140,11 @@ struct ImportExportView: View {
         }
 
         return app.muster.createMapSet()
+    }
+
+    init(mode: Mode, startImporterOnAppear: Bool = false) {
+        self.mode = mode
+        self.startImporterOnAppear = startImporterOnAppear
     }
 
     var body: some View {
@@ -263,6 +270,11 @@ struct ImportExportView: View {
         }
         .navigationTitle(mode.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            guard mode == .import, startImporterOnAppear, didAutoStartImporter == false else { return }
+            didAutoStartImporter = true
+            showImporter = true
+        }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [
