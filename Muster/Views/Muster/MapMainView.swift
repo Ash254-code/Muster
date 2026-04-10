@@ -1226,8 +1226,8 @@ private var selectedMapModeOption: MapModeOption {
                     }
             }
             .overlay(alignment: .bottom) {
-                if !showMapLayerSheet, autosteerActive, let guidance = autosteerGuidanceStatus {
-                    autosteerGuidanceBar(guidance)
+                if !showMapLayerSheet, autosteerEnabled {
+                    autosteerGuidanceBar(autosteerGuidanceStatus)
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -2471,12 +2471,16 @@ private var selectedMapModeOption: MapModeOption {
         recenterNonce &+= 1
     }
 
-    private var autosteerGuidanceStatus: AutosteerGuidanceStatus? {
+    private var autosteerGuidanceStatus: AutosteerGuidanceStatus {
         guard autosteerWorkingWidthM > 0,
-              let userCoordinate = location.lastLocation?.coordinate else { return nil }
+              let userCoordinate = location.lastLocation?.coordinate else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
 
-        let referenceLine = autosteerReferenceLineCoordinates()
-        guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else { return nil }
+        let referenceLine = autosteerReferenceLineCoordinates(userCoordinate: userCoordinate)
+        guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
 
         let earthRadiusM = 6_378_137.0
         let latitudeRadians = userCoordinate.latitude * .pi / 180
@@ -2494,19 +2498,21 @@ private var selectedMapModeOption: MapModeOption {
         let b = localPoint(lineB)
         let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
         let lineLength = hypot(ab.x, ab.y)
-        guard lineLength > 0.01 else { return nil }
+        guard lineLength > 0.01 else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
 
         let ap = CGPoint(x: -a.x, y: -a.y)
         let signedDistanceToBaseLine = ((ab.x * ap.y) - (ab.y * ap.x)) / lineLength
         let nearestLineIndex = (signedDistanceToBaseLine / autosteerWorkingWidthM).rounded()
         let signedDistanceToNearestLine = signedDistanceToBaseLine - (nearestLineIndex * autosteerWorkingWidthM)
 
-        return AutosteerGuidanceStatus(
-            signedOffsetToNearestLineM: -signedDistanceToNearestLine
-        )
+        return AutosteerGuidanceStatus(signedOffsetToNearestLineM: -signedDistanceToNearestLine)
     }
 
-    private func autosteerReferenceLineCoordinates() -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
+    private func autosteerReferenceLineCoordinates(
+        userCoordinate: CLLocationCoordinate2D
+    ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
         let preview = previewCoordinatesForPendingSetup()
 
         if preview.count >= 2 {
@@ -2515,10 +2521,26 @@ private var selectedMapModeOption: MapModeOption {
             return (a, b)
         }
 
-        guard displayedActiveTrackPoints.count >= 2 else { return nil }
-        let a = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 2].coordinate
-        let b = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 1].coordinate
-        return (a, b)
+        if displayedActiveTrackPoints.count >= 2 {
+            let a = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 2].coordinate
+            let b = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 1].coordinate
+            if a.latitude != b.latitude || a.longitude != b.longitude {
+                return (a, b)
+            }
+        }
+
+        guard let heading = location.headingDegrees else { return nil }
+        let headingRadians = heading * .pi / 180
+        let distanceMeters: CLLocationDistance = 120
+        let earthRadiusM = 6_378_137.0
+        let dLat = (distanceMeters * cos(headingRadians)) / earthRadiusM
+        let dLon = (distanceMeters * sin(headingRadians)) / (earthRadiusM * cos(userCoordinate.latitude * .pi / 180))
+
+        let projected = CLLocationCoordinate2D(
+            latitude: userCoordinate.latitude + (dLat * 180 / .pi),
+            longitude: userCoordinate.longitude + (dLon * 180 / .pi)
+        )
+        return (userCoordinate, projected)
     }
 
     private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {
