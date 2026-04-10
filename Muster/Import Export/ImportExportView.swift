@@ -5,6 +5,7 @@ import UIKit
 struct ImportExportView: View {
     @EnvironmentObject private var app: AppState
     let mode: Mode
+    private let startImporterOnAppear: Bool
 
     enum Mode {
         case `import`
@@ -140,6 +141,11 @@ struct ImportExportView: View {
         return app.muster.createMapSet()
     }
 
+    init(mode: Mode, startImporterOnAppear: Bool = false) {
+        self.mode = mode
+        self.startImporterOnAppear = startImporterOnAppear
+    }
+
     var body: some View {
         List {
             if mode == .import {
@@ -260,6 +266,10 @@ struct ImportExportView: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            guard mode == .import, startImporterOnAppear else { return }
+            showImporter = true
         }
         .navigationTitle(mode.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
