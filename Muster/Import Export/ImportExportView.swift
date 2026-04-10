@@ -836,7 +836,7 @@ struct ImportExportView: View {
                 let customOptions = app.muster.customImportCategories.map {
                     ImportCategorySelectionOption(baseCategory: .other, customCategory: $0)
                 }
-                return [ImportCategorySelectionOption(baseCategory: .other, customCategory: nil)] + customOptions
+                return customOptions
             }
 
             return [ImportCategorySelectionOption(baseCategory: category, customCategory: nil)]

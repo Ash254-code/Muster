@@ -63,8 +63,8 @@ enum MapImportService {
         return file
     }
 
-    static func suggestedCategories(for file: ImportedMapFile) -> [ImportCategory] {
-        ImportCategory.allCases
+    static func suggestedCategories(for _: ImportedMapFile) -> [ImportCategory] {
+        return [.boundaries, .tracks, .other]
     }
     // MARK: - GeoJSON
 
