@@ -1333,20 +1333,21 @@ private var selectedMapModeOption: MapModeOption {
             },
             onUndoPointB: {
                 markerSheetPointB = nil
+            },
+            onDrop: { template, markerName in
+                guard let coordinate = pendingMarkerCoordinate else { return }
+
+                app.muster.addMapMarker(
+                    coordinate: coordinate,
+                    templateID: template.id,
+                    name: markerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                )
+
+                pendingMarkerCoordinate = nil
+                markerSheetPointA = nil
+                markerSheetPointB = nil
             }
-        ) { template, markerName in
-            guard let coordinate = pendingMarkerCoordinate else { return }
-
-            app.muster.addMapMarker(
-                coordinate: coordinate,
-                templateID: template.id,
-                name: markerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            )
-
-            pendingMarkerCoordinate = nil
-            markerSheetPointA = nil
-            markerSheetPointB = nil
-        }
+        )
         .environmentObject(app)
         .presentationDetents([.medium, .large])
     }

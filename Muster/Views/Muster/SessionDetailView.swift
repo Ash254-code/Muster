@@ -255,18 +255,19 @@ struct SessionDetailView: View {
                 markedPointB: nil,
                 onMarkPointA: { _ in },
                 onMarkPointB: { _ in },
-                onUndoPointB: {}
-            ) { template, name in
-                guard let coordinate = location.lastLocation?.coordinate else { return }
+                onUndoPointB: {},
+                onDrop: { template, name in
+                    guard let coordinate = location.lastLocation?.coordinate else { return }
 
-                app.muster.addMapMarker(
-                    coordinate: coordinate,
-                    templateID: template.id,
-                    name: name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                )
+                    app.muster.addMapMarker(
+                        coordinate: coordinate,
+                        templateID: template.id,
+                        name: name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    )
 
-                showMarkerSheet = false
-            }
+                    showMarkerSheet = false
+                }
+            )
             .environmentObject(app)
             .presentationDetents([.medium])
         }
