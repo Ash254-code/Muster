@@ -2597,19 +2597,19 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 bottomActionButton(
-                    title: "Settings",
-                    systemImage: "gearshape.fill"
-                ) {
-                    panelDetent = .collapsed
-                    showSettings = true
-                }
-
-                bottomActionButton(
                     title: "Rings",
                     systemImage: "scope"
                 ) {
                     panelDetent = .collapsed
                     showRingsSettings = true
+                }
+
+                bottomActionButton(
+                    title: "Settings",
+                    systemImage: "gearshape.fill"
+                ) {
+                    panelDetent = .collapsed
+                    showSettings = true
                 }
             }
             .padding(.horizontal, 14)
