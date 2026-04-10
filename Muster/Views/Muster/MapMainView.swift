@@ -1115,7 +1115,7 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottomTrailing) {
                 if !showMapLayerSheet {
                     VStack(spacing: 10) {
-                        if autosteerEnabled {
+                        if !autosteerEnabled {
                             autosteerReadinessButton
                         }
 
@@ -1631,8 +1631,14 @@ private var selectedMapModeOption: MapModeOption {
             topSpeedPill
                 .frame(maxWidth: .infinity)
 
-            topSidePill(metric: rightPillMetric, side: .right)
-                .frame(width: 108)
+            Group {
+                if autosteerEnabled {
+                    autosteerReadinessButton
+                } else {
+                    topSidePill(metric: rightPillMetric, side: .right)
+                }
+            }
+            .frame(width: 108)
         }
     }
 
