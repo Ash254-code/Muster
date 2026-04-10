@@ -181,6 +181,7 @@ struct MapMainView: View {
     @State private var showArrivedBanner = false
     @State private var showQuickZoomEditor = false
     @State private var showImportFilterSheet = false
+    @State private var showImportFlow = false
     @State private var showMapSetsSheet = false
     @State private var startMapSetCreationFlowOnOpen = false
     @State private var showMissingMapSetPrompt = false
@@ -669,6 +670,12 @@ private var selectedMapModeOption: MapModeOption {
             .sheet(isPresented: $showImportFilterSheet) {
                 importFilterSheet
             }
+            .sheet(isPresented: $showImportFlow) {
+                NavigationStack {
+                    ImportExportView(mode: .import, startImporterOnAppear: true)
+                        .environmentObject(app)
+                }
+            }
             .sheet(isPresented: $showMapSetsSheet) {
                 MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                     .environmentObject(app)
@@ -780,6 +787,9 @@ private var selectedMapModeOption: MapModeOption {
     private var lifecycleMainContent: some View {
         presentedMainContent
             .onAppear(perform: handleMainViewAppear)
+            .onReceive(app.$pendingQuickAction) { _ in
+                processPendingQuickActionIfNeeded()
+            }
             .onDisappear(perform: handleMainViewDisappear)
             .onChange(of: quickZoom1M) { _, newValue in
                 quickZoom1M = normalizedQuickZoomValue(newValue)
@@ -2670,6 +2680,28 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         showNewTrackNamePrompt = true
     }
 
+    private func startNewTrackImmediatelyFromQuickAction() {
+        let quickTrackName = app.muster.makeSmartSessionName()
+        if app.muster.startSession(name: quickTrackName) == false {
+            showMissingMapSetPrompt = true
+        }
+    }
+
+    private func processPendingQuickActionIfNeeded() {
+        guard let action = app.pendingQuickAction else { return }
+        handleHomeScreenQuickAction(action)
+        app.clearPendingQuickAction()
+    }
+
+    private func handleHomeScreenQuickAction(_ action: HomeScreenQuickAction) {
+        switch action {
+        case .startNewTrack:
+            startNewTrackImmediatelyFromQuickAction()
+        case .importFiles:
+            showImportFlow = true
+        }
+    }
+
     private func handleMainViewAppear() {
         longPressedSessionMarker = nil
         longPressedMapMarker = nil
@@ -2717,6 +2749,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         Task {
             await refreshWeatherIfNeeded()
         }
+
+        processPendingQuickActionIfNeeded()
     }
 
     private func handleMainViewDisappear() {
