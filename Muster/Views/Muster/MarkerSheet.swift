@@ -198,9 +198,17 @@ struct MarkerSheet: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                Text("Choose Undo or Save from the popup.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Button("Undo Point B") {
+                        onUndoPointB()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Save Track") {
+                        step = .enterName
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
 
             if currentCoordinate == nil {
@@ -214,22 +222,16 @@ struct MarkerSheet: View {
             }
             .padding(.top, 4)
         }
-        .confirmationDialog(
-            "Point B marked",
-            isPresented: $showPointBActionPopup,
-            titleVisibility: .visible
-        ) {
+        .alert("Point B marked", isPresented: $showPointBActionPopup) {
             Button("Undo Point B", role: .destructive) {
                 onUndoPointB()
             }
-
             Button("Save Track") {
                 step = .enterName
             }
-
-            Button("Cancel", role: .cancel) { }
+            Button("Keep Editing", role: .cancel) { }
         } message: {
-            Text("A and B were marked and connected. Undo Point B or save this track to continue naming it.")
+            Text("A and B are marked and connected. Undo Point B or save this track to continue naming it.")
         }
     }
 
