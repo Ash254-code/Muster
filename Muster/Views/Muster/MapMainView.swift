@@ -1115,7 +1115,9 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottomTrailing) {
                 if !showMapLayerSheet {
                     VStack(spacing: 10) {
-                        autosteerReadinessButton
+                        if autosteerEnabled {
+                            autosteerReadinessButton
+                        }
 
                         if !followUser {
                             centerMapButton
