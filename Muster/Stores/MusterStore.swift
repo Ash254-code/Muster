@@ -85,6 +85,7 @@ final class MusterStore: ObservableObject, Codable {
         normalizeImportedMapFilesIfNeeded()
         normalizeMapSetAssignmentsIfNeeded()
         normalizeSessionMapSetAssignmentsIfNeeded()
+        normalizeMapMarkerSetAssignmentsIfNeeded()
         normalizeSelectedMapSetIfNeeded()
         configureAutosaveObservers()
     }
@@ -234,6 +235,12 @@ final class MusterStore: ObservableObject, Codable {
 
     var visibleImportedMapFiles: [ImportedMapFile] {
         importedMapFiles.filter(\.isVisible)
+    }
+
+    var visibleMapMarkers: [MapMarker] {
+        mapMarkers.filter { marker in
+            isVisibleInSelectedMapSet(marker.mapSetID)
+        }
     }
 
     var visibleImportedBoundaries: [ImportedBoundary] {
@@ -438,6 +445,7 @@ final class MusterStore: ObservableObject, Codable {
             normalizeImportedMapFilesIfNeeded()
             normalizeMapSetAssignmentsIfNeeded()
             normalizeSessionMapSetAssignmentsIfNeeded()
+            normalizeMapMarkerSetAssignmentsIfNeeded()
             normalizeSelectedMapSetIfNeeded()
             validateActiveSheepTarget()
         } else {
@@ -547,6 +555,15 @@ final class MusterStore: ObservableObject, Codable {
             return updated
         }
 
+        mapMarkers += mapMarkers.compactMap { marker in
+            guard marker.mapSetID == source.id else { return nil }
+            var duplicateMarker = marker
+            duplicateMarker.id = UUID()
+            duplicateMarker.createdAt = Date()
+            duplicateMarker.mapSetID = duplicate.id
+            return duplicateMarker
+        }
+
         save()
         return duplicate
     }
@@ -592,6 +609,14 @@ final class MusterStore: ObservableObject, Codable {
 
         sessions = sessions.map { session in
             var updated = session
+            if updated.mapSetID == mapSetID {
+                updated.mapSetID = replacementMapSetID
+            }
+            return updated
+        }
+
+        mapMarkers = mapMarkers.map { marker in
+            var updated = marker
             if updated.mapSetID == mapSetID {
                 updated.mapSetID = replacementMapSetID
             }
@@ -890,6 +915,21 @@ final class MusterStore: ObservableObject, Codable {
         let fallbackID = fallbackMapSetID()
         sessions = sessions.map { session in
             var value = session
+            if let id = value.mapSetID, mapSets.contains(where: { $0.id == id }) {
+                return value
+            }
+
+            value.mapSetID = fallbackID
+            return value
+        }
+    }
+
+    private func normalizeMapMarkerSetAssignmentsIfNeeded() {
+        guard mapMarkers.isEmpty == false else { return }
+
+        let fallbackID = fallbackMapSetID()
+        mapMarkers = mapMarkers.map { marker in
+            var value = marker
             if let id = value.mapSetID, mapSets.contains(where: { $0.id == id }) {
                 return value
             }
@@ -1275,7 +1315,8 @@ final class MusterStore: ObservableObject, Codable {
             templateID: templateID,
             templateDescription: templateDescription,
             emoji: emoji,
-            name: cleanName
+            name: cleanName,
+            mapSetID: selectedMapSetID ?? fallbackMapSetID()
         )
 
         mapMarkers.append(marker)
