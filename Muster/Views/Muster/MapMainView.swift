@@ -911,6 +911,8 @@ private var selectedMapModeOption: MapModeOption {
                     beginAutosteerSetup(mode: "Curve Track")
                 }
                 Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Track\n\(selectedAutosteerTrackPath)")
             }
             .alert(
                 "Confirm Delete",
@@ -1213,11 +1215,6 @@ private var selectedMapModeOption: MapModeOption {
                         .padding(.top, 76)
                         .padding(.horizontal, 12)
                 }
-            }
-            .overlay(alignment: .topLeading) {
-                autosteerTrackTreeBadge
-                    .padding(.top, 76)
-                    .padding(.leading, 12)
             }
             .overlay(alignment: .center) {
                 if isAutosteerTrackSetupActive {
@@ -2212,28 +2209,6 @@ private var selectedMapModeOption: MapModeOption {
                 curvePulse = true
             }
         }
-    }
-
-    private var autosteerTrackTreeBadge: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Track")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.85))
-            Text(selectedAutosteerTrackPath)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.black.opacity(0.65))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
-        )
     }
 
     private var autosteerTrackSelectorSheet: some View {
