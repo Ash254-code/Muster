@@ -54,7 +54,7 @@ struct SessionDetailView: View {
             activeTrackPoints: session?.points ?? [],
             previousSessions: [],
             markers: session?.markers ?? [],
-            mapMarkers: app.muster.mapMarkers,
+            mapMarkers: app.muster.visibleMapMarkers,
             xrsContacts: app.xrs.allContacts,
             xrsTrailGroups: app.xrs.allContacts.compactMap { contact in
                 let coords = app.xrs.trailPoints(for: contact.name).map(\.coordinate)
