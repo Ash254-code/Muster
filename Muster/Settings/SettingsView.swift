@@ -62,6 +62,16 @@ private let kTPMSEnabledKey = "tpms_enabled"               // Bool
 private let kTPMSLowPressureKey = "tpms_low_pressure"     // Double
 private let kTPMSHighPressureKey = "tpms_high_pressure"   // Double
 private let kTPMSAlertsEnabledKey = "tpms_alerts_enabled" // Bool
+private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
+private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
+private let kAutosteerTrackModeKey = "autosteer_track_mode" // String
+private let kAutosteerFarmNameKey = "autosteer_farm_name" // String
+private let kAutosteerPaddockNameKey = "autosteer_paddock_name" // String
+private let kAutosteerTrackNameKey = "autosteer_track_name" // String
+private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double 0...1
+private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
+private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -233,8 +243,193 @@ private struct AppSettingsView: View {
             } label: {
                 Label("Media", systemImage: "speaker.wave.2")
             }
+
+            NavigationLink {
+                AutosteerSettingsView()
+            } label: {
+                Label("Autosteer", systemImage: "steeringwheel")
+            }
+
+            NavigationLink {
+                CruiseControlSettingsView()
+            } label: {
+                Label("Cruise Control", systemImage: "speedometer")
+            }
         }
         .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct AutosteerSettingsView: View {
+    private enum TrackMode: String, CaseIterable, Identifiable {
+        case abLine = "A+B line"
+        case aHeading = "A+Heading"
+        case curve = "Curve Track"
+        var id: String { rawValue }
+    }
+
+    @StateObject private var location = LocationService()
+    @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
+    @AppStorage(kAutosteerWorkingWidthKey) private var workingWidthM: Double = 36
+    @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
+    @AppStorage(kAutosteerFarmNameKey) private var farmName: String = ""
+    @AppStorage(kAutosteerPaddockNameKey) private var paddockName: String = ""
+    @AppStorage(kAutosteerTrackNameKey) private var trackName: String = ""
+    @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
+    @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
+    @State private var pointASet = false
+    @State private var pointBSet = false
+    @State private var headingSet = false
+    @State private var curveRecorded = false
+    @State private var savedTracks: [String] = []
+
+    private var selectedTrackMode: TrackMode {
+        TrackMode(rawValue: trackModeRaw) ?? .abLine
+    }
+
+    private var gpsStatusText: String {
+        if location.lastLocation != nil { return "Connected" }
+        if location.lastError != nil { return "Unavailable" }
+        return "Searching"
+    }
+
+    private var gpsStatusColor: Color {
+        switch gpsStatusText {
+        case "Connected": return .green
+        case "Unavailable": return .red
+        default: return .orange
+        }
+    }
+
+    var body: some View {
+        Form {
+            Section("Autosteer") {
+                Toggle("Enable Autosteer", isOn: $autosteerEnabled)
+                HStack {
+                    Text("GPS Signal")
+                    Spacer()
+                    Text(gpsStatusText)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(gpsStatusColor)
+                }
+            }
+
+            Section("Implement Setup") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Working Width")
+                        Spacer()
+                        Text("\(Int(workingWidthM)) m")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $workingWidthM, in: 1...1000, step: 1)
+                }
+            }
+
+            Section("Track Options") {
+                Picker("Track Type", selection: $trackModeRaw) {
+                    ForEach(TrackMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode.rawValue)
+                    }
+                }
+
+                switch selectedTrackMode {
+                case .abLine:
+                    Button(pointASet ? "Reset Point A" : "Set Point A") { pointASet.toggle() }
+                    Button(pointBSet ? "Reset Point B" : "Set Point B") { pointBSet.toggle() }
+                case .aHeading:
+                    Button(pointASet ? "Reset Point A" : "Set Point A") { pointASet.toggle() }
+                    Button(headingSet ? "Reset Heading" : "Set Heading") { headingSet.toggle() }
+                case .curve:
+                    Button(curveRecorded ? "Clear Recorded Curve" : "Record Curve Path") {
+                        curveRecorded.toggle()
+                    }
+                    Text("Generate parallel lines from the recorded curve path.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Save Track") {
+                TextField("Farm", text: $farmName)
+                TextField("Paddock", text: $paddockName)
+                TextField("Track Name", text: $trackName)
+                Button("Save Track") {
+                    guard !farmName.isEmpty, !paddockName.isEmpty, !trackName.isEmpty else { return }
+                    savedTracks.insert("\(farmName) › \(paddockName) › \(trackName)", at: 0)
+                }
+                .disabled(farmName.isEmpty || paddockName.isEmpty || trackName.isEmpty)
+
+                if !savedTracks.isEmpty {
+                    ForEach(savedTracks.prefix(5), id: \.self) { track in
+                        Text(track)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Tuning") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Aggressiveness")
+                        Spacer()
+                        Text("\(Int(aggressiveness * 100))%")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $aggressiveness, in: 0...1, step: 0.01)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Look-ahead Distance")
+                        Spacer()
+                        Text("\(Int(lookAheadM)) m")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $lookAheadM, in: 1...150, step: 1)
+                }
+            }
+        }
+        .navigationTitle("Autosteer")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            location.requestPermission()
+            location.start()
+        }
+        .onDisappear {
+            location.stop()
+        }
+    }
+}
+
+struct CruiseControlSettingsView: View {
+    @AppStorage(kCruiseControlEnabledKey) private var cruiseEnabled: Bool = false
+    @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseSpeedKPH: Double = 8
+
+    var body: some View {
+        Form {
+            Section("Cruise Control") {
+                Toggle("Enable Cruise Control", isOn: $cruiseEnabled)
+                HStack {
+                    Text("Target Speed")
+                    Spacer()
+                    Text("\(cruiseSpeedKPH, specifier: \"%.1f\") km/h")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $cruiseSpeedKPH, in: 0.5...35, step: 0.5)
+            } footer: {
+                Text("Cruise control can be used independently, or together with autosteer.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Cruise Control")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
