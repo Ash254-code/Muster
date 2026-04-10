@@ -30,6 +30,8 @@ struct MapViewRepresentable: UIViewRepresentable {
     let ringColorRaw: String
     let ringThicknessScale: Double
     let ringDistanceLabelsEnabled: Bool
+    let autosteerTrackPreviewCoordinates: [[Double]]
+    let autosteerTrackSpacingMeters: Double
 
     @Binding var orientationRaw: String
     @Binding var mapStyleRaw: String
@@ -224,6 +226,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             thicknessScale: ringThicknessScale,
             labelsEnabled: ringDistanceLabelsEnabled
         )
+        context.coordinator.updateAutosteerGuidance(
+            map: map,
+            previewCoordinates: autosteerTrackPreviewCoordinates,
+            spacingMeters: autosteerTrackSpacingMeters
+        )
         context.coordinator.updateDestinationLine(
             map: map,
             userLocation: userLocation,
@@ -277,6 +284,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var temporaryPointAAnnotation: TemporaryPointAnnotation?
         private var temporaryPointBAnnotation: TemporaryPointAnnotation?
         private var ringOverlays: [MKCircle] = []
+        private var autosteerGuidancePolylines: [AutosteerGuidancePolyline] = []
         private var ringLabelAnnotations: [RingLabelAnnotation] = []
 
         private var previousTrackSignature: String = ""
@@ -284,6 +292,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var importedBoundarySignature: String = ""
         private var xrsTrailSignature: String = ""
         private var ringsSignature: String = ""
+        private var autosteerGuidanceSignature: String = ""
 
         private var hasTriggeredDestinationArrival = false
         private let destinationArrivalDistanceMeters: CLLocationDistance = 120
@@ -1518,6 +1527,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             importedBoundarySignature = ""
             xrsTrailSignature = ""
             ringsSignature = ""
+            autosteerGuidanceSignature = ""
         }
 
         private func isBreadcrumbAppendCompatible(points: [TrackPoint]) -> Bool {
@@ -2034,6 +2044,90 @@ struct MapViewRepresentable: UIViewRepresentable {
             map.addAnnotations(newLabels)
         }
 
+        func updateAutosteerGuidance(
+            map: MKMapView,
+            previewCoordinates: [[Double]],
+            spacingMeters: Double
+        ) {
+            let normalizedSpacing = max(1, spacingMeters)
+            let signatureCoordinates = previewCoordinates.map { values in
+                guard values.count >= 2 else { return "0,0" }
+                return "\(values[0]),\(values[1])"
+            }.joined(separator: "|")
+            let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())"
+            guard signature != autosteerGuidanceSignature else { return }
+            autosteerGuidanceSignature = signature
+
+            if autosteerGuidancePolylines.isEmpty == false {
+                map.removeOverlays(autosteerGuidancePolylines)
+                autosteerGuidancePolylines.removeAll()
+            }
+
+            guard previewCoordinates.count >= 2,
+                  previewCoordinates[0].count >= 2,
+                  previewCoordinates[1].count >= 2 else { return }
+            let a = CLLocationCoordinate2D(latitude: previewCoordinates[0][0], longitude: previewCoordinates[0][1])
+            let b = CLLocationCoordinate2D(latitude: previewCoordinates[1][0], longitude: previewCoordinates[1][1])
+            guard CLLocationCoordinate2DIsValid(a), CLLocationCoordinate2DIsValid(b) else { return }
+
+            let lines = buildAutosteerGuidanceLines(pointA: a, pointB: b, spacingMeters: normalizedSpacing)
+            autosteerGuidancePolylines = lines
+            map.addOverlays(lines, level: .aboveRoads)
+        }
+
+        private func buildAutosteerGuidanceLines(
+            pointA: CLLocationCoordinate2D,
+            pointB: CLLocationCoordinate2D,
+            spacingMeters: Double
+        ) -> [AutosteerGuidancePolyline] {
+            let earthRadius = 6_378_137.0
+            let midLat = ((pointA.latitude + pointB.latitude) / 2.0) * .pi / 180
+            let dx = (pointB.longitude - pointA.longitude) * .pi / 180 * earthRadius * cos(midLat)
+            let dy = (pointB.latitude - pointA.latitude) * .pi / 180 * earthRadius
+            let length = hypot(dx, dy)
+            guard length > 0.5 else { return [] }
+
+            let ux = dx / length
+            let uy = dy / length
+            let nx = -uy
+            let ny = ux
+            let extensionMeters = 2_000_000.0
+
+            return stride(from: -20, through: 20, by: 1).compactMap { offset in
+                let shift = Double(offset) * spacingMeters
+                let shiftedAx = shift * nx
+                let shiftedAy = shift * ny
+                let startX = shiftedAx - (ux * extensionMeters)
+                let startY = shiftedAy - (uy * extensionMeters)
+                let endX = shiftedAx + (ux * extensionMeters)
+                let endY = shiftedAy + (uy * extensionMeters)
+
+                guard let start = offsetCoordinate(from: pointA, eastMeters: startX, northMeters: startY),
+                      let end = offsetCoordinate(from: pointA, eastMeters: endX, northMeters: endY) else {
+                    return nil
+                }
+
+                var coords = [start, end]
+                let polyline = AutosteerGuidancePolyline(coordinates: &coords, count: coords.count)
+                polyline.offsetIndex = offset
+                return polyline
+            }
+        }
+
+        private func offsetCoordinate(
+            from coordinate: CLLocationCoordinate2D,
+            eastMeters: Double,
+            northMeters: Double
+        ) -> CLLocationCoordinate2D? {
+            let earthRadius = 6_378_137.0
+            let latRad = coordinate.latitude * .pi / 180
+            let shifted = CLLocationCoordinate2D(
+                latitude: coordinate.latitude + (northMeters / earthRadius) * 180 / .pi,
+                longitude: coordinate.longitude + (eastMeters / (earthRadius * max(0.01, cos(latRad)))) * 180 / .pi
+            )
+            return CLLocationCoordinate2DIsValid(shifted) ? shifted : nil
+        }
+
         func mapView(_ mapView: MKMapView, shouldSelect view: MKAnnotationView) -> Bool {
             if let annotation = view.annotation {
                 if annotation is SessionMarkerAnnotation || annotation is MapMarkerAnnotation {
@@ -2110,7 +2204,12 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                if polyline === temporaryABLine {
+                if polyline is AutosteerGuidancePolyline {
+                    renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+                    renderer.lineWidth = 2 * strokeScale
+                    renderer.lineCap = .round
+                    renderer.lineJoin = .round
+                } else if polyline === temporaryABLine {
                     renderer.strokeColor = UIColor.systemGreen
                     renderer.lineWidth = 4 * strokeScale
                     renderer.lineCap = .round
@@ -2574,6 +2673,9 @@ final class XRSTrailPolyline: MKPolyline {
 final class ImportedTrackPolyline: MKPolyline {
     var trackID: UUID?
     var trackName: String?
+}
+final class AutosteerGuidancePolyline: MKPolyline {
+    var offsetIndex: Int = 0
 }
 
 final class ImportedBoundaryPolygon: MKPolygon {
