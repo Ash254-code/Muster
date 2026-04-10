@@ -6,5 +6,24 @@
 	<array>
 		<string>location</string>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.muster.quickaction.startNewTrack</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Start new track</string>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypePlay</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.muster.quickaction.import</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Import</string>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+		</dict>
+	</array>
 </dict>
 </plist>
