@@ -738,25 +738,9 @@ private var selectedMapModeOption: MapModeOption {
                 MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                     .environmentObject(app)
             }
-            .onChange(of: showMapSetsSheet) { _, isPresented in
-                if isPresented == false {
-                    startMapSetCreationFlowOnOpen = false
-                }
-            }
-            .onChange(of: autosteerSetupActive) { _, isActive in
-                if isActive {
-                    followUser = false
-                }
-            }
-            .onChange(of: mapCenterCoordinate) { _, newCenter in
-                guard curveTrackRecording, let center = newCenter else { return }
-                if let last = curveRecordedCenters.last {
-                    let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
-                    let nextLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
-                    if nextLoc.distance(from: lastLoc) < 2 { return }
-                }
-                curveRecordedCenters.append(center)
-            }
+            .onChange(of: showMapSetsSheet, perform: handleMapSetsSheetChanged)
+            .onChange(of: autosteerSetupActive, perform: handleAutosteerSetupActiveChanged)
+            .onChange(of: mapCenterCoordinate, perform: handleMapCenterCoordinateChanged)
             .confirmationDialog(
                 "Map Set Required",
                 isPresented: $showMissingMapSetPrompt,
@@ -1239,6 +1223,27 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     // MARK: - Dialog actions
+
+    private func handleMapSetsSheetChanged(_ isPresented: Bool) {
+        guard isPresented == false else { return }
+        startMapSetCreationFlowOnOpen = false
+    }
+
+    private func handleAutosteerSetupActiveChanged(_ isActive: Bool) {
+        if isActive {
+            followUser = false
+        }
+    }
+
+    private func handleMapCenterCoordinateChanged(_ newCenter: CLLocationCoordinate2D?) {
+        guard curveTrackRecording, let center = newCenter else { return }
+        if let last = curveRecordedCenters.last {
+            let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
+            let nextLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
+            if nextLoc.distance(from: lastLoc) < 2 { return }
+        }
+        curveRecordedCenters.append(center)
+    }
 
     private func handleArrivedAtDestination() {
         DispatchQueue.main.async {
