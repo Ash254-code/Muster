@@ -1074,7 +1074,7 @@ struct MapMainView: View {
                 isPresented: $showAutosteerQuickActions,
                 titleVisibility: .visible,
                 actions: {
-                    Button("🔵🛣️ \(selectedAutosteerNameDisplay)") {
+                    Button("🛣️ \(selectedAutosteerNameDisplay)") {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
                     }
