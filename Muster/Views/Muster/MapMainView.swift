@@ -447,7 +447,7 @@ struct MapMainView: View {
             "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
         ].joined(separator: "\n")
 
-        [
+        return [
             "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
             "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
             "Session/settings valid: \(autosteerConditionsReady ? "✅" : "❌")",
