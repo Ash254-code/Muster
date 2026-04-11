@@ -415,7 +415,7 @@ struct MapMainView: View {
     }
     
     private var shouldShowGuidanceOnlyViewport: Bool {
-        autosteerEnabled && autosteerActive && autosteerGuidanceNoMap
+        autosteerEnabled && autosteerGuidanceNoMap
     }
     
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {

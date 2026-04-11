@@ -3654,7 +3654,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     private static let tileData: Data = {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
         let image = renderer.image { context in
-            UIColor.black.setFill()
+            UIColor.white.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
         }
         return image.pngData() ?? Data()
