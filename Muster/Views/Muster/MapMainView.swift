@@ -2740,7 +2740,13 @@ struct MapMainView: View {
 
         let now = location.timestamp
         let speedMPS = max(location.speed, 0)
-        let lookAheadSeconds = speedMPS > 0.3 ? max(0.35, min(2.2, autosteerLookAheadM / speedMPS)) : 0.35
+        let highResponsivenessMode = shouldShowGuidanceOnlyViewport
+        let lookAheadSeconds: Double
+        if highResponsivenessMode {
+            lookAheadSeconds = 0
+        } else {
+            lookAheadSeconds = speedMPS > 0.3 ? max(0.35, min(2.2, autosteerLookAheadM / speedMPS)) : 0.35
+        }
 
         let predictedBaseDistanceM: Double
         if let lastBase = autosteerLastRawBaseDistanceM,
@@ -2766,11 +2772,21 @@ struct MapMainView: View {
         let projectedDistanceToChosenLine = predictedBaseDistanceM - (Double(chosenLineIndex) * autosteerWorkingWidthM)
         let measuredOffsetToChosenLine = -(raw.signedDistanceToBaseLineM - (Double(chosenLineIndex) * autosteerWorkingWidthM))
         let targetOffsetM = -projectedDistanceToChosenLine
-        let dynamicTargetOffsetM = measuredOffsetToChosenLine + ((targetOffsetM - measuredOffsetToChosenLine) * min(speedMPS / 10.0, 0.8))
+        let dynamicTargetOffsetM: Double
+        if highResponsivenessMode {
+            dynamicTargetOffsetM = measuredOffsetToChosenLine
+        } else {
+            dynamicTargetOffsetM = measuredOffsetToChosenLine + ((targetOffsetM - measuredOffsetToChosenLine) * min(speedMPS / 10.0, 0.8))
+        }
 
         if autosteerGuidanceSeeded, let lastTimestamp = autosteerLastGuidanceTimestamp {
             let dt = max(0.02, min(0.7, now.timeIntervalSince(lastTimestamp)))
-            let smoothingTimeConstant = max(0.10, 0.36 - (0.18 * min(speedMPS / 12.0, 1.0)))
+            let smoothingTimeConstant: Double
+            if highResponsivenessMode {
+                smoothingTimeConstant = 0.04
+            } else {
+                smoothingTimeConstant = max(0.10, 0.36 - (0.18 * min(speedMPS / 12.0, 1.0)))
+            }
             let alpha = dt / (smoothingTimeConstant + dt)
             autosteerFilteredSignedOffsetM += (dynamicTargetOffsetM - autosteerFilteredSignedOffsetM) * alpha
         } else {
