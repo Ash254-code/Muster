@@ -1155,6 +1155,7 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottom) {
                 if !showMapLayerSheet, autosteerEnabled {
                     autosteerGuidanceBar(autosteerGuidanceStatus)
+                        .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -2379,25 +2380,35 @@ private var selectedMapModeOption: MapModeOption {
         let activeRedLights = min(maxLights, max(0, Int(ceil(Double(guidance.offsetCentimeters) / 10))))
 
         return VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                ForEach(0..<maxLights, id: \.self) { index in
-                    let threshold = maxLights - index
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
-                        .frame(width: 16, height: 6)
-                }
+            GeometryReader { proxy in
+                let segmentSpacing: CGFloat = 6
+                let centerWidth = min(26, max(16, proxy.size.width * 0.12))
+                let sideLightWidth = max(
+                    8,
+                    (proxy.size.width - centerWidth - (segmentSpacing * 10)) / 10
+                )
 
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(.green)
-                    .frame(width: 26, height: 8)
+                HStack(spacing: segmentSpacing) {
+                    ForEach(0..<maxLights, id: \.self) { index in
+                        let threshold = maxLights - index
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
+                            .frame(width: sideLightWidth, height: 6)
+                    }
 
-                ForEach(0..<maxLights, id: \.self) { index in
-                    let threshold = index + 1
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(!guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
-                        .frame(width: 16, height: 6)
+                        .fill(.green)
+                        .frame(width: centerWidth, height: 8)
+
+                    ForEach(0..<maxLights, id: \.self) { index in
+                        let threshold = index + 1
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(!guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
+                            .frame(width: sideLightWidth, height: 6)
+                    }
                 }
             }
+            .frame(height: 8)
 
             Text("\(guidance.offsetCentimeters) cm")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -2415,6 +2426,12 @@ private var selectedMapModeOption: MapModeOption {
                 .strokeBorder(.white.opacity(0.3), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+    }
+
+    private func autosteerGuidanceBarMaxWidth(for totalWidth: CGFloat) -> CGFloat {
+        // Reserve room for left/right floating control columns and breathing space.
+        let reservedSideWidth: CGFloat = 160
+        return max(150, totalWidth - reservedSideWidth)
     }
 
     // MARK: - Map layer sheet
