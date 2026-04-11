@@ -879,11 +879,8 @@ private var selectedMapModeOption: MapModeOption {
                 titleVisibility: .visible
             ) {
                 Button(selectedAutosteerFarmDisplay) {}
-                    .disabled(true)
                 Button(selectedAutosteerPaddockDisplay) {}
-                    .disabled(true)
                 Button(selectedAutosteerNameDisplay) {}
-                    .disabled(true)
                 Button("Settings") {
                     showAutosteerSettings = true
                 }
