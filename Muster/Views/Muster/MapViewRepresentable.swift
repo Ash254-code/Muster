@@ -1089,7 +1089,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
             if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
                 if guidanceBackgroundOverlay == nil {
-                    let overlay = GuidanceBackgroundTileOverlay()
+                    let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
                     map.addOverlay(overlay, level: .aboveLabels)
                 }
@@ -3666,6 +3666,10 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
 }
 
 private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
+    enum Style {
+        case plain
+    }
+
     private static let tileData: Data = {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
         let image = renderer.image { context in
@@ -3674,8 +3678,18 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
         }
         return image.pngData() ?? Data()
     }()
+    private let style: Style
+
+    init(style: Style, urlTemplate URLTemplate: String? = nil) {
+        self.style = style
+        super.init(urlTemplate: URLTemplate)
+        canReplaceMapContent = true
+        minimumZ = 0
+        maximumZ = 22
+    }
 
     override init(urlTemplate URLTemplate: String?) {
+        self.style = .plain
         super.init(urlTemplate: URLTemplate)
         canReplaceMapContent = true
         minimumZ = 0
@@ -3683,10 +3697,13 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     }
 
     convenience init() {
-        self.init(urlTemplate: nil)
+        self.init(style: .plain, urlTemplate: nil)
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        result(Self.tileData, nil)
+        switch style {
+        case .plain:
+            result(Self.tileData, nil)
+        }
     }
 }
