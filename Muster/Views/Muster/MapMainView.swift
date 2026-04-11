@@ -1074,9 +1074,11 @@ struct MapMainView: View {
                 isPresented: $showAutosteerQuickActions,
                 titleVisibility: .visible,
                 actions: {
-                    Button("🔵 \(selectedAutosteerNameDisplay)") {
+                    Button {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
+                    } label: {
+                        Label(selectedAutosteerNameDisplay, systemImage: "road.lanes")
                     }
                     Button("New A + B Track") {
                         beginAutosteerSetup(mode: "A+B line")
