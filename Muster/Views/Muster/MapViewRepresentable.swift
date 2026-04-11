@@ -1089,14 +1089,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
             if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
-                let style = map.traitCollection.userInterfaceStyle
-
-                if guidanceBackgroundOverlay == nil || guidanceBackgroundStyle != style {
-                    if let existing = guidanceBackgroundOverlay {
-                        map.removeOverlay(existing)
-                    }
-
-                    let overlay = GuidanceBackgroundTileOverlay(style: style)
+                if guidanceBackgroundOverlay == nil {
+                    let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
                     guidanceBackgroundStyle = style
                     map.addOverlay(overlay, level: .aboveRoads)
@@ -3674,33 +3668,44 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
 }
 
 private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
-    private static let lightTileData: Data = GuidanceBackgroundTileOverlay.makeTileData(color: .white)
-    private static let darkTileData: Data = GuidanceBackgroundTileOverlay.makeTileData(
-        color: UIColor(white: 0.12, alpha: 1.0)
-    )
-    private let tileData: Data
+    enum Style {
+        case plain
+    }
 
-    init(urlTemplate URLTemplate: String?, style: UIUserInterfaceStyle) {
-        tileData = style == .dark ? Self.darkTileData : Self.lightTileData
+    private static let tileData: Data = {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
+        let image = renderer.image { context in
+            UIColor(red: 0.10, green: 0.10, blue: 0.11, alpha: 1.0).setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+        }
+        return image.pngData() ?? Data()
+    }()
+    private let style: Style
+
+    init(style: Style, urlTemplate URLTemplate: String? = nil) {
+        self.style = style
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = true
+        canReplaceMapContent = false
         minimumZ = 0
         maximumZ = 22
     }
 
-    convenience init(style: UIUserInterfaceStyle) {
-        self.init(urlTemplate: nil, style: style)
+    override init(urlTemplate URLTemplate: String?) {
+        self.style = .plain
+        super.init(urlTemplate: URLTemplate)
+        canReplaceMapContent = false
+        minimumZ = 0
+        maximumZ = 22
+    }
+
+    convenience init() {
+        self.init(style: .plain, urlTemplate: nil)
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        result(tileData, nil)
-    }
-
-    private static func makeTileData(color: UIColor) -> Data {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
-        let image = renderer.image { context in
-            color.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+        switch style {
+        case .plain:
+            result(Self.tileData, nil)
         }
         return image.pngData() ?? Data()
     }
