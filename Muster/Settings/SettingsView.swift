@@ -634,10 +634,8 @@ private struct MarkerTemplatesSettingsView: View {
                             .environmentObject(app)
                     } label: {
                         HStack(spacing: 12) {
-                            if !category.supportsColor {
-                                Text(app.muster.iconForImportCategory(category))
-                                    .font(.title3)
-                            }
+                            Text(app.muster.iconForImportCategory(category))
+                                .font(.title3)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(category.title)
