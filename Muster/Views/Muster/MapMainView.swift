@@ -1042,13 +1042,7 @@ private var selectedMapModeOption: MapModeOption {
                 isPresented: $showAutosteerQuickActions,
                 titleVisibility: .visible,
                 actions: {
-                    Button(selectedAutosteerFarmDisplay) {}
-                    Button(selectedAutosteerPaddockDisplay) {}
-                    Button(selectedAutosteerNameDisplay) {}
-                    Button("Settings") {
-                        showAutosteerSettings = true
-                    }
-                    Button("Select Track") {
+                    Button("🔵 \(selectedAutosteerNameDisplay)") {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
                     }
@@ -1060,6 +1054,9 @@ private var selectedMapModeOption: MapModeOption {
                     }
                     Button("New Curve Track") {
                         beginAutosteerSetup(mode: "Curve Track")
+                    }
+                    Button("Settings") {
+                        showAutosteerSettings = true
                     }
                     Button("Cancel", role: .cancel) {}
                 },
