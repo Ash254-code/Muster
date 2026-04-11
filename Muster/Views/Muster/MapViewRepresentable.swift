@@ -2234,9 +2234,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                if polyline is AutosteerGuidancePolyline {
-                    if let guidanceLine = polyline as? AutosteerGuidancePolyline,
-                       guidanceLine.offsetIndex == autosteerLockedLineIndex {
+                if let guidanceLine = polyline as? AutosteerGuidancePolyline {
+                    if guidanceLine.offsetIndex == autosteerLockedLineIndex {
                         renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.95)
                     } else {
                         renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)

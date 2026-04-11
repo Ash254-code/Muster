@@ -372,9 +372,9 @@ final class MusterStore: ObservableObject, Codable {
         let remaining = max(0, saveBatchInterval - now.timeIntervalSince(lastSaveAt))
         let nanos = UInt64(remaining * 1_000_000_000)
 
-        autosaveTask = Task { [weak self] in
+        autosaveTask = Task { @MainActor [weak self] in
             guard nanos > 0 else {
-                await self?.completeAutosaveTask()
+                self?.completeAutosaveTask()
                 return
             }
 
@@ -384,7 +384,7 @@ final class MusterStore: ObservableObject, Codable {
                 return
             }
 
-            await self?.completeAutosaveTask()
+            self?.completeAutosaveTask()
         }
     }
 
@@ -420,7 +420,9 @@ final class MusterStore: ObservableObject, Codable {
 
         appLifecycleObservers = names.map { name in
             nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.flushSave()
+                Task { @MainActor [weak self] in
+                    self?.flushSave()
+                }
             }
         }
     }

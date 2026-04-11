@@ -435,7 +435,6 @@ struct MapMainView: View {
 
     private var autosteerReadinessMessage: String {
         let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
-        let tuneReady = autosteerLookAheadM > 0 && autosteerAggressiveness >= 0
         let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
         let sessionReady = activeSession?.isActive == true
 
@@ -910,8 +909,12 @@ private var selectedMapModeOption: MapModeOption {
                 MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                     .environmentObject(app)
             }
-            .onChange(of: showMapSetsSheet, perform: handleMapSetsSheetChanged)
-            .onChange(of: autosteerSetupActive, perform: handleAutosteerSetupActiveChanged)
+            .onChange(of: showMapSetsSheet) { _, isPresented in
+                handleMapSetsSheetChanged(isPresented)
+            }
+            .onChange(of: autosteerSetupActive) { _, isActive in
+                handleAutosteerSetupActiveChanged(isActive)
+            }
             .onChange(of: mapCenterChangeToken) { _, _ in
                 handleMapCenterCoordinateChanged(mapCenterCoordinate)
             }
@@ -3109,7 +3112,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
         let collapsedHeight = 78.0
-        let mediumHeight = max(250, totalHeight * 0.31)
         let largeHeight = max(520, totalHeight * 0.74)
 
         switch panelDetent {
@@ -3627,7 +3629,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         let hasTrack = activeSession?.hasTrack == true
 
         let prevMusters = "\(previousMusterCount)"
-        let radios = "\(xrsRadioCount)"
 
         return VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {

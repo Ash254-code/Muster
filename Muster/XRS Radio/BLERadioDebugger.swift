@@ -490,8 +490,9 @@ final class BLERadioDebugger: NSObject, ObservableObject {
         appendLog("Force location timer started (\(Int(intervalMinutes)) min)")
 
         forceLocationUpdateTimer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.sendForceLocationPulse()
+            Task { @MainActor [weak self] in
+                self?.sendForceLocationPulse()
+            }
         }
     }
 
