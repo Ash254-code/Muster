@@ -1078,7 +1078,8 @@ struct MapMainView: View {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
                     } label: {
-                        Label(selectedAutosteerNameDisplay, systemImage: "road.lanes")
+                        Label(selectedAutosteerNameDisplay, systemImage: "road.lanes.circle.fill")
+                            .tint(.blue)
                     }
                     Button("New A + B Track") {
                         beginAutosteerSetup(mode: "A+B line")
