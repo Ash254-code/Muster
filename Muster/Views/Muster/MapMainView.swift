@@ -905,6 +905,11 @@ private var selectedMapModeOption: MapModeOption {
             .onChange(of: autosteerSetupActive) { _, isActive in
                 handleAutosteerSetupActiveChanged(isActive)
             }
+            .onChange(of: autosteerEnabled) { _, isEnabled in
+                if !isEnabled {
+                    autosteerActive = false
+                }
+            }
             .onChange(of: mapCenterChangeToken) { _, _ in
                 handleMapCenterCoordinateChanged(mapCenterCoordinate)
             }
@@ -1328,10 +1333,6 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottomTrailing) {
                 if !showMapLayerSheet {
                     VStack(spacing: 10) {
-                        if autosteerEnabled {
-                            autosteerReadinessButton
-                        }
-
                         if !followUser {
                             centerMapButton
                         }
@@ -1409,10 +1410,10 @@ private var selectedMapModeOption: MapModeOption {
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
-            autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
-            autosteerTrackSpacingMeters: autosteerWorkingWidthM,
-            autosteerLockedLineIndex: autosteerActive ? autosteerGuidanceStatus.nearestLineIndex : nil,
-            autosteerUserCoordinate: location.lastLocation?.coordinate,
+            autosteerTrackPreviewCoordinates: autosteerEnabled ? (selectedAutosteerTrackRecord?.previewCoordinates ?? []) : [],
+            autosteerTrackSpacingMeters: autosteerEnabled ? autosteerWorkingWidthM : 0,
+            autosteerLockedLineIndex: (autosteerEnabled && autosteerActive) ? autosteerGuidanceStatus.nearestLineIndex : nil,
+            autosteerUserCoordinate: autosteerEnabled ? location.lastLocation?.coordinate : nil,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
             recenterNonce: $recenterNonce,
