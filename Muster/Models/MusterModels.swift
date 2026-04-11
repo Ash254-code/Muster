@@ -546,6 +546,7 @@ struct ImportedMapFile: Identifiable, Codable, Hashable {
     /// This acts as the file's primary category and should usually match
     /// the child items contained within it.
     var assignedCategory: ImportCategory = .other
+    var assignedCustomCategoryID: UUID? = nil
 
     /// One imported file can contain many items
     var boundaries: [ImportedBoundary] = []
