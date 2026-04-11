@@ -3672,7 +3672,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
 
     override init(urlTemplate URLTemplate: String?) {
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = true
+        canReplaceMapContent = false
         minimumZ = 0
         maximumZ = 22
     }
