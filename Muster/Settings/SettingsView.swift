@@ -121,7 +121,7 @@ enum UnitFormatting {
             return "\(Int(safeMeters.rounded())) m"
         case .imperial:
             let miles = safeMeters / 1_609.344
-            if miles >= 0.1 {
+            if miles >= 1 {
                 return String(format: "%.\(decimalsIfLarge)f mi", miles)
             }
             let feet = safeMeters * 3.28084
@@ -157,6 +157,16 @@ enum UnitFormatting {
             let fahrenheit = (celsius * 9.0 / 5.0) + 32.0
             let value = Int(fahrenheit.rounded())
             return includeUnit ? "\(value)°F" : "\(value)°"
+        }
+    }
+
+    static func formattedCentimeters(_ centimeters: Double) -> String {
+        switch distancePreference {
+        case .metric:
+            return "\(Int(centimeters.rounded())) cm"
+        case .imperial:
+            let inches = centimeters / 2.54
+            return String(format: "%.1f in", inches)
         }
     }
 }
@@ -406,7 +416,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Working Width")
                         Spacer()
-                        Text("\(Int(workingWidthM)) m")
+                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 1))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -456,7 +466,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Look-ahead Distance")
                         Spacer()
-                        Text("\(Int(lookAheadM)) m")
+                        Text(UnitFormatting.formattedDistance(lookAheadM, decimalsIfLarge: 1))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -467,7 +477,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Lightbar Step Size")
                         Spacer()
-                        Text("\(Int(lightbarStepCM)) cm")
+                        Text(UnitFormatting.formattedCentimeters(lightbarStepCM))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -1760,7 +1770,7 @@ struct RingsSettingsView: View {
 
                 Picker("Ring spacing", selection: $ringSpacingM) {
                     ForEach(spacingOptions, id: \.self) { v in
-                        Text("\(Int(v)) m").tag(v)
+                        Text(UnitFormatting.formattedDistance(v, decimalsIfLarge: 1)).tag(v)
                     }
                 }
 
@@ -1783,7 +1793,7 @@ struct RingsSettingsView: View {
                 Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
 
                 let ringsSummary =
-                    "Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized) " +
+                    "Showing \(ringCount) rings at \(UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1)) intervals in \(ringColorRaw.capitalized) " +
                     "at \(String(format: "%.2f", ringThicknessScale))x thickness" +
                     (ringDistanceLabelsEnabled ? " with" : " without") +
                     " distance labels."
@@ -1866,7 +1876,7 @@ private struct AdvancedMapSettingsView: View {
     }
 
     private func zoomLabel(_ meters: Double) -> String {
-        "\(Int(meters.rounded())) m"
+        UnitFormatting.formattedDistance(meters, decimalsIfLarge: 1)
     }
 
     var body: some View {
@@ -1876,7 +1886,7 @@ private struct AdvancedMapSettingsView: View {
                 LabeledContent("Heads-up angle", value: headsUpPitchLabel)
                 LabeledContent("Heads-up user position", value: headsUpUserPositionLabel)
                 LabeledContent("Ring count", value: "\(ringCount)")
-                LabeledContent("Ring spacing", value: "\(Int(ringSpacingM)) m")
+                LabeledContent("Ring spacing", value: UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1))
                 LabeledContent("Top left pill", value: topLeftPillLabel)
                 LabeledContent("Top right pill", value: topRightPillLabel)
                 LabeledContent("Quick zoom 1", value: zoomLabel(quickZoom1M))
@@ -2093,7 +2103,7 @@ private struct BatteryThermalSettingsView: View {
     }
 
     private func distanceFilterLabel(_ meters: Double) -> String {
-        "\(Int(snappedDistanceFilter(meters))) m"
+        UnitFormatting.formattedDistance(snappedDistanceFilter(meters), decimalsIfLarge: 1)
     }
 
     private func thermalColor(_ state: ProcessInfo.ThermalState) -> Color {

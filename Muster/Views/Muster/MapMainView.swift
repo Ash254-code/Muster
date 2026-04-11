@@ -463,8 +463,8 @@ struct MapMainView: View {
         
         let sessionSettingsDetail = [
             "• Active session: \(sessionReady ? "✅" : "❌")",
-            "• Width 1–1000 m (current \(Int(autosteerWorkingWidthM))): \(widthReady ? "✅" : "❌")",
-            "• Look-ahead > 0 (current \(String(format: "%.1f", autosteerLookAheadM))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
+            "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
+            "• Look-ahead > 0 (current \(UnitFormatting.formattedDistance(autosteerLookAheadM, decimalsIfLarge: 1))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
             "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
             "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
         ].joined(separator: "\n")
@@ -487,8 +487,8 @@ struct MapMainView: View {
         
         let sessionSettingsDetail = [
             "• Active session: \(sessionReady ? "✅" : "❌")",
-            "• Width 1–1000 m (current \(Int(autosteerWorkingWidthM))): \(widthReady ? "✅" : "❌")",
-            "• Look-ahead > 0 (current \(String(format: "%.1f", autosteerLookAheadM))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
+            "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
+            "• Look-ahead > 0 (current \(UnitFormatting.formattedDistance(autosteerLookAheadM, decimalsIfLarge: 1))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
             "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
             "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
         ].joined(separator: "\n")
@@ -2478,7 +2478,11 @@ struct MapMainView: View {
                 }
             }
 
-            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.2f", absError)) m • \(Int(autosteerLightbarStepCM)) cm/step")
+            Text(
+                "\(guidance.lineIsLeft ? "Left" : "Right") " +
+                "\(UnitFormatting.formattedDistance(absError, decimalsIfLarge: 2)) • " +
+                "\(UnitFormatting.formattedCentimeters(autosteerLightbarStepCM))/step"
+            )
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
@@ -2945,7 +2949,7 @@ struct MapMainView: View {
             }
             .frame(height: 8)
 
-            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.1f", guidance.offsetCentimeters)) cm")
+            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(UnitFormatting.formattedCentimeters(guidance.offsetCentimeters))")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
@@ -4677,7 +4681,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
     private func quickZoomLabel(_ meters: Double) -> String {
         let normalized = normalizedQuickZoomValue(meters)
-        return "\(Int(normalized / 1000.0))K"
+        return UnitFormatting.formattedDistanceCompact(normalized, decimalsIfLarge: 1)
     }
 
     private func postQuickZoomRequest(_ meters: Double) {
