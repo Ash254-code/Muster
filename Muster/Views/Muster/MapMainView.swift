@@ -386,8 +386,17 @@ struct MapMainView: View {
         return widthReady && tuneReady && cruiseReady && activeSession?.isActive == true
     }
 
+    private var autosteerTrackReady: Bool {
+        let selectedTrackHasPreview = (selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0) >= 2
+        let setupTrackHasPreview = previewCoordinatesForPendingSetup().count >= 2
+        return selectedTrackHasPreview || setupTrackHasPreview
+    }
+
     private var autosteerGoReady: Bool {
-        autosteerEnabled && gpsConnectedForAutosteer && autosteerConditionsReady
+        autosteerEnabled &&
+        gpsConnectedForAutosteer &&
+        autosteerConditionsReady &&
+        autosteerTrackReady
     }
 
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
@@ -419,7 +428,7 @@ struct MapMainView: View {
     }
 
     private var autosteerReadinessCount: Int {
-        [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerGoReady].filter { $0 }.count
+        [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerTrackReady].filter { $0 }.count
     }
 
     private var isAutosteerTrackSetupActive: Bool {
