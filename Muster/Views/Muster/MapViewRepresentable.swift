@@ -2131,18 +2131,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             return (centerIndex - visibleCount)...(centerIndex + visibleCount)
         }
 
-        private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {
-            let strokeScale = overlayStrokeScale(for: map)
-            for polyline in autosteerGuidancePolylines {
-                guard let renderer = map.renderer(for: polyline) as? MKPolylineRenderer else { continue }
-                applyAutosteerGuidanceStyle(
-                    to: renderer,
-                    guidanceLine: polyline,
-                    strokeScale: strokeScale
-                )
-                renderer.setNeedsDisplay()
-            }
-        }
+   
 
         private func applyAutosteerGuidanceStyle(
             to renderer: MKPolylineRenderer,
