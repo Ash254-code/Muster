@@ -12,13 +12,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2857</string>
+					<string>3625</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2856</string>
+					<string>3625</string>
 					<key>Timestamp</key>
-					<string>797578572.450037</string>
+					<string>797579418.6817451</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -34,17 +34,13 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            else {
-</string>
+				<string></string>
 				<key>leading</key>
-				<string>                let maxSpeed,
-                maxSpeed &gt; minSpeed
+				<string>    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
+}
 </string>
 				<key>trailing</key>
-				<string>                return .systemBlue
-            }
-
-</string>
+				<string></string>
 			</dict>
 			<key>title</key>
 			<string>Change track nad boundary appearance</string>
@@ -59,13 +55,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2857</string>
+					<string>3625</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2856</string>
+					<string>3625</string>
 					<key>Timestamp</key>
-					<string>797578572.450047</string>
+					<string>797579418.681729</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -81,17 +77,13 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            else {
-</string>
+				<string></string>
 				<key>leading</key>
-				<string>                let maxSpeed,
-                maxSpeed &gt; minSpeed
+				<string>    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
+}
 </string>
 				<key>trailing</key>
-				<string>                return .systemBlue
-            }
-
-</string>
+				<string></string>
 			</dict>
 			<key>title</key>
 			<string>imported waypoint icon</string>
@@ -106,13 +98,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2857</string>
+					<string>3625</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2856</string>
+					<string>3625</string>
 					<key>Timestamp</key>
-					<string>797578572.450025</string>
+					<string>797579418.681622</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -128,17 +120,13 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            else {
-</string>
+				<string></string>
 				<key>leading</key>
-				<string>                let maxSpeed,
-                maxSpeed &gt; minSpeed
+				<string>    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
+}
 </string>
 				<key>trailing</key>
-				<string>                return .systemBlue
-            }
-
-</string>
+				<string></string>
 			</dict>
 			<key>title</key>
 			<string>Orange dotted go to line</string>
@@ -153,13 +141,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>2857</string>
+					<string>3625</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>2856</string>
+					<string>3625</string>
 					<key>Timestamp</key>
-					<string>797578572.449983</string>
+					<string>797579418.681757</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -175,17 +163,13 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            else {
-</string>
+				<string></string>
 				<key>leading</key>
-				<string>                let maxSpeed,
-                maxSpeed &gt; minSpeed
+				<string>    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
+}
 </string>
 				<key>trailing</key>
-				<string>                return .systemBlue
-            }
-
-</string>
+				<string></string>
 			</dict>
 			<key>title</key>
 			<string>Rings</string>
