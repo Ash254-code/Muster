@@ -1091,7 +1091,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 if guidanceBackgroundOverlay == nil {
                     let overlay = GuidanceBackgroundTileOverlay()
                     guidanceBackgroundOverlay = overlay
-                    map.addOverlay(overlay, level: .aboveLabels)
+                    map.addOverlay(overlay, level: .aboveRoads)
                 }
             } else if let guidanceBackgroundOverlay {
                 map.removeOverlay(guidanceBackgroundOverlay)
