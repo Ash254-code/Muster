@@ -2656,12 +2656,14 @@ private var selectedMapModeOption: MapModeOption {
     private func autosteerReferenceLineCoordinates(
         userCoordinate: CLLocationCoordinate2D
     ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
-        let preview = previewCoordinatesForPendingSetup()
+        if let pendingSetupLine = referenceGuidanceLineEndpoints(from: previewCoordinatesForPendingSetup()) {
+            return pendingSetupLine
+        }
 
-        if preview.count >= 2 {
-            let a = CLLocationCoordinate2D(latitude: preview[0][0], longitude: preview[0][1])
-            let b = CLLocationCoordinate2D(latitude: preview[1][0], longitude: preview[1][1])
-            return (a, b)
+        if let selectedTrackLine = referenceGuidanceLineEndpoints(
+            from: selectedAutosteerTrackRecord?.previewCoordinates ?? []
+        ) {
+            return selectedTrackLine
         }
 
         if displayedActiveTrackPoints.count >= 2 {
@@ -2684,6 +2686,35 @@ private var selectedMapModeOption: MapModeOption {
             longitude: userCoordinate.longitude + (dLon * 180 / .pi)
         )
         return (userCoordinate, projected)
+    }
+
+    private func referenceGuidanceLineEndpoints(
+        from previewCoordinates: [[Double]]
+    ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
+        let validCoordinates: [CLLocationCoordinate2D] = previewCoordinates.compactMap { pair in
+            guard pair.count >= 2 else { return nil }
+            let coordinate = CLLocationCoordinate2D(latitude: pair[0], longitude: pair[1])
+            return CLLocationCoordinate2DIsValid(coordinate) ? coordinate : nil
+        }
+
+        guard validCoordinates.count >= 2 else { return nil }
+
+        let first = validCoordinates[0]
+        let last = validCoordinates[validCoordinates.count - 1]
+
+        if CLLocation(latitude: first.latitude, longitude: first.longitude)
+            .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude)) > 0.5 {
+            return (first, last)
+        }
+
+        if let fallback = validCoordinates.dropFirst().first(where: { candidate in
+            CLLocation(latitude: first.latitude, longitude: first.longitude)
+                .distance(from: CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)) > 0.5
+        }) {
+            return (first, fallback)
+        }
+
+        return nil
     }
 
     private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {
