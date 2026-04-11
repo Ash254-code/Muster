@@ -224,13 +224,7 @@ final class MusterStore: ObservableObject, Codable {
     }
 
     var kilometresForDayText: String {
-        let km = kilometresForDay
-
-        if km >= 10 {
-            return String(format: "%.1f km", km)
-        } else {
-            return String(format: "%.2f km", km)
-        }
+        UnitFormatting.formattedDistance(kilometresForDay * 1000.0, decimalsIfLarge: 2)
     }
 
     var visibleImportedMapFiles: [ImportedMapFile] {

@@ -2078,7 +2078,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                     newLabels.append(
                         RingLabelAnnotation(
                             coordinate: labelCoordinate,
-                            distanceText: "\(Int(radiusMeters))m"
+                            distanceText: UnitFormatting.formattedDistanceCompact(radiusMeters, decimalsIfLarge: 0)
                         )
                     )
                 }

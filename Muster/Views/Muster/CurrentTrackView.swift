@@ -173,23 +173,28 @@ struct CurrentTrackView: View {
     }
 
     private var paceText: String {
-        let distanceKm = totalDistanceMeters / 1000
-        guard distanceKm > 0 else { return "—" }
+        let distanceForPace: Double
+        let suffix: String
+        switch UnitFormatting.distancePreference {
+        case .metric:
+            distanceForPace = totalDistanceMeters / 1000.0
+            suffix = "km"
+        case .imperial:
+            distanceForPace = totalDistanceMeters / 1_609.344
+            suffix = "mi"
+        }
+        guard distanceForPace > 0 else { return "—" }
 
-        let secondsPerKm = elapsedTime / distanceKm
-        guard secondsPerKm.isFinite else { return "—" }
+        let secondsPerUnit = elapsedTime / distanceForPace
+        guard secondsPerUnit.isFinite else { return "—" }
 
-        let minutes = Int(secondsPerKm) / 60
-        let seconds = Int(secondsPerKm) % 60
-        return String(format: "%d:%02d /km", minutes, seconds)
+        let minutes = Int(secondsPerUnit) / 60
+        let seconds = Int(secondsPerUnit) % 60
+        return String(format: "%d:%02d /%@", minutes, seconds, suffix)
     }
 
     private var totalDistanceText: String {
-        if totalDistanceMeters >= 1000 {
-            return String(format: "%.2f km", totalDistanceMeters / 1000)
-        } else {
-            return "\(Int(totalDistanceMeters.rounded())) m"
-        }
+        UnitFormatting.formattedDistance(totalDistanceMeters, decimalsIfLarge: 2)
     }
 
     private var elapsedTimeText: String {
@@ -205,15 +210,18 @@ struct CurrentTrackView: View {
     }
 
     private var avgSpeedText: String {
-        String(format: "%.1f km/h", averageSpeedKmh)
+        let mps = averageSpeedKmh / 3.6
+        return UnitFormatting.formattedSpeed(fromMetersPerSecond: mps, decimals: 1)
     }
 
     private var movingAvgSpeedText: String {
-        String(format: "%.1f km/h", movingAverageSpeedKmh)
+        let mps = movingAverageSpeedKmh / 3.6
+        return UnitFormatting.formattedSpeed(fromMetersPerSecond: mps, decimals: 1)
     }
 
     private var maxSpeedText: String {
-        String(format: "%.1f km/h", maxSpeedKmh)
+        let mps = maxSpeedKmh / 3.6
+        return UnitFormatting.formattedSpeed(fromMetersPerSecond: mps, decimals: 1)
     }
 
     private var altitudeDifferenceText: String {
