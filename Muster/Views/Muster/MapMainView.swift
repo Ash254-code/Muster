@@ -49,6 +49,7 @@ private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
 struct MapMainView: View {
+    @Environment(\.colorScheme) private var colorScheme
     
     private struct ManualGoToTarget {
         let coordinate: CLLocationCoordinate2D
@@ -1897,6 +1898,26 @@ struct MapMainView: View {
 
     // MARK: - Top pills
 
+    private var chromeFill: Color {
+        colorScheme == .dark ? Color.black.opacity(0.94) : Color.white.opacity(0.92)
+    }
+
+    private var chromeStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.14)
+    }
+
+    private var chromePrimaryText: Color {
+        colorScheme == .dark ? Color.white : Color.black.opacity(0.9)
+    }
+
+    private var chromeSecondaryText: Color {
+        colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.58)
+    }
+
+    private var chromeShadow: Color {
+        colorScheme == .dark ? Color.black.opacity(0.22) : Color.black.opacity(0.10)
+    }
+
     private var topPillRow: some View {
         HStack(spacing: 10) {
             topSidePill(metric: leftPillMetric, side: .left)
@@ -1923,7 +1944,7 @@ struct MapMainView: View {
             HStack(spacing: 8) {
                 Image(systemName: content.systemImage)
                     .font(.system(size: metric == .headingBearing ? 12 : 17, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.92))
+                    .foregroundStyle(chromePrimaryText)
                     .rotationEffect(.degrees(content.imageRotationDegrees))
                     .animation(
                         content.animateRotation ? .easeInOut(duration: 0.25) : nil,
@@ -1932,7 +1953,7 @@ struct MapMainView: View {
 
                 Text(content.valueText)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
@@ -1940,7 +1961,7 @@ struct MapMainView: View {
 
             Text(content.labelText)
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(chromeSecondaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }
@@ -1949,13 +1970,13 @@ struct MapMainView: View {
         .frame(height: topPillHeight)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 2)
+                .strokeBorder(chromeStroke, lineWidth: 2)
         )
-        .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+        .shadow(color: chromeShadow, radius: 8, y: 3)
         .contentShape(Capsule(style: .continuous))
         .onLongPressGesture {
             topPillPickerSide = side
@@ -2033,21 +2054,21 @@ struct MapMainView: View {
         VStack(spacing: 0) {
             Text(speedNumberText)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
             Text("km/h")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(chromeSecondaryText)
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
@@ -2067,11 +2088,11 @@ struct MapMainView: View {
         HStack(spacing: 8) {
             Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
 
             Text("Long press the new location to move marker")
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
 
             Spacer()
 
@@ -2081,7 +2102,7 @@ struct MapMainView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(chromeSecondaryText)
             }
             .buttonStyle(.plain)
         }
@@ -2089,11 +2110,11 @@ struct MapMainView: View {
         .frame(height: 44)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 2)
+                .strokeBorder(chromeStroke, lineWidth: 2)
         )
     }
 
@@ -2103,11 +2124,11 @@ struct MapMainView: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
                     .frame(width: 98, height: 98)
 
                 Circle()
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(chromeStroke, lineWidth: 1)
                     .frame(width: 98, height: 98)
 
                 Circle()
@@ -2133,12 +2154,12 @@ struct MapMainView: View {
                 VStack(spacing: 1) {
                     Text(destinationDistanceText)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
 
                     if destinationDistanceMeters ?? 999 >= 30 {
                         Text("TARGET")
                             .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(chromeSecondaryText)
                             .tracking(0.8)
                     } else {
                         Text("ARRIVED")
@@ -2152,7 +2173,7 @@ struct MapMainView: View {
             HStack(spacing: 6) {
                 Text(destinationSubtitleText)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.88))
+                    .foregroundStyle(chromePrimaryText)
                     .lineLimit(1)
 
                 ZStack {
@@ -2167,7 +2188,7 @@ struct MapMainView: View {
 
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.78))
+                        .foregroundStyle(chromeSecondaryText)
                         .allowsHitTesting(false)
                 }
                 .frame(width: 18, height: 18)
@@ -2176,11 +2197,11 @@ struct MapMainView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule(style: .continuous)
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(chromeStroke, lineWidth: 1)
             )
         }
     }
@@ -2221,11 +2242,11 @@ struct MapMainView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
                     .frame(width: 64, height: 64)
 
                 Circle()
-                    .stroke(.white.opacity(0.18), lineWidth: 8)
+                    .stroke(chromeStroke.opacity(0.8), lineWidth: 8)
                     .frame(width: 58, height: 58)
 
                 Circle()
@@ -2240,10 +2261,10 @@ struct MapMainView: View {
                 VStack(spacing: 0) {
                     Text(autosteerActive ? "ON" : "GO")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(autosteerActive ? .green : .white)
+                        .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
                     Text("\(autosteerReadinessCount)/4")
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
+                        .foregroundStyle(chromeSecondaryText)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -3381,8 +3402,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
         return VStack(spacing: 0) {
             Capsule()
-                .fill(.white.opacity(0.5))
-                .shadow(color: .white.opacity(0.25), radius: 4)
+                .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
+                .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
                 .frame(width: 34, height: 5)
                 .padding(.top, 8)
                 .padding(.bottom, 8)
@@ -3401,13 +3422,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .frame(height: panelHeight, alignment: .top)
         .background(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .fill(.black.opacity(0.99))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.22), radius: 18, y: 4)
+        .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
         .padding(.bottom, 2)
         .contentShape(Rectangle())
@@ -3444,11 +3465,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             .frame(maxWidth: .infinity)
             .background(
                 Capsule(style: .continuous)
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(chromeStroke, lineWidth: 1)
             )
 
             if sheepPinEnabled {
@@ -3482,11 +3503,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                 .frame(width: 46, height: 46)
                                 .background(
                                     Circle()
-                                        .fill(.black.opacity(1.0))
+                                        .fill(chromeFill)
                                 )
                                 .overlay(
                                     Rectangle()
-                                        .fill(.white.opacity(isSheepScrubbing ? 0.12 : 0))
+                                        .fill(chromePrimaryText.opacity(isSheepScrubbing ? 0.12 : 0))
                                         .frame(width: 2)
                                         .padding(.vertical, 10),
                                     alignment: .center
@@ -3498,8 +3519,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                             lineWidth: 1.5
                                         )
                                 )
-                                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
-                                .foregroundStyle(.white)
+                                .shadow(color: chromeShadow, radius: 10, y: 4)
+                                .foregroundStyle(chromePrimaryText)
                                 .opacity(isSheepPinReady ? 1.0 : 0.45)
                                 .shadow(
                                     color: showSheepCountPopover ? .white.opacity(0.08) : .clear,
@@ -3531,17 +3552,17 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         VStack(spacing: 4) {
             Text(selectedSheepCountDisplayText)
                 .font(.system(size: 38, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
 
             Text(sheepCountPopoverLabelText)
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.65))
+                .foregroundStyle(chromeSecondaryText)
                 .tracking(1)
 
             Text("↑ slide")
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(chromeSecondaryText.opacity(0.8))
                 .padding(.top, 2)
         }
         .frame(minWidth: 100)
@@ -3549,13 +3570,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.black.opacity(0.96))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.35), radius: 16, y: 8)
+        .shadow(color: chromeShadow, radius: 16, y: 8)
     }
 
     private var radioStatusButton: some View {
@@ -3566,15 +3587,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(hasActiveRadioConnection ? .blue : .white)                    .frame(width: 64, height: 46)
+                    .foregroundStyle(hasActiveRadioConnection ? .blue : chromePrimaryText)
+                    .frame(width: 64, height: 46)
                     .background(
                         Circle()
-                            .fill(.black.opacity(1.0))
+                            .fill(chromeFill)
                     )
                     .overlay(
                         Circle()
                             .strokeBorder(
-                                hasActiveRadioConnection ? .blue : .white.opacity(0.3),
+                                hasActiveRadioConnection ? .blue : chromeStroke,
                                 lineWidth: 2
                             )
                     )
@@ -3993,12 +4015,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
 
             Rectangle()
-                .fill(.white.opacity(0.2))
+                .fill(chromeStroke)
                 .frame(width: 24, height: 1)
 
             Button {
@@ -4006,20 +4028,20 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             } label: {
                 Image(systemName: "playpause.fill")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
         }
         .frame(width: 48)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .shadow(color: chromeShadow, radius: 10, y: 4)
         .fixedSize()
     }
 
@@ -4030,12 +4052,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
 
             Rectangle()
-                .fill(.white.opacity(0.2))
+                .fill(chromeStroke)
                 .frame(width: 24, height: 1)
 
             Button {
@@ -4043,20 +4065,20 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             } label: {
                 Image(systemName: "minus")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
         }
         .frame(width: 48)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .shadow(color: chromeShadow, radius: 10, y: 4)
         .fixedSize()
     }
 
@@ -4068,7 +4090,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(isSelected ? .white : .white.opacity(0.82))
+                .foregroundStyle(isSelected ? .white : chromePrimaryText)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
                 .background(
@@ -4077,9 +4099,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 )
                 .overlay(
                     Capsule(style: .continuous)
-                        .strokeBorder(.white.opacity(isSelected ? 0.20 : 0.18), lineWidth: 1)
+                        .strokeBorder(isSelected ? .white.opacity(0.22) : chromeStroke, lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(isSelected ? 0.16 : 0.04), radius: 4, y: 1)
+                .shadow(color: chromeShadow.opacity(isSelected ? 1 : 0.5), radius: 4, y: 1)
         }
         .contentShape(Rectangle())
         .buttonStyle(.plain)
@@ -4089,11 +4111,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(chromeSecondaryText)
 
             Text(value)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -4101,13 +4123,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+        .shadow(color: chromeShadow, radius: 8, y: 3)
         .frame(maxWidth: .infinity)
         .frame(height: 72)
     }
