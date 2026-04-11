@@ -744,6 +744,8 @@ struct NewCustomImportCategoryView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
 
+    var onAdd: ((CustomImportCategory) -> Void)? = nil
+
     @State private var title: String = ""
     @State private var icon: String = ""
     @State private var isVisibleByDefault: Bool = true
@@ -783,11 +785,12 @@ struct NewCustomImportCategoryView: View {
     }
 
     private func save() {
-        app.muster.addCustomImportCategory(
+        guard let category = app.muster.createCustomImportCategory(
             title: title,
             icon: icon,
             isVisibleByDefault: isVisibleByDefault
-        )
+        ) else { return }
+        onAdd?(category)
         dismiss()
     }
 }

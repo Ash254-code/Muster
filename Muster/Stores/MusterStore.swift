@@ -1054,21 +1054,30 @@ final class MusterStore: ObservableObject, Codable {
         }
     }
 
-    func addCustomImportCategory(title: String, icon: String, isVisibleByDefault: Bool) {
+    @discardableResult
+    func createCustomImportCategory(title: String, icon: String, isVisibleByDefault: Bool) -> CustomImportCategory? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { return }
+        guard !trimmedTitle.isEmpty else { return nil }
 
         let trimmedIcon = icon.trimmingCharacters(in: .whitespacesAndNewlines)
         let finalIcon = trimmedIcon.isEmpty ? "📍" : trimmedIcon
 
-        customImportCategories.append(
-            CustomImportCategory(
-                title: trimmedTitle,
-                icon: finalIcon,
-                isVisibleByDefault: isVisibleByDefault
-            )
+        let category = CustomImportCategory(
+            title: trimmedTitle,
+            icon: finalIcon,
+            isVisibleByDefault: isVisibleByDefault
         )
+        customImportCategories.append(category)
         save()
+        return category
+    }
+
+    func addCustomImportCategory(title: String, icon: String, isVisibleByDefault: Bool) {
+        _ = createCustomImportCategory(
+            title: title,
+            icon: icon,
+            isVisibleByDefault: isVisibleByDefault
+        )
     }
 
     func updateCustomImportCategory(id: UUID, title: String, icon: String, isVisibleByDefault: Bool) {
