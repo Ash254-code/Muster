@@ -32,6 +32,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let ringDistanceLabelsEnabled: Bool
     let autosteerTrackPreviewCoordinates: [[Double]]
     let autosteerTrackSpacingMeters: Double
+    let autosteerLockedLineIndex: Int?
 
     @Binding var orientationRaw: String
     @Binding var mapStyleRaw: String
@@ -229,7 +230,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         context.coordinator.updateAutosteerGuidance(
             map: map,
             previewCoordinates: autosteerTrackPreviewCoordinates,
-            spacingMeters: autosteerTrackSpacingMeters
+            spacingMeters: autosteerTrackSpacingMeters,
+            lockedLineIndex: autosteerLockedLineIndex
         )
         context.coordinator.updateDestinationLine(
             map: map,
@@ -293,6 +295,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var xrsTrailSignature: String = ""
         private var ringsSignature: String = ""
         private var autosteerGuidanceSignature: String = ""
+        private var autosteerLockedLineIndex: Int?
 
         private var hasTriggeredDestinationArrival = false
         private let destinationArrivalDistanceMeters: CLLocationDistance = 120
@@ -2047,7 +2050,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         func updateAutosteerGuidance(
             map: MKMapView,
             previewCoordinates: [[Double]],
-            spacingMeters: Double
+            spacingMeters: Double,
+            lockedLineIndex: Int?
         ) {
             let normalizedSpacing = max(1, spacingMeters)
             let signatureCoordinates = previewCoordinates.map { values in
@@ -2059,6 +2063,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             // force a re-add even when the computed signature has not changed.
             guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else { return }
             autosteerGuidanceSignature = signature
+            autosteerLockedLineIndex = lockedLineIndex
 
             if autosteerGuidancePolylines.isEmpty == false {
                 map.removeOverlays(autosteerGuidancePolylines)
@@ -2230,7 +2235,12 @@ struct MapViewRepresentable: UIViewRepresentable {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
                 if polyline is AutosteerGuidancePolyline {
-                    renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+                    if let guidanceLine = polyline as? AutosteerGuidancePolyline,
+                       guidanceLine.offsetIndex == autosteerLockedLineIndex {
+                        renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.95)
+                    } else {
+                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+                    }
                     renderer.lineWidth = 2 * strokeScale
                     renderer.lineCap = .round
                     renderer.lineJoin = .round

@@ -113,6 +113,7 @@ struct MapMainView: View {
 
     private struct AutosteerGuidanceStatus {
         let signedOffsetToNearestLineM: Double
+        let nearestLineIndex: Int
 
         var offsetCentimeters: Int {
             Int((abs(signedOffsetToNearestLineM) * 100).rounded())
@@ -1417,6 +1418,7 @@ private var selectedMapModeOption: MapModeOption {
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
             autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
             autosteerTrackSpacingMeters: autosteerWorkingWidthM,
+            autosteerLockedLineIndex: autosteerActive ? autosteerGuidanceStatus.nearestLineIndex : nil,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
             recenterNonce: $recenterNonce,
@@ -2648,12 +2650,12 @@ private var selectedMapModeOption: MapModeOption {
     private var autosteerGuidanceStatus: AutosteerGuidanceStatus {
         guard autosteerWorkingWidthM > 0,
               let userCoordinate = location.lastLocation?.coordinate else {
-            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
         }
 
         let referenceLine = autosteerReferenceLineCoordinates(userCoordinate: userCoordinate)
         guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else {
-            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
         }
 
         let earthRadiusM = 6_378_137.0
@@ -2673,7 +2675,7 @@ private var selectedMapModeOption: MapModeOption {
         let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
         let lineLength = hypot(ab.x, ab.y)
         guard lineLength > 0.01 else {
-            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
         }
 
         let ap = CGPoint(x: -a.x, y: -a.y)
@@ -2681,7 +2683,10 @@ private var selectedMapModeOption: MapModeOption {
         let nearestLineIndex = (signedDistanceToBaseLine / autosteerWorkingWidthM).rounded()
         let signedDistanceToNearestLine = signedDistanceToBaseLine - (nearestLineIndex * autosteerWorkingWidthM)
 
-        return AutosteerGuidanceStatus(signedOffsetToNearestLineM: -signedDistanceToNearestLine)
+        return AutosteerGuidanceStatus(
+            signedOffsetToNearestLineM: -signedDistanceToNearestLine,
+            nearestLineIndex: Int(nearestLineIndex)
+        )
     }
 
     private func autosteerReferenceLineCoordinates(
@@ -2752,7 +2757,7 @@ private var selectedMapModeOption: MapModeOption {
             }
             .frame(height: 8)
 
-            Text("\(guidance.offsetCentimeters) cm")
+            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(guidance.offsetCentimeters) cm")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.92))
                 .monospacedDigit()
