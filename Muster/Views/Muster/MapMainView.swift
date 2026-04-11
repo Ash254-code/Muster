@@ -878,6 +878,12 @@ private var selectedMapModeOption: MapModeOption {
                 isPresented: $showAutosteerQuickActions,
                 titleVisibility: .visible
             ) {
+                Button(selectedAutosteerFarmDisplay) {}
+                    .disabled(true)
+                Button(selectedAutosteerPaddockDisplay) {}
+                    .disabled(true)
+                Button(selectedAutosteerNameDisplay) {}
+                    .disabled(true)
                 Button("Settings") {
                     showAutosteerSettings = true
                 }
@@ -895,8 +901,6 @@ private var selectedMapModeOption: MapModeOption {
                     beginAutosteerSetup(mode: "Curve Track")
                 }
                 Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("\(selectedAutosteerFarmDisplay)\n\(selectedAutosteerPaddockDisplay)\n\(selectedAutosteerNameDisplay)")
             }
             .alert(
                 "Confirm Delete",
