@@ -41,6 +41,7 @@ private let kAutosteerPaddockNameKey = "autosteer_paddock_name" // String
 private let kAutosteerTrackNameKey = "autosteer_track_name" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -281,6 +282,7 @@ struct MapMainView: View {
     @AppStorage(kAutosteerTrackNameKey) private var autosteerTrackName: String = ""
     @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
+    @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
@@ -376,12 +378,50 @@ struct MapMainView: View {
         autosteerEnabled && gpsConnectedForAutosteer && autosteerConditionsReady
     }
 
+    private var temporaryPreviewPointA: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointA
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line", "A+Heading":
+            return autosteerPointA
+        default:
+            return nil
+        }
+    }
+
+    private var temporaryPreviewPointB: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointB
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            return autosteerPointB
+        default:
+            return nil
+        }
+    }
+
     private var autosteerReadinessCount: Int {
         [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerGoReady].filter { $0 }.count
     }
 
     private var isAutosteerTrackSetupActive: Bool {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
+    }
+
+    private var autosteerCrossTrackErrorMeters: Double? {
+        guard
+            autosteerActive,
+            let user = location.lastLocation?.coordinate,
+            let pointA = autosteerPointA,
+            let pointB = autosteerPointB
+        else { return nil }
+        return signedCrossTrackDistanceMeters(point: user, lineStart: pointA, lineEnd: pointB)
     }
 
     private var existingPaddocksForSelectedFarm: [String] {
@@ -1173,7 +1213,9 @@ private var selectedMapModeOption: MapModeOption {
             .overlay(alignment: .bottomTrailing) {
                 if !showMapLayerSheet {
                     VStack(spacing: 10) {
-                        autosteerReadinessButton
+                        if !autosteerEnabled {
+                            autosteerReadinessButton
+                        }
 
                         if !followUser {
                             centerMapButton
@@ -1195,6 +1237,13 @@ private var selectedMapModeOption: MapModeOption {
                         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: panelDetent)
                         .transition(.opacity)
                     }
+            }
+            .overlay(alignment: .top) {
+                if let crossTrackErrorMeters = autosteerCrossTrackErrorMeters {
+                    autosteerLightbar(errorMeters: crossTrackErrorMeters)
+                        .padding(.top, 18)
+                        .padding(.horizontal, 12)
+                }
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
@@ -1251,8 +1300,8 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
-            temporaryPointA: markerSheetPointA,
-            temporaryPointB: markerSheetPointB,
+            temporaryPointA: temporaryPreviewPointA,
+            temporaryPointB: temporaryPreviewPointB,
             onRequestGoToMarker: { marker in
                 startGoTo(marker)
             },
@@ -1698,8 +1747,14 @@ private var selectedMapModeOption: MapModeOption {
             topSpeedPill
                 .frame(maxWidth: .infinity)
 
-            topSidePill(metric: rightPillMetric, side: .right)
-                .frame(width: 108)
+            Group {
+                if autosteerEnabled {
+                    autosteerReadinessButton
+                } else {
+                    topSidePill(metric: rightPillMetric, side: .right)
+                }
+            }
+            .frame(width: 108)
         }
     }
 
@@ -2054,25 +2109,55 @@ private var selectedMapModeOption: MapModeOption {
 
     private var autosteerTrackSetupOverlay: some View {
         VStack(spacing: 10) {
-            Button(action: handleAutosteerSetupPrimaryAction) {
-                HStack(spacing: 8) {
-                    if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 10, height: 10)
-                            .scaleEffect(curvePulse ? 1.25 : 0.8)
-                            .opacity(curvePulse ? 0.4 : 1.0)
-                            .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+            HStack(spacing: 8) {
+                Button(action: handleAutosteerSetupPrimaryAction) {
+                    HStack(spacing: 8) {
+                        if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 10, height: 10)
+                                .scaleEffect(curvePulse ? 1.25 : 0.8)
+                                .opacity(curvePulse ? 0.4 : 1.0)
+                                .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+                        }
+                        Text(autosteerSetupPrimaryButtonTitle)
+                            .font(.system(size: 15, weight: .semibold))
                     }
-                    Text(autosteerSetupPrimaryButtonTitle)
-                        .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.black.opacity(0.88)))
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Capsule().fill(.black.opacity(0.88)))
+                .buttonStyle(.plain)
+
+                if autosteerSetupModeRaw == "A+B line", autosteerPointB != nil {
+                    Button("Undo point B") {
+                        autosteerPointB = nil
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.black.opacity(0.75)))
+                    .buttonStyle(.plain)
+
+                    Button("Save Track") {
+                        completeAutosteerSetupAndPromptForSave()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.white.opacity(0.88)))
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
+
+            if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
+                Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -2239,7 +2324,9 @@ private var selectedMapModeOption: MapModeOption {
     private var autosteerSetupPrimaryButtonTitle: String {
         switch autosteerSetupModeRaw {
         case "A+B line":
-            return autosteerPointA == nil ? "Mark point A" : "Mark point B"
+            if autosteerPointA == nil { return "Mark point A" }
+            if autosteerPointB == nil { return "Mark point B" }
+            return "Re-mark point B"
         case "A+Heading":
             return "Mark point A"
         case "Curve Track":
@@ -2258,7 +2345,6 @@ private var selectedMapModeOption: MapModeOption {
                 autosteerPointA = coordinate
             } else {
                 autosteerPointB = coordinate
-                completeAutosteerSetupAndPromptForSave()
             }
         case "A+Heading":
             autosteerPointA = coordinate

@@ -2912,7 +2912,7 @@ final class RingLabelAnnotationView: MKAnnotationView {
 
 final class TemporaryPointAnnotationView: MKAnnotationView {
     private let labelView = UILabel()
-    private let circleView = UIView()
+    private let glyphView = UIImageView()
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -2925,38 +2925,43 @@ final class TemporaryPointAnnotationView: MKAnnotationView {
     }
 
     func configure(label: String) {
-        labelView.text = label
+        labelView.text = " \(label) "
     }
 
     private func setup() {
         canShowCallout = false
-        frame = CGRect(x: 0, y: 0, width: 28, height: 28)
-        centerOffset = CGPoint(x: 0, y: -14)
+        frame = CGRect(x: 0, y: 0, width: 36, height: 44)
+        centerOffset = CGPoint(x: 0, y: -22)
         backgroundColor = .clear
 
-        circleView.translatesAutoresizingMaskIntoConstraints = false
-        circleView.backgroundColor = UIColor.systemGreen
-        circleView.layer.cornerRadius = 14
-        circleView.layer.borderWidth = 2
-        circleView.layer.borderColor = UIColor.white.withAlphaComponent(0.85).cgColor
-        circleView.isUserInteractionEnabled = false
+        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 24, weight: .bold)
+        glyphView.translatesAutoresizingMaskIntoConstraints = false
+        glyphView.image = UIImage(systemName: "scope", withConfiguration: symbolConfig)?
+            .withTintColor(.systemGreen, renderingMode: .alwaysOriginal)
+        glyphView.contentMode = .scaleAspectFit
+        glyphView.isUserInteractionEnabled = false
 
         labelView.translatesAutoresizingMaskIntoConstraints = false
-        labelView.font = .systemFont(ofSize: 12, weight: .bold)
+        labelView.font = .systemFont(ofSize: 11, weight: .bold)
         labelView.textColor = .white
         labelView.textAlignment = .center
+        labelView.backgroundColor = UIColor.black.withAlphaComponent(0.72)
+        labelView.layer.cornerRadius = 8
+        labelView.layer.masksToBounds = true
         labelView.isUserInteractionEnabled = false
 
-        addSubview(circleView)
+        addSubview(glyphView)
         addSubview(labelView)
 
         NSLayoutConstraint.activate([
-            circleView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            circleView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            circleView.widthAnchor.constraint(equalToConstant: 28),
-            circleView.heightAnchor.constraint(equalToConstant: 28),
+            glyphView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            glyphView.topAnchor.constraint(equalTo: topAnchor),
+            glyphView.widthAnchor.constraint(equalToConstant: 28),
+            glyphView.heightAnchor.constraint(equalToConstant: 28),
             labelView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            labelView.centerYAnchor.constraint(equalTo: centerYAnchor)
+            labelView.topAnchor.constraint(equalTo: glyphView.bottomAnchor, constant: 2),
+            labelView.widthAnchor.constraint(greaterThanOrEqualToConstant: 16),
+            labelView.heightAnchor.constraint(equalToConstant: 16)
         ])
     }
 }

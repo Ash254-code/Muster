@@ -67,11 +67,9 @@ private let kTPMSAlertsEnabledKey = "tpms_alerts_enabled" // Bool
 private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
 private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
 private let kAutosteerTrackModeKey = "autosteer_track_mode" // String
-private let kAutosteerFarmNameKey = "autosteer_farm_name" // String
-private let kAutosteerPaddockNameKey = "autosteer_paddock_name" // String
-private let kAutosteerTrackNameKey = "autosteer_track_name" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double 0...1
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -277,19 +275,12 @@ struct AutosteerSettingsView: View {
     @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
     @AppStorage(kAutosteerWorkingWidthKey) private var workingWidthM: Double = 36
     @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
-    @AppStorage(kAutosteerFarmNameKey) private var farmName: String = ""
-    @AppStorage(kAutosteerPaddockNameKey) private var paddockName: String = ""
-    @AppStorage(kAutosteerTrackNameKey) private var trackName: String = ""
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
+    @AppStorage(kAutosteerLightbarStepCMKey) private var lightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var setupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var setupActive: Bool = false
     @Environment(\.dismiss) private var dismiss
-    @State private var pointASet = false
-    @State private var pointBSet = false
-    @State private var headingSet = false
-    @State private var curveRecorded = false
-    @State private var savedTracks: [String] = []
 
     private var selectedTrackMode: TrackMode {
         TrackMode(rawValue: trackModeRaw) ?? .abLine
@@ -351,22 +342,6 @@ struct AutosteerSettingsView: View {
                     setupActive = true
                     dismiss()
                 }
-
-                switch selectedTrackMode {
-                case .abLine:
-                    Button(pointASet ? "Reset Point A" : "Set Point A") { pointASet.toggle() }
-                    Button(pointBSet ? "Reset Point B" : "Set Point B") { pointBSet.toggle() }
-                case .aHeading:
-                    Button(pointASet ? "Reset Point A" : "Set Point A") { pointASet.toggle() }
-                    Button(headingSet ? "Reset Heading" : "Set Heading") { headingSet.toggle() }
-                case .curve:
-                    Button(curveRecorded ? "Clear Recorded Curve" : "Record Curve Path") {
-                        curveRecorded.toggle()
-                    }
-                    Text("Generate parallel lines from the recorded curve path.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
             } header: {
                 Text("Track Options")
             }
@@ -377,27 +352,6 @@ struct AutosteerSettingsView: View {
                 }
             } header: {
                 Text("Database")
-            }
-
-            Section {
-                TextField("Farm", text: $farmName)
-                TextField("Paddock", text: $paddockName)
-                TextField("Track Name", text: $trackName)
-                Button("Save Track") {
-                    guard !farmName.isEmpty, !paddockName.isEmpty, !trackName.isEmpty else { return }
-                    savedTracks.insert("\(farmName) › \(paddockName) › \(trackName)", at: 0)
-                }
-                .disabled(farmName.isEmpty || paddockName.isEmpty || trackName.isEmpty)
-
-                if !savedTracks.isEmpty {
-                    ForEach(savedTracks.prefix(5), id: \.self) { track in
-                        Text(track)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Save Track")
             }
 
             Section {
@@ -421,6 +375,20 @@ struct AutosteerSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     Slider(value: $lookAheadM, in: 1...150, step: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Lightbar Step Size")
+                        Spacer()
+                        Text("\(Int(lightbarStepCM)) cm")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $lightbarStepCM, in: 1...50, step: 1)
+                    Text("Center stays green while within one step from guidance. Outside that, one red light is added for each step off line.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             } header: {
                 Text("Tuning")
