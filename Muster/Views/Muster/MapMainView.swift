@@ -3278,11 +3278,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
 
     private func floatingControlsBottomPadding(for totalHeight: CGFloat) -> CGFloat {
-        bottomPanelVisibleHeight(totalHeight: totalHeight) + 12
+        bottomPanelVisibleHeight(totalHeight: totalHeight) + 8
     }
 
     private func headsUpBottomObstructionHeight(for totalHeight: CGFloat) -> CGFloat {
-        bottomPanelVisibleHeight(totalHeight: totalHeight) + 12
+        bottomPanelVisibleHeight(totalHeight: totalHeight) + 8
     }
 
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
@@ -3434,7 +3434,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
-        .padding(.bottom, 2 - safeAreaBottom)
+        .padding(.bottom, 8)
         .contentShape(Rectangle())
         .gesture(bottomPanelDragGesture)
     }
