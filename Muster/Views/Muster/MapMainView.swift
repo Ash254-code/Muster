@@ -322,6 +322,7 @@ struct MapMainView: View {
     @State private var curvePulse = false
     @State private var curveRecordedCenters: [CLLocationCoordinate2D] = []
     @State private var showAutosteerTrackSaveSheet = false
+    @State private var showAutosteerReadinessAlert = false
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
@@ -429,6 +430,15 @@ struct MapMainView: View {
 
     private var autosteerReadinessCount: Int {
         [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerTrackReady].filter { $0 }.count
+    }
+
+    private var autosteerReadinessMessage: String {
+        [
+            "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
+            "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
+            "Session/settings valid: \(autosteerConditionsReady ? "✅" : "❌")",
+            "Track guidance available: \(autosteerTrackReady ? "✅" : "❌")"
+        ].joined(separator: "\n")
     }
 
     private var isAutosteerTrackSetupActive: Bool {
@@ -2140,6 +2150,7 @@ private var selectedMapModeOption: MapModeOption {
                 generator.notificationOccurred(autosteerActive ? .success : .warning)
             } else {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showAutosteerReadinessAlert = true
             }
         } label: {
             ZStack {
@@ -2187,6 +2198,11 @@ private var selectedMapModeOption: MapModeOption {
                     showAutosteerQuickActions = true
                 }
         )
+        .alert("Autosteer not ready", isPresented: $showAutosteerReadinessAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(autosteerReadinessMessage)
+        }
     }
 
     private var autosteerTrackSetupOverlay: some View {
