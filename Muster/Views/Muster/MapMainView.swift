@@ -344,6 +344,7 @@ struct MapMainView: View {
     @State private var knownFarms: [AutosteerFarmRecord] = []
     @State private var selectedFarmOption: String = "__new__"
     @State private var selectedPaddockOption: String = "__new__"
+    @State private var selectedTrackQuickPick: String? = nil
     
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -509,6 +510,8 @@ struct MapMainView: View {
         }
         return farm.paddocks.map(\.name)
     }
+
+    private let trackQuickPickOptions: [String] = ["North", "East", "South", "West"]
     
     private var selectedAutosteerFarmDisplay: String {
         let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2373,16 +2376,35 @@ struct MapMainView: View {
             NavigationStack {
                 Form {
                     Section("Farm") {
-                        Picker("Existing Farms", selection: $selectedFarmOption) {
-                            Text("Add New").tag("__new__")
-                            ForEach(knownFarms, id: \.id) { farm in
-                                Text(farm.name).tag(farm.name)
+                        HStack {
+                            Text("Existing Farms")
+                            Spacer()
+                            Button("Add New") {
+                                selectedFarmOption = "__new__"
+                                autosteerSaveFarm = ""
                             }
+                            .buttonStyle(.bordered)
                         }
-                        .onChange(of: selectedFarmOption) { _, value in
-                            if value != "__new__" {
-                                autosteerSaveFarm = value
-                                selectedPaddockOption = "__new__"
+
+                        if knownFarms.isEmpty {
+                            Text("No farms yet.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(knownFarms, id: \.id) { farm in
+                                        selectablePillButton(
+                                            title: farm.name,
+                                            isSelected: selectedFarmOption.caseInsensitiveCompare(farm.name) == .orderedSame
+                                        ) {
+                                            selectedFarmOption = farm.name
+                                            autosteerSaveFarm = farm.name
+                                            selectedPaddockOption = "__new__"
+                                            autosteerSavePaddock = ""
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -2390,15 +2412,33 @@ struct MapMainView: View {
                     }
 
                     Section("Paddock") {
-                        Picker("Existing Paddocks", selection: $selectedPaddockOption) {
-                            Text("Add New").tag("__new__")
-                            ForEach(existingPaddocksForSelectedFarm, id: \.self) { paddock in
-                                Text(paddock).tag(paddock)
+                        HStack {
+                            Text("Existing Paddocks")
+                            Spacer()
+                            Button("Add New") {
+                                selectedPaddockOption = "__new__"
+                                autosteerSavePaddock = ""
                             }
+                            .buttonStyle(.bordered)
                         }
-                        .onChange(of: selectedPaddockOption) { _, value in
-                            if value != "__new__" {
-                                autosteerSavePaddock = value
+
+                        if existingPaddocksForSelectedFarm.isEmpty {
+                            Text("No paddocks for selected farm.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(existingPaddocksForSelectedFarm, id: \.self) { paddock in
+                                        selectablePillButton(
+                                            title: paddock,
+                                            isSelected: selectedPaddockOption.caseInsensitiveCompare(paddock) == .orderedSame
+                                        ) {
+                                            selectedPaddockOption = paddock
+                                            autosteerSavePaddock = paddock
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -2406,7 +2446,23 @@ struct MapMainView: View {
                     }
 
                     Section("Track") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(trackQuickPickOptions, id: \.self) { option in
+                                    selectablePillButton(title: option, isSelected: selectedTrackQuickPick == option) {
+                                        selectedTrackQuickPick = option
+                                        autosteerSaveTrackName = option
+                                    }
+                                }
+                            }
+                        }
                         TextField("Track Name", text: $autosteerSaveTrackName)
+                            .onChange(of: autosteerSaveTrackName) { _, value in
+                                let match = trackQuickPickOptions.first {
+                                    $0.caseInsensitiveCompare(value.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+                                }
+                                selectedTrackQuickPick = match
+                            }
                     }
                 }
                 .navigationTitle("Save Track")
@@ -2487,6 +2543,22 @@ struct MapMainView: View {
         .accessibilityValue("Off guidance by \(stepCount) steps")
     }
 
+    @ViewBuilder
+    private func selectablePillButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(isSelected ? Color.blue : Color.secondary.opacity(0.16))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func lightbarColor(for index: Int, errorMeters: Double, stepMeters: Double) -> Color {
         let absError = abs(errorMeters)
         if index == 0 {
@@ -2546,6 +2618,7 @@ struct MapMainView: View {
         refreshKnownFarms()
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
+        selectedTrackQuickPick = nil
         showAutosteerTrackSaveSheet = true
     }
 
@@ -2563,6 +2636,7 @@ struct MapMainView: View {
         autosteerSaveTrackName = ""
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
+        selectedTrackQuickPick = nil
     }
 
     private func beginAutosteerSetup(mode: String) {
