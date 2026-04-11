@@ -104,11 +104,12 @@ final class WeatherPillStore: ObservableObject {
     }
 
     private func formattedTemperature(_ celsius: Double) -> String {
-        "\(Int(celsius.rounded()))°"
+        UnitFormatting.formattedTemperature(celsius)
     }
 
     private func formattedWindSpeed(_ kmh: Double) -> String {
-        "\(Int(kmh.rounded())) km/h"
+        let metersPerSecond = kmh / 3.6
+        return UnitFormatting.formattedSpeed(fromMetersPerSecond: metersPerSecond, decimals: 0)
     }
 
     private func sanitizedSymbolName(_ symbolName: String) -> String {

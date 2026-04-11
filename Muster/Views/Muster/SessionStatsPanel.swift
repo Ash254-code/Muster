@@ -46,9 +46,7 @@ struct SessionStats: Equatable {
 
     var distanceText: String {
         guard distanceMeters > 0 else { return "—" }
-        let km = distanceMeters / 1000.0
-        if km < 10 { return String(format: "%.2f km", km) }
-        return String(format: "%.1f km", km)
+        return UnitFormatting.formattedDistance(distanceMeters, decimalsIfLarge: 2)
     }
 
     var durationText: String {
@@ -62,8 +60,8 @@ struct SessionStats: Equatable {
 
     var avgSpeedText: String {
         guard durationSeconds > 0, distanceMeters > 0 else { return "—" }
-        let kmh = (distanceMeters / 1000.0) / (durationSeconds / 3600.0)
-        return String(format: "%.1f km/h", kmh)
+        let mps = distanceMeters / durationSeconds
+        return UnitFormatting.formattedSpeed(fromMetersPerSecond: mps, decimals: 1)
     }
 
     var markersText: String { "\(markersCount)" }
