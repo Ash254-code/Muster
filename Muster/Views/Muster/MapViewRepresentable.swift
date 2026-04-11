@@ -1089,10 +1089,16 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
             if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
-                if guidanceBackgroundOverlay == nil {
-                    let overlay = GuidanceBackgroundTileOverlay()
+                let style = map.traitCollection.userInterfaceStyle
+
+                if guidanceBackgroundOverlay == nil || guidanceBackgroundStyle != style {
+                    if let existing = guidanceBackgroundOverlay {
+                        map.removeOverlay(existing)
+                    }
+
+                    let overlay = GuidanceBackgroundTileOverlay(style: style)
                     guidanceBackgroundOverlay = overlay
-                    guidanceBackgroundStyle = desiredStyle
+                    guidanceBackgroundStyle = style
                     map.addOverlay(overlay, level: .aboveRoads)
                 }
             } else if let guidanceBackgroundOverlay {
@@ -1101,7 +1107,6 @@ struct MapViewRepresentable: UIViewRepresentable {
                 guidanceBackgroundStyle = nil
             }
         }
-
         private func applyDrivingCameraIfPossible() {
             guard let map = observedMap, let displayedCenter else { return }
 
