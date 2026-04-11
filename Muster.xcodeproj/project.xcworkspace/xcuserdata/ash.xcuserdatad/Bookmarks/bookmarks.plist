@@ -36,11 +36,14 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
-}
+				<string>        private func breadcrumbSpeeds(points: [TrackPoint]) -&gt; [Double] {
+            guard points.count &gt; 1 else { return [] }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>            var values: [Double] = []
+            values.reserveCapacity(points.count - 1)
+
+</string>
 			</dict>
 			<key>title</key>
 			<string>Change track nad boundary appearance</string>
@@ -79,11 +82,14 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
-}
+				<string>        private func breadcrumbSpeeds(points: [TrackPoint]) -&gt; [Double] {
+            guard points.count &gt; 1 else { return [] }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>            var values: [Double] = []
+            values.reserveCapacity(points.count - 1)
+
+</string>
 			</dict>
 			<key>title</key>
 			<string>imported waypoint icon</string>
@@ -122,11 +128,14 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
-}
+				<string>        private func breadcrumbSpeeds(points: [TrackPoint]) -&gt; [Double] {
+            guard points.count &gt; 1 else { return [] }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>            var values: [Double] = []
+            values.reserveCapacity(points.count - 1)
+
+</string>
 			</dict>
 			<key>title</key>
 			<string>Orange dotted go to line</string>
@@ -165,11 +174,14 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
-}
+				<string>        private func breadcrumbSpeeds(points: [TrackPoint]) -&gt; [Double] {
+            guard points.count &gt; 1 else { return [] }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>            var values: [Double] = []
+            values.reserveCapacity(points.count - 1)
+
+</string>
 			</dict>
 			<key>title</key>
 			<string>Rings</string>

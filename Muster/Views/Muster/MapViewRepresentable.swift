@@ -2057,11 +2057,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             userLocation: CLLocation?
         ) {
             let normalizedSpacing = max(1, spacingMeters)
-            let lineRange = visibleAutosteerLineRange(
-                map: map,
-                spacingMeters: normalizedSpacing,
-                lockedLineIndex: lockedLineIndex
-            )
+            let userCoordinate = userLocation?.coordinate
             let signatureCoordinates = previewCoordinates.map { values in
                 guard values.count >= 2 else { return "0,0" }
                 return "\(values[0]),\(values[1])"
@@ -2075,10 +2071,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             ].map { String($0) }.joined(separator: ",")
             let effectiveLockedIndex = lockedLineIndex
                 ?? nearestLineIndex(
-                    to: userLocation?.coordinate ?? map.centerCoordinate,
+                    to: userCoordinate ?? map.centerCoordinate,
                     previewCoordinates: previewCoordinates,
                     spacingMeters: normalizedSpacing
                 )
+            let lockedLineChanged = autosteerLockedLineIndex != effectiveLockedIndex
             autosteerLockedLineIndex = effectiveLockedIndex
             let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())|\(rectSignature)|\(effectiveLockedIndex ?? 0)"
             // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
@@ -2164,7 +2161,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         private func referenceGuidanceLineEndpoints(
             from previewCoordinates: [[Double]],
-            userCoordinate: CLLocationCoordinate2D
+            userCoordinate: CLLocationCoordinate2D? = nil
         ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
             let validCoordinates: [CLLocationCoordinate2D] = previewCoordinates.compactMap { pair in
                 guard pair.count >= 2 else { return nil }
@@ -2174,45 +2171,44 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             guard validCoordinates.count >= 2 else { return nil }
 
-            let earthRadiusM = 6_378_137.0
-            let latitudeRadians = userCoordinate.latitude * .pi / 180
-            let metersPerDegreeLat = earthRadiusM * .pi / 180
-            let metersPerDegreeLon = metersPerDegreeLat * cos(latitudeRadians)
-
-            func localPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint {
-                CGPoint(
-                    x: (coordinate.longitude - userCoordinate.longitude) * metersPerDegreeLon,
-                    y: (coordinate.latitude - userCoordinate.latitude) * metersPerDegreeLat
-                )
+            let first: CLLocationCoordinate2D
+            if let userCoordinate {
+                first = validCoordinates.min(by: { lhs, rhs in
+                    CLLocation(latitude: lhs.latitude, longitude: lhs.longitude).distance(
+                        from: CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
+                    ) < CLLocation(latitude: rhs.latitude, longitude: rhs.longitude).distance(
+                        from: CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
+                    )
+                }) ?? validCoordinates[0]
+            } else {
+                first = validCoordinates[0]
             }
 
-            var bestSegment: (CLLocationCoordinate2D, CLLocationCoordinate2D)?
-            var bestDistance = Double.greatestFiniteMagnitude
+            let last = validCoordinates[validCoordinates.count - 1]
+            if CLLocation(latitude: first.latitude, longitude: first.longitude)
+                .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude)) > 0.5 {
+                return (first, last)
+            }
 
-            for index in 0..<(validCoordinates.count - 1) {
-                let start = validCoordinates[index]
-                let end = validCoordinates[index + 1]
-                let segmentLength = CLLocation(latitude: start.latitude, longitude: start.longitude)
-                    .distance(from: CLLocation(latitude: end.latitude, longitude: end.longitude))
-                guard segmentLength > 0.5 else { continue }
+            if let fallback = validCoordinates.dropFirst().first(where: { candidate in
+                CLLocation(latitude: first.latitude, longitude: first.longitude)
+                    .distance(from: CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)) > 0.5
+            }) {
+                return (first, fallback)
+            }
 
-                let a = localPoint(start)
-                let b = localPoint(end)
-                let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
-                let lengthSquared = (ab.x * ab.x) + (ab.y * ab.y)
-                guard lengthSquared > 0 else { continue }
+            return nil
+        }
 
-                let t = min(1, max(0, -((a.x * ab.x) + (a.y * ab.y)) / lengthSquared))
-                let closestPoint = CGPoint(x: a.x + (ab.x * t), y: a.y + (ab.y * t))
-                let distanceToSegment = hypot(closestPoint.x, closestPoint.y)
-
-                if distanceToSegment < bestDistance {
-                    bestDistance = distanceToSegment
-                    bestSegment = (start, end)
+        private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {
+            for overlay in autosteerGuidancePolylines {
+                if let renderer = map.renderer(for: overlay) as? MKPolylineRenderer,
+                   let guidanceLine = overlay as? AutosteerGuidancePolyline {
+                    renderer.strokeColor = guidanceLine.offsetIndex == autosteerLockedLineIndex
+                        ? UIColor.systemTeal
+                        : UIColor.systemTeal.withAlphaComponent(0.45)
                 }
             }
-
-            return bestSegment
         }
 
         private func buildAutosteerGuidanceLines(
