@@ -2222,11 +2222,11 @@ struct MapMainView: View {
             ZStack {
                 Circle()
                     .fill(.black.opacity(1.0))
-                    .frame(width: 64, height: 64)
+                    .frame(width: 72, height: 72)
 
                 Circle()
                     .stroke(.white.opacity(0.18), lineWidth: 8)
-                    .frame(width: 58, height: 58)
+                    .frame(width: 66, height: 66)
 
                 Circle()
                     .trim(from: 0, to: fraction)
@@ -2235,14 +2235,14 @@ struct MapMainView: View {
                         style: StrokeStyle(lineWidth: 8, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: 58, height: 58)
+                    .frame(width: 66, height: 66)
 
                 VStack(spacing: 0) {
                     Text(autosteerActive ? "ON" : "GO")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundStyle(autosteerActive ? .green : .white)
                     Text("\(autosteerReadinessCount)/4")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.72))
                 }
             }
