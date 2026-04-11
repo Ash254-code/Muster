@@ -84,6 +84,7 @@ struct ImportExportView: View {
 
     @State private var pendingImports: [PendingImportedFile] = []
     @State private var currentPendingImport: PendingImportedFile? = nil
+    @State private var showAddCustomImportCategorySheet = false
 
     @State private var importResultImportedCount: Int = 0
     @State private var importResultFailedFiles: [String] = []
@@ -408,9 +409,36 @@ struct ImportExportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel Import") {
+                    Button("Cancel") {
                         cancelCurrentImportSelection()
                     }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddCustomImportCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add category")
+                    .disabled(currentPendingImport?.allowedCategories.contains(.other) != true)
+                }
+            }
+            .sheet(isPresented: $showAddCustomImportCategorySheet) {
+                NavigationStack {
+                    NewCustomImportCategoryView { category in
+                        guard let pending = currentPendingImport,
+                              pending.allowedCategories.contains(.other)
+                        else { return }
+
+                        applyImportCategory(
+                            ImportCategorySelectionOption(
+                                baseCategory: .other,
+                                customCategory: category
+                            )
+                        )
+                    }
+                    .environmentObject(app)
                 }
             }
         }
