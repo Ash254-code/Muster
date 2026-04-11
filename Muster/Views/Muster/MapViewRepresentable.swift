@@ -261,7 +261,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 
     private func applyMapStyle(_ map: MKMapView) {
-        if guidanceNoMapEnabled {
+        if guidanceNoMapEnabled || mapStyleRaw == "blank" {
             map.mapType = .standard
             return
         }
@@ -1080,7 +1080,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
 
         private func maximumAllowedDistance() -> CLLocationDistance {
-            parent.guidanceNoMapEnabled ? 2_000 : 20_000_000
+            (parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank") ? 2_000 : 20_000_000
         }
 
         private func clampedDistance(_ distance: CLLocationDistance) -> CLLocationDistance {
@@ -1088,14 +1088,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
-            if parent.guidanceNoMapEnabled {
-                let desiredStyle: UIUserInterfaceStyle = map.traitCollection.userInterfaceStyle == .dark ? .dark : .light
-                let needsOverlayRefresh = guidanceBackgroundOverlay == nil || guidanceBackgroundStyle != desiredStyle
-                if needsOverlayRefresh {
-                    if let existing = guidanceBackgroundOverlay {
-                        map.removeOverlay(existing)
-                    }
-                    let overlay = GuidanceBackgroundTileOverlay(style: desiredStyle)
+            if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
+                if guidanceBackgroundOverlay == nil {
+                    let overlay = GuidanceBackgroundTileOverlay()
                     guidanceBackgroundOverlay = overlay
                     guidanceBackgroundStyle = desiredStyle
                     map.addOverlay(overlay, level: .aboveRoads)
@@ -1160,6 +1155,11 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func currentPreservedDistance(from map: MKMapView) -> CLLocationDistance {
             let mapDistance = clampedDistance(map.camera.centerCoordinateDistance)
             let storedDistance = clampedDistance(lastKnownCameraDistance)
+            let blankDefaultDistance: CLLocationDistance = 120
+
+            if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
+                return min(blankDefaultDistance, storedDistance, mapDistance)
+            }
 
             if abs(storedDistance - mapDistance) > 1 {
                 return storedDistance

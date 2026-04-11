@@ -44,7 +44,6 @@ private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
 private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
-private let kAutosteerGuidanceNoMapKey = "autosteer_guidance_no_map" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
@@ -136,6 +135,7 @@ struct MapMainView: View {
         case driving
         case hybrid
         case satellite
+        case blank
         
         var id: String { rawValue }
         
@@ -145,6 +145,7 @@ struct MapMainView: View {
             case .driving: return "Driving"
             case .hybrid: return "Hybrid"
             case .satellite: return "Satellite"
+            case .blank: return "Blank"
             }
         }
         
@@ -154,6 +155,7 @@ struct MapMainView: View {
             case .driving: return "Road focus"
             case .hybrid: return "Roads + imagery"
             case .satellite: return "Aerial imagery"
+            case .blank: return "No base map"
             }
         }
         
@@ -163,6 +165,7 @@ struct MapMainView: View {
             case .driving: return "plain"
             case .hybrid: return "hybrid"
             case .satellite: return "satellite"
+            case .blank: return "blank"
             }
         }
         
@@ -172,6 +175,7 @@ struct MapMainView: View {
             case .driving: return "car.fill"
             case .hybrid: return "square.3.layers.3d.top.filled"
             case .satellite: return "globe.americas.fill"
+            case .blank: return "square.slash"
             }
         }
         
@@ -181,6 +185,7 @@ struct MapMainView: View {
             case .driving: return .green
             case .hybrid: return .orange
             case .satellite: return .purple
+            case .blank: return .gray
             }
         }
         
@@ -190,6 +195,8 @@ struct MapMainView: View {
                 return true
             case .satellite:
                 return false
+            case .blank:
+                return true
             }
         }
     }
@@ -218,6 +225,7 @@ struct MapMainView: View {
     @State private var showImportFilterSheet = false
     @State private var showImportFlow = false
     @State private var showMapSetsSheet = false
+    @State private var mapStyleBeforeAutosteerLock: String = "standard"
     @State private var startMapSetCreationFlowOnOpen = false
     @State private var showMissingMapSetPrompt = false
     @State private var pendingTrackName = ""
@@ -304,7 +312,6 @@ struct MapMainView: View {
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
-    @AppStorage(kAutosteerGuidanceNoMapKey) private var autosteerGuidanceNoMap: Bool = true
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
     @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
     
@@ -414,7 +421,7 @@ struct MapMainView: View {
     }
     
     private var shouldShowGuidanceOnlyViewport: Bool {
-        autosteerEnabled && autosteerGuidanceNoMap
+        autosteerEnabled
     }
     
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
@@ -860,6 +867,8 @@ struct MapMainView: View {
             return .hybrid
         case "satellite":
             return .satellite
+        case "blank":
+            return .blank
         default:
             return .explore
         }
@@ -929,8 +938,19 @@ struct MapMainView: View {
                 resetAutosteerGuidanceFilter()
             }
             .onChange(of: autosteerEnabled) { _, isEnabled in
-                if !isEnabled {
+                if isEnabled {
+                    if mapStyleRaw != "blank" {
+                        mapStyleBeforeAutosteerLock = mapStyleRaw
+                    }
+                    mapStyleRaw = "blank"
+                    orientationRaw = "headsUp"
+                    headsUpPitchDegrees = 80
+                    postExactZoomRequest(120)
+                } else {
                     autosteerActive = false
+                    if mapStyleRaw == "blank", mapStyleBeforeAutosteerLock != "blank" {
+                        mapStyleRaw = mapStyleBeforeAutosteerLock
+                    }
                 }
             }
             .onChange(of: mapCenterChangeToken) { _, _ in
@@ -2954,9 +2974,10 @@ struct MapMainView: View {
     private var mapLayerSheet: some View {
         GeometryReader { proxy in
             let outerPadding: CGFloat = 18
-            let interItemSpacing: CGFloat = 12
-            let availableWidth = proxy.size.width - (outerPadding * 2) - interItemSpacing
-            let cardWidth = floor(availableWidth / 2)
+            let interItemSpacing: CGFloat = 10
+            let columns = 3
+            let availableWidth = proxy.size.width - (outerPadding * 2) - (interItemSpacing * CGFloat(columns - 1))
+            let cardWidth = floor(availableWidth / CGFloat(columns))
 
             VStack(spacing: 0) {
                 HStack {
@@ -2989,14 +3010,16 @@ struct MapMainView: View {
                     .padding(.bottom, 20)
 
                 VStack(spacing: 14) {
-                    HStack(spacing: interItemSpacing) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.fixed(cardWidth), spacing: interItemSpacing), count: columns),
+                        spacing: 12
+                    ) {
                         mapModeCard(.explore, width: cardWidth)
                         mapModeCard(.driving, width: cardWidth)
-                    }
-
-                    HStack(spacing: interItemSpacing) {
                         mapModeCard(.hybrid, width: cardWidth)
                         mapModeCard(.satellite, width: cardWidth)
+                        mapModeCard(.blank, width: cardWidth)
+                        mapModePlaceholderCard(width: cardWidth)
                     }
                 }
                 .padding(.horizontal, outerPadding)
@@ -3018,17 +3041,21 @@ struct MapMainView: View {
                 .padding(.bottom, 30)
 
                 if autosteerEnabled {
-                    Toggle(isOn: $autosteerGuidanceNoMap) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 13, weight: .bold))
+                            .padding(.top, 1)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Guidance mode hides map")
+                            Text("Autosteer lock active")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundStyle(chromePrimaryText)
-                            Text("When Autosteer is ON, show a plain low-latency background.")
+                            Text("Map layer is locked to Blank with 80° camera for guidance.")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(chromeSecondaryText)
                         }
+                        Spacer(minLength: 0)
                     }
-                    .tint(.green)
                     .padding(.horizontal, outerPadding)
                     .padding(.bottom, 14)
                 }
@@ -3051,26 +3078,28 @@ struct MapMainView: View {
 
     private func mapModeCard(_ option: MapModeOption, width: CGFloat) -> some View {
         let isSelected = selectedMapModeOption == option
-        let previewWidth = max(90, width - 10)
+        let previewWidth = max(70, width - 8)
+        let isLockedByAutosteer = autosteerEnabled && option != .blank
 
         return Button {
+            guard !isLockedByAutosteer else { return }
             mapStyleRaw = option.storedValue
         } label: {
             VStack(spacing: 10) {
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .fill(.white.opacity(option.isDarkPreview ? 0.05 : 0.08))
-                        .frame(width: width, height: width * 0.86)
+                        .frame(width: width, height: width * 0.82)
 
                     previewThumbnail(for: option)
-                        .frame(width: previewWidth, height: width * 0.86 - 10)
+                        .frame(width: previewWidth, height: width * 0.82 - 10)
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                     HStack(spacing: 6) {
                         Image(systemName: option.systemImage)
                             .font(.system(size: 12, weight: .bold))
                         Text(option.title)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                     }
                     .foregroundStyle(chromePrimaryText)
                     .padding(.horizontal, 10)
@@ -3084,7 +3113,7 @@ struct MapMainView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(
-                            isSelected ? option.tint : chromeStroke,
+                            isLockedByAutosteer ? chromeSecondaryText : (isSelected ? option.tint : chromeStroke),
                             lineWidth: isSelected ? 3 : 1
                         )
                 )
@@ -3096,19 +3125,48 @@ struct MapMainView: View {
 
                 VStack(spacing: 3) {
                     Text(option.title)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
 
                     Text(option.subtitle)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.62))
                         .lineLimit(1)
                 }
                 .frame(width: width)
             }
             .frame(maxWidth: .infinity)
+            .opacity(isLockedByAutosteer ? 0.5 : 1)
         }
         .buttonStyle(.plain)
+    }
+
+    private func mapModePlaceholderCard(width: CGFloat) -> some View {
+        VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.white.opacity(0.05))
+                .frame(width: width, height: width * 0.82)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(chromeStroke, style: StrokeStyle(lineWidth: 1, dash: [6, 5]))
+                )
+
+            VStack(spacing: 3) {
+                Text("Coming Soon")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("No action yet")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+            .frame(width: width)
+        }
+        .frame(maxWidth: .infinity)
     }
    
 
@@ -3251,6 +3309,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .fill(Color.white.opacity(0.28))
                 .frame(width: 90, height: 6)
                 .rotationEffect(.degrees(-24))
+        }
+    case .blank:
+        ZStack {
+            Color.white
+            Image(systemName: "square.slash")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(Color.black.opacity(0.35))
         }
     }
 }
@@ -4622,6 +4687,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             name: .musterQuickZoomRequested,
             object: nil,
             userInfo: ["meters": value]
+        )
+    }
+
+    private func postExactZoomRequest(_ meters: Double) {
+        NotificationCenter.default.post(
+            name: .musterQuickZoomRequested,
+            object: nil,
+            userInfo: ["meters": meters]
         )
     }
 
