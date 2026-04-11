@@ -75,6 +75,7 @@ struct SessionDetailView: View {
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
             autosteerTrackPreviewCoordinates: [],
             autosteerTrackSpacingMeters: 36,
+            autosteerLockedLineIndex: nil,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),
             recenterNonce: $recenterNonce,
