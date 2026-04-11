@@ -2171,12 +2171,18 @@ struct MapViewRepresentable: UIViewRepresentable {
             guidanceLine: AutosteerGuidancePolyline,
             strokeScale: CGFloat
         ) {
-            if guidanceLine.offsetIndex == autosteerLockedLineIndex {
-                renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.95)
+            let isLockedLine = guidanceLine.offsetIndex == autosteerLockedLineIndex
+            if parent.guidanceNoMapEnabled {
+                renderer.strokeColor = isLockedLine
+                    ? UIColor.systemRed.withAlphaComponent(0.98)
+                    : UIColor.black.withAlphaComponent(0.68)
+                renderer.lineWidth = (isLockedLine ? 3.5 : 2.5) * strokeScale
             } else {
-                renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+                renderer.strokeColor = isLockedLine
+                    ? UIColor.systemRed.withAlphaComponent(0.95)
+                    : UIColor.white.withAlphaComponent(0.95)
+                renderer.lineWidth = 2 * strokeScale
             }
-            renderer.lineWidth = 2 * strokeScale
             renderer.lineCap = .round
             renderer.lineJoin = .round
         }
@@ -2223,13 +2229,17 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {
+            let strokeScale = overlayStrokeScale(for: map)
             for overlay in autosteerGuidancePolylines {
-                if let renderer = map.renderer(for: overlay) as? MKPolylineRenderer,
-                   let guidanceLine = overlay as? AutosteerGuidancePolyline {
-                    renderer.strokeColor = guidanceLine.offsetIndex == autosteerLockedLineIndex
-                        ? UIColor.systemTeal
-                        : UIColor.systemTeal.withAlphaComponent(0.45)
+                guard let renderer = map.renderer(for: overlay) as? MKPolylineRenderer,
+                      let guidanceLine = overlay as? AutosteerGuidancePolyline else {
+                    continue
                 }
+                applyAutosteerGuidanceStyle(
+                    to: renderer,
+                    guidanceLine: guidanceLine,
+                    strokeScale: strokeScale
+                )
             }
         }
 
