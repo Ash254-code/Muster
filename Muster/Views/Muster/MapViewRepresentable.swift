@@ -2055,7 +2055,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                 return "\(values[0]),\(values[1])"
             }.joined(separator: "|")
             let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())"
-            guard signature != autosteerGuidanceSignature else { return }
+            // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
+            // force a re-add even when the computed signature has not changed.
+            guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else { return }
             autosteerGuidanceSignature = signature
 
             if autosteerGuidancePolylines.isEmpty == false {
