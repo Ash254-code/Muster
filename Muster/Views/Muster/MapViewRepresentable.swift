@@ -2065,16 +2065,39 @@ struct MapViewRepresentable: UIViewRepresentable {
                 autosteerGuidancePolylines.removeAll()
             }
 
-            guard previewCoordinates.count >= 2,
-                  previewCoordinates[0].count >= 2,
-                  previewCoordinates[1].count >= 2 else { return }
-            let a = CLLocationCoordinate2D(latitude: previewCoordinates[0][0], longitude: previewCoordinates[0][1])
-            let b = CLLocationCoordinate2D(latitude: previewCoordinates[1][0], longitude: previewCoordinates[1][1])
-            guard CLLocationCoordinate2DIsValid(a), CLLocationCoordinate2DIsValid(b) else { return }
+            guard let (a, b) = referenceGuidanceLineEndpoints(from: previewCoordinates) else { return }
 
             let lines = buildAutosteerGuidanceLines(pointA: a, pointB: b, spacingMeters: normalizedSpacing)
             autosteerGuidancePolylines = lines
             map.addOverlays(lines, level: .aboveRoads)
+        }
+
+        private func referenceGuidanceLineEndpoints(
+            from previewCoordinates: [[Double]]
+        ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
+            let validCoordinates: [CLLocationCoordinate2D] = previewCoordinates.compactMap { pair in
+                guard pair.count >= 2 else { return nil }
+                let coordinate = CLLocationCoordinate2D(latitude: pair[0], longitude: pair[1])
+                return CLLocationCoordinate2DIsValid(coordinate) ? coordinate : nil
+            }
+
+            guard validCoordinates.count >= 2 else { return nil }
+
+            let first = validCoordinates[0]
+            let last = validCoordinates[validCoordinates.count - 1]
+            if CLLocation(latitude: first.latitude, longitude: first.longitude)
+                .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude)) > 0.5 {
+                return (first, last)
+            }
+
+            if let fallback = validCoordinates.dropFirst().first(where: { candidate in
+                CLLocation(latitude: first.latitude, longitude: first.longitude)
+                    .distance(from: CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)) > 0.5
+            }) {
+                return (first, fallback)
+            }
+
+            return nil
         }
 
         private func buildAutosteerGuidanceLines(
