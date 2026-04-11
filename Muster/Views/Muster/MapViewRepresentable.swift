@@ -2460,19 +2460,12 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                if polyline is AutosteerGuidancePolyline {
-                    if let guidanceLine = polyline as? AutosteerGuidancePolyline {
-                        applyAutosteerGuidanceStyle(
-                            to: renderer,
-                            guidanceLine: guidanceLine,
-                            strokeScale: strokeScale
-                        )
-                    } else {
-                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
-                        renderer.lineWidth = 2 * strokeScale
-                        renderer.lineCap = .round
-                        renderer.lineJoin = .round
-                    }
+                if let guidanceLine = polyline as? AutosteerGuidancePolyline {
+                    applyAutosteerGuidanceStyle(
+                        to: renderer,
+                        guidanceLine: guidanceLine,
+                        strokeScale: strokeScale
+                    )
                 } else if polyline === temporaryABLine {
                     renderer.strokeColor = UIColor.systemGreen
                     renderer.lineWidth = 4 * strokeScale

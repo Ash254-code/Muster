@@ -79,6 +79,7 @@ struct SessionDetailView: View {
             autosteerUserCoordinate: location.lastLocation?.coordinate,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),
+            guidanceNoMapEnabled: false,
             recenterNonce: $recenterNonce,
             fitRadiosNonce: $fitRadiosNonce,
             metersPerPoint: $metersPerPoint,
