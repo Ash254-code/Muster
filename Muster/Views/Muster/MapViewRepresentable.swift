@@ -231,7 +231,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: map,
             previewCoordinates: autosteerTrackPreviewCoordinates,
             spacingMeters: autosteerTrackSpacingMeters,
-            lockedLineIndex: autosteerLockedLineIndex
+            lockedLineIndex: autosteerLockedLineIndex,
+            userLocation: userLocation
         )
         context.coordinator.updateDestinationLine(
             map: map,
@@ -2051,19 +2052,33 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: MKMapView,
             previewCoordinates: [[Double]],
             spacingMeters: Double,
-            lockedLineIndex: Int?
+            lockedLineIndex: Int?,
+            userLocation: CLLocation?
         ) {
             let normalizedSpacing = max(1, spacingMeters)
             let signatureCoordinates = previewCoordinates.map { values in
                 guard values.count >= 2 else { return "0,0" }
                 return "\(values[0]),\(values[1])"
             }.joined(separator: "|")
-            let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())"
+            let mapRect = map.visibleMapRect
+            let rectSignature = [
+                mapRect.origin.x.rounded(),
+                mapRect.origin.y.rounded(),
+                mapRect.size.width.rounded(),
+                mapRect.size.height.rounded()
+            ].map { String($0) }.joined(separator: ",")
+            let effectiveLockedIndex = lockedLineIndex
+                ?? nearestLineIndex(
+                    to: userLocation?.coordinate ?? map.centerCoordinate,
+                    previewCoordinates: previewCoordinates,
+                    spacingMeters: normalizedSpacing
+                )
+            autosteerLockedLineIndex = effectiveLockedIndex
+            let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())|\(rectSignature)|\(effectiveLockedIndex ?? 0)"
             // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
             // force a re-add even when the computed signature has not changed.
             guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else { return }
             autosteerGuidanceSignature = signature
-            autosteerLockedLineIndex = lockedLineIndex
 
             if autosteerGuidancePolylines.isEmpty == false {
                 map.removeOverlays(autosteerGuidancePolylines)
@@ -2072,7 +2087,13 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             guard let (a, b) = referenceGuidanceLineEndpoints(from: previewCoordinates) else { return }
 
-            let lines = buildAutosteerGuidanceLines(pointA: a, pointB: b, spacingMeters: normalizedSpacing)
+            let lines = buildAutosteerGuidanceLines(
+                pointA: a,
+                pointB: b,
+                spacingMeters: normalizedSpacing,
+                visibleRect: mapRect,
+                centeredAround: effectiveLockedIndex ?? 0
+            )
             autosteerGuidancePolylines = lines
             map.addOverlays(lines, level: .aboveRoads)
         }
@@ -2108,7 +2129,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func buildAutosteerGuidanceLines(
             pointA: CLLocationCoordinate2D,
             pointB: CLLocationCoordinate2D,
-            spacingMeters: Double
+            spacingMeters: Double,
+            visibleRect: MKMapRect,
+            centeredAround nearestIndex: Int
         ) -> [AutosteerGuidancePolyline] {
             let earthRadius = 6_378_137.0
             let midLat = ((pointA.latitude + pointB.latitude) / 2.0) * .pi / 180
@@ -2121,27 +2144,119 @@ struct MapViewRepresentable: UIViewRepresentable {
             let uy = dy / length
             let nx = -uy
             let ny = ux
-            let extensionMeters = 2_000_000.0
+            let clipPaddingMeters = max(200, min(2_000, spacingMeters * 8))
+            let visibleIndices = visibleLineIndices(around: nearestIndex)
 
-            return stride(from: -20, through: 20, by: 1).compactMap { offset in
-                let shift = Double(offset) * spacingMeters
-                let shiftedAx = shift * nx
-                let shiftedAy = shift * ny
-                let startX = shiftedAx - (ux * extensionMeters)
-                let startY = shiftedAy - (uy * extensionMeters)
-                let endX = shiftedAx + (ux * extensionMeters)
-                let endY = shiftedAy + (uy * extensionMeters)
+            return visibleIndices.compactMap { lineIndex in
+                guard let segment = segmentForLine(
+                    index: lineIndex,
+                    within: visibleRect,
+                    anchor: pointA,
+                    lineUnit: (ux, uy),
+                    normalUnit: (nx, ny),
+                    spacingMeters: spacingMeters,
+                    paddingMeters: clipPaddingMeters
+                ) else { return nil }
 
-                guard let start = offsetCoordinate(from: pointA, eastMeters: startX, northMeters: startY),
-                      let end = offsetCoordinate(from: pointA, eastMeters: endX, northMeters: endY) else {
-                    return nil
-                }
-
-                var coords = [start, end]
+                var coords = [segment.start, segment.end]
                 let polyline = AutosteerGuidancePolyline(coordinates: &coords, count: coords.count)
-                polyline.offsetIndex = offset
+                polyline.offsetIndex = lineIndex
                 return polyline
             }
+        }
+
+        private func nearestLineIndex(
+            to coordinate: CLLocationCoordinate2D,
+            previewCoordinates: [[Double]],
+            spacingMeters: Double
+        ) -> Int? {
+            guard spacingMeters > 0,
+                  let (pointA, pointB) = referenceGuidanceLineEndpoints(from: previewCoordinates) else {
+                return nil
+            }
+
+            let earthRadius = 6_378_137.0
+            let midLat = ((pointA.latitude + coordinate.latitude) / 2.0) * .pi / 180
+            let uxMeters = (pointB.longitude - pointA.longitude) * .pi / 180 * earthRadius * cos(midLat)
+            let uyMeters = (pointB.latitude - pointA.latitude) * .pi / 180 * earthRadius
+            let length = hypot(uxMeters, uyMeters)
+            guard length > 0.5 else { return nil }
+
+            let unitX = uxMeters / length
+            let unitY = uyMeters / length
+            let normalX = -unitY
+            let normalY = unitX
+
+            let pointX = (coordinate.longitude - pointA.longitude) * .pi / 180 * earthRadius * cos(midLat)
+            let pointY = (coordinate.latitude - pointA.latitude) * .pi / 180 * earthRadius
+            let signedOffsetMeters = (pointX * normalX) + (pointY * normalY)
+            return Int((signedOffsetMeters / spacingMeters).rounded())
+        }
+
+        private func visibleLineIndices(around nearestIndex: Int, halfWindow: Int = 8) -> [Int] {
+            guard halfWindow > 0 else { return [nearestIndex] }
+            return Array((nearestIndex - halfWindow)...(nearestIndex + halfWindow))
+        }
+
+        private func segmentForLine(
+            index: Int,
+            within visibleRect: MKMapRect,
+            anchor: CLLocationCoordinate2D,
+            lineUnit: (Double, Double),
+            normalUnit: (Double, Double),
+            spacingMeters: Double,
+            paddingMeters: Double
+        ) -> (start: CLLocationCoordinate2D, end: CLLocationCoordinate2D)? {
+            let mapPointsPerMeter = MKMapPointsPerMeterAtLatitude(anchor.latitude)
+            let expandedRect = visibleRect.insetBy(
+                dx: -(paddingMeters * mapPointsPerMeter),
+                dy: -(paddingMeters * mapPointsPerMeter)
+            )
+
+            let corners = [
+                MKMapPoint(x: expandedRect.minX, y: expandedRect.minY),
+                MKMapPoint(x: expandedRect.maxX, y: expandedRect.minY),
+                MKMapPoint(x: expandedRect.maxX, y: expandedRect.maxY),
+                MKMapPoint(x: expandedRect.minX, y: expandedRect.maxY)
+            ]
+
+            let anchorPoint = MKMapPoint(anchor)
+            let anchorCoordinate = anchorPoint.coordinate
+            let earthRadius = 6_378_137.0
+            let latRad = anchorCoordinate.latitude * .pi / 180
+
+            let toLocalMeters: (MKMapPoint) -> (Double, Double) = { point in
+                let coordinate = point.coordinate
+                let east = (coordinate.longitude - anchorCoordinate.longitude) * .pi / 180 * earthRadius * cos(latRad)
+                let north = (coordinate.latitude - anchorCoordinate.latitude) * .pi / 180 * earthRadius
+                return (east, north)
+            }
+
+            let projected = corners.map(toLocalMeters)
+            let shift = Double(index) * spacingMeters
+            let lineAnchor = (x: shift * normalUnit.0, y: shift * normalUnit.1)
+            let direction = lineUnit
+            var minT = Double.greatestFiniteMagnitude
+            var maxT = -Double.greatestFiniteMagnitude
+            for point in projected {
+                let relX = point.0 - lineAnchor.x
+                let relY = point.1 - lineAnchor.y
+                let t = relX * direction.0 + relY * direction.1
+                minT = min(minT, t)
+                maxT = max(maxT, t)
+            }
+            guard minT.isFinite, maxT.isFinite, maxT > minT else { return nil }
+
+            let startEast = lineAnchor.x + direction.0 * minT
+            let startNorth = lineAnchor.y + direction.1 * minT
+            let endEast = lineAnchor.x + direction.0 * maxT
+            let endNorth = lineAnchor.y + direction.1 * maxT
+
+            guard let start = offsetCoordinate(from: anchor, eastMeters: startEast, northMeters: startNorth),
+                  let end = offsetCoordinate(from: anchor, eastMeters: endEast, northMeters: endNorth) else {
+                return nil
+            }
+            return (start, end)
         }
 
         private func offsetCoordinate(
