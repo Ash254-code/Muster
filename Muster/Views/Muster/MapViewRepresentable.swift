@@ -3673,7 +3673,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     private static let tileData: Data = {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
         let image = renderer.image { context in
-            UIColor.white.setFill()
+            UIColor(red: 0.10, green: 0.10, blue: 0.11, alpha: 1.0).setFill()
             context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
         }
         return image.pngData() ?? Data()
@@ -3683,7 +3683,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     init(style: Style, urlTemplate URLTemplate: String? = nil) {
         self.style = style
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = true
+        canReplaceMapContent = false
         minimumZ = 0
         maximumZ = 22
     }
@@ -3691,7 +3691,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     override init(urlTemplate URLTemplate: String?) {
         self.style = .plain
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = true
+        canReplaceMapContent = false
         minimumZ = 0
         maximumZ = 22
     }

@@ -803,7 +803,8 @@ struct MapMainView: View {
     }
     
     private var effectiveMapPitchDegrees: Double {
-        isHeadsUp ? normalizedHeadsUpPitchDegrees : 0
+        if autosteerEnabled { return 80 }
+        return isHeadsUp ? normalizedHeadsUpPitchDegrees : 0
     }
     
     private var headsUpPitchLabel: String {
@@ -949,19 +950,26 @@ struct MapMainView: View {
             }
             .onChange(of: autosteerEnabled) { _, isEnabled in
                 if isEnabled {
-                    if mapStyleRaw != "blank" {
-                        mapStyleBeforeAutosteerLock = mapStyleRaw
-                    }
-                    mapStyleRaw = "blank"
-                    orientationRaw = "headsUp"
-                    headsUpPitchDegrees = 80
-                    postExactZoomRequest(120)
+                    applyAutosteerMapLockIfNeeded()
                 } else {
                     autosteerActive = false
                     if mapStyleRaw == "blank", mapStyleBeforeAutosteerLock != "blank" {
                         mapStyleRaw = mapStyleBeforeAutosteerLock
                     }
                 }
+            }
+            .onChange(of: mapStyleRaw) { _, newStyle in
+                if autosteerEnabled, newStyle != "blank" {
+                    mapStyleRaw = "blank"
+                }
+            }
+            .onChange(of: orientationRaw) { _, newOrientation in
+                if autosteerEnabled, newOrientation != "headsUp" {
+                    orientationRaw = "headsUp"
+                }
+            }
+            .onAppear {
+                applyAutosteerMapLockIfNeeded()
             }
             .onChange(of: mapCenterChangeToken) { _, _ in
                 handleMapCenterCoordinateChanged(mapCenterCoordinate)
@@ -4690,6 +4698,17 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             object: nil,
             userInfo: ["meters": meters]
         )
+    }
+
+    private func applyAutosteerMapLockIfNeeded() {
+        guard autosteerEnabled else { return }
+        if mapStyleRaw != "blank" {
+            mapStyleBeforeAutosteerLock = mapStyleRaw
+        }
+        mapStyleRaw = "blank"
+        orientationRaw = "headsUp"
+        headsUpPitchDegrees = 80
+        postExactZoomRequest(120)
     }
 
     private func stepMapZoom(by deltaMeters: Double) {
