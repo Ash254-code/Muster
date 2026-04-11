@@ -413,10 +413,18 @@ struct MapMainView: View {
         let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard farm.isEmpty == false, paddock.isEmpty == false, track.isEmpty == false else { return nil }
 
-        return knownFarms
-            .first(where: { $0.name.caseInsensitiveCompare(farm) == .orderedSame })?
-            .paddocks.first(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame })?
-            .tracks.first(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame })
+        func findTrack(in farms: [AutosteerFarmRecord]) -> AutosteerTrackRecord? {
+            farms
+                .first(where: { $0.name.caseInsensitiveCompare(farm) == .orderedSame })?
+                .paddocks.first(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame })?
+                .tracks.first(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame })
+        }
+
+        if let match = findTrack(in: knownFarms) {
+            return match
+        }
+
+        return findTrack(in: AutosteerLibraryStore.load())
     }
 
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
@@ -2131,22 +2139,30 @@ private var selectedMapModeOption: MapModeOption {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Save") {
+                            let trimmedFarm = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let trimmedPaddock = autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let trimmedTrack = autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+
                             AutosteerLibraryStore.upsertTrack(
-                                farmName: autosteerSaveFarm,
-                                paddockName: autosteerSavePaddock,
-                                trackName: autosteerSaveTrackName,
+                                farmName: trimmedFarm,
+                                paddockName: trimmedPaddock,
+                                trackName: trimmedTrack,
                                 mode: autosteerSetupModeRaw,
                                 previewCoordinates: previewCoordinatesForPendingSetup()
                             )
-                            autosteerFarmName = autosteerSaveFarm
-                            autosteerPaddockName = autosteerSavePaddock
-                            autosteerTrackName = autosteerSaveTrackName
+                            autosteerFarmName = trimmedFarm
+                            autosteerPaddockName = trimmedPaddock
+                            autosteerTrackName = trimmedTrack
                             autosteerTrackModeRaw = autosteerSetupModeRaw
                             refreshKnownFarms()
                             resetAutosteerSetupFlow()
                             showAutosteerTrackSaveSheet = false
                         }
-                        .disabled(autosteerSaveFarm.isEmpty || autosteerSavePaddock.isEmpty || autosteerSaveTrackName.isEmpty)
+                        .disabled(
+                            autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
                     }
                 }
             }
