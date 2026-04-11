@@ -44,6 +44,7 @@ private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
 private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
+private let kAutosteerGuidanceNoMapKey = "autosteer_guidance_no_map" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
@@ -303,6 +304,7 @@ struct MapMainView: View {
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
+    @AppStorage(kAutosteerGuidanceNoMapKey) private var autosteerGuidanceNoMap: Bool = true
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
     @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
     
@@ -409,6 +411,10 @@ struct MapMainView: View {
         gpsConnectedForAutosteer &&
         autosteerConditionsReady &&
         autosteerTrackReady
+    }
+
+    private var shouldShowGuidanceOnlyViewport: Bool {
+        autosteerEnabled && autosteerActive && autosteerGuidanceNoMap
     }
 
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
@@ -1416,149 +1422,157 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private func mapLayer(totalHeight: CGFloat) -> some View {
-        MapViewRepresentable(
-            followUser: $followUser,
-            activeTrackPoints: displayedActiveTrackPoints,
-            previousSessions: visiblePreviousTrackSessions,
-            markers: sessionMarkers,
-            mapMarkers: currentMapMarkers,
-            xrsContacts: xrsContacts,
-            xrsTrailGroups: xrsTrailGroups,
-            xrsTrailColorRaw: xrsRadioTrailColorRaw,
-            importedBoundaries: importedBoundaries,
-            importedTracks: importedTracks,
-            importedMarkers: importedMarkers,
-            userLocation: location.lastLocation,
-            userHeadingDegrees: location.headingDegrees,
-            useCrosshairUserMarker: isAutosteerTrackSetupActive,
-            ringCount: ringCount,
-            ringSpacingMeters: ringSpacingM,
-            ringColorRaw: ringColorRaw,
-            ringThicknessScale: ringThicknessScale,
-            ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
-            autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
-            autosteerTrackSpacingMeters: autosteerWorkingWidthM,
-            autosteerLockedLineIndex: autosteerActive ? autosteerGuidanceStatus.nearestLineIndex : nil,
-            autosteerUserCoordinate: location.lastLocation?.coordinate,
-            orientationRaw: $orientationRaw,
-            mapStyleRaw: $mapStyleRaw,
-            recenterNonce: $recenterNonce,
-            fitRadiosNonce: $fitRadiosNonce,
-            metersPerPoint: $metersPerPoint,
-            activeTrackAppearanceRaw: $activeTrackAppearanceRaw,
-            mapCenterCoordinate: $mapCenterCoordinate,
-            headsUpPitchDegrees: effectiveMapPitchDegrees,
-            headsUpUserVerticalOffset: normalizedHeadsUpUserVerticalOffset,
-            headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
-            destinationCoordinate: effectiveTargetCoordinate,
-            activeDestinationMarkerID: activeDestinationMarkerID,
-            temporaryPointA: temporaryPreviewPointA,
-            temporaryPointB: temporaryPreviewPointB,
-            onRequestGoToMarker: { marker in
-                startGoTo(marker)
-            },
-            onArriveAtDestination: {
-                DispatchQueue.main.async {
-                    clearGoToTarget()
-                    showArrivedBanner = true
+        ZStack {
+            if shouldShowGuidanceOnlyViewport {
+                Rectangle()
+                    .fill(.black)
+                    .ignoresSafeArea()
+            } else {
+                MapViewRepresentable(
+                    followUser: $followUser,
+                    activeTrackPoints: displayedActiveTrackPoints,
+                    previousSessions: visiblePreviousTrackSessions,
+                    markers: sessionMarkers,
+                    mapMarkers: currentMapMarkers,
+                    xrsContacts: xrsContacts,
+                    xrsTrailGroups: xrsTrailGroups,
+                    xrsTrailColorRaw: xrsRadioTrailColorRaw,
+                    importedBoundaries: importedBoundaries,
+                    importedTracks: importedTracks,
+                    importedMarkers: importedMarkers,
+                    userLocation: location.lastLocation,
+                    userHeadingDegrees: location.headingDegrees,
+                    useCrosshairUserMarker: isAutosteerTrackSetupActive,
+                    ringCount: ringCount,
+                    ringSpacingMeters: ringSpacingM,
+                    ringColorRaw: ringColorRaw,
+                    ringThicknessScale: ringThicknessScale,
+                    ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
+                    autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
+                    autosteerTrackSpacingMeters: autosteerWorkingWidthM,
+                    autosteerLockedLineIndex: autosteerActive ? autosteerGuidanceStatus.nearestLineIndex : nil,
+                    autosteerUserCoordinate: location.lastLocation?.coordinate,
+                    orientationRaw: $orientationRaw,
+                    mapStyleRaw: $mapStyleRaw,
+                    recenterNonce: $recenterNonce,
+                    fitRadiosNonce: $fitRadiosNonce,
+                    metersPerPoint: $metersPerPoint,
+                    activeTrackAppearanceRaw: $activeTrackAppearanceRaw,
+                    mapCenterCoordinate: $mapCenterCoordinate,
+                    headsUpPitchDegrees: effectiveMapPitchDegrees,
+                    headsUpUserVerticalOffset: normalizedHeadsUpUserVerticalOffset,
+                    headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
+                    destinationCoordinate: effectiveTargetCoordinate,
+                    activeDestinationMarkerID: activeDestinationMarkerID,
+                    temporaryPointA: temporaryPreviewPointA,
+                    temporaryPointB: temporaryPreviewPointB,
+                    onRequestGoToMarker: { marker in
+                        startGoTo(marker)
+                    },
+                    onArriveAtDestination: {
+                        DispatchQueue.main.async {
+                            clearGoToTarget()
+                            showArrivedBanner = true
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        showArrivedBanner = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                showArrivedBanner = false
+                            }
+
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
+                    },
+                    onLongPressAtCoordinate: { coordinate in
+                        DispatchQueue.main.async {
+                            if let moving = movingSessionMarker {
+                                app.muster.moveSessionMarker(
+                                    markerID: moving.id,
+                                    in: activeSession?.id,
+                                    to: coordinate
+                                )
+                                movingSessionMarker = nil
+                            } else if let moving = movingMapMarker {
+                                app.muster.moveMapMarker(markerID: moving.id, to: coordinate)
+                                movingMapMarker = nil
+                            } else {
+                                pendingMarkerCoordinate = coordinate
+                                showMarkerSheet = true
+                            }
+                        }
+                    },
+                    onTapSessionMarker: { marker in
+                        DispatchQueue.main.async {
+                            startGoTo(marker)
+                        }
+                    },
+                    onTapMapMarker: { marker in
+                        DispatchQueue.main.async {
+                            startGoTo(marker)
+                        }
+                    },
+                    onTapImportedMarker: { marker in
+                        DispatchQueue.main.async {
+                            startGoTo(marker)
+                        }
+                    },
+                    onLongPressSessionMarker: { marker in
+                        DispatchQueue.main.async {
+                            movingMapMarker = nil
+                            longPressedMapMarker = nil
+                            showLongPressedMapMarkerDialog = false
+                            editingMapMarker = nil
+                            showEditMapMarkerAlert = false
+
+                            longPressedSessionMarker = marker
+                            showLongPressedSessionMarkerDialog = true
+                        }
+                    },
+                    onLongPressMapMarker: { marker in
+                        DispatchQueue.main.async {
+                            movingSessionMarker = nil
+                            longPressedSessionMarker = nil
+                            showLongPressedSessionMarkerDialog = false
+                            editingSessionMarker = nil
+                            showEditSessionMarkerAlert = false
+
+                            longPressedMapMarker = marker
+                            showLongPressedMapMarkerDialog = true
+                        }
+                    },
+                    onLongPressPreviousTrack: { sessionID in
+                        DispatchQueue.main.async {
+                            movingSessionMarker = nil
+                            movingMapMarker = nil
+                            longPressedMapMarker = nil
+                            longPressedSessionMarker = nil
+                            showLongPressedMapMarkerDialog = false
+                            showLongPressedSessionMarkerDialog = false
+
+                            let session = app.muster.sessions.first(where: { $0.id == sessionID })
+                            let sessionName = session?.name ?? "Track"
+                            let createdAt = session?.startedAt ?? Date()
+                            longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
+                            showLongPressedTrackDialog = true
+                        }
+                    },
+                    onLongPressImportedTrack: { trackID, trackName in
+                        DispatchQueue.main.async {
+                            movingSessionMarker = nil
+                            movingMapMarker = nil
+                            longPressedMapMarker = nil
+                            longPressedSessionMarker = nil
+                            showLongPressedMapMarkerDialog = false
+                            showLongPressedSessionMarkerDialog = false
+
+                            let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
+                            let createdAt = importedTrack?.createdAt ?? Date()
+                            longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
+                            showLongPressedTrackDialog = true
+                        }
                     }
-
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-            },
-            onLongPressAtCoordinate: { coordinate in
-                DispatchQueue.main.async {
-                    if let moving = movingSessionMarker {
-                        app.muster.moveSessionMarker(
-                            markerID: moving.id,
-                            in: activeSession?.id,
-                            to: coordinate
-                        )
-                        movingSessionMarker = nil
-                    } else if let moving = movingMapMarker {
-                        app.muster.moveMapMarker(markerID: moving.id, to: coordinate)
-                        movingMapMarker = nil
-                    } else {
-                        pendingMarkerCoordinate = coordinate
-                        showMarkerSheet = true
-                    }
-                }
-            },
-            onTapSessionMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onTapMapMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onTapImportedMarker: { marker in
-                DispatchQueue.main.async {
-                    startGoTo(marker)
-                }
-            },
-            onLongPressSessionMarker: { marker in
-                DispatchQueue.main.async {
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    editingMapMarker = nil
-                    showEditMapMarkerAlert = false
-
-                    longPressedSessionMarker = marker
-                    showLongPressedSessionMarkerDialog = true
-                }
-            },
-            onLongPressMapMarker: { marker in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedSessionMarkerDialog = false
-                    editingSessionMarker = nil
-                    showEditSessionMarkerAlert = false
-
-                    longPressedMapMarker = marker
-                    showLongPressedMapMarkerDialog = true
-                }
-            },
-            onLongPressPreviousTrack: { sessionID in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    showLongPressedSessionMarkerDialog = false
-
-                    let session = app.muster.sessions.first(where: { $0.id == sessionID })
-                    let sessionName = session?.name ?? "Track"
-                    let createdAt = session?.startedAt ?? Date()
-                    longPressedTrackTarget = .previousSession(sessionID: sessionID, name: sessionName, createdAt: createdAt)
-                    showLongPressedTrackDialog = true
-                }
-            },
-            onLongPressImportedTrack: { trackID, trackName in
-                DispatchQueue.main.async {
-                    movingSessionMarker = nil
-                    movingMapMarker = nil
-                    longPressedMapMarker = nil
-                    longPressedSessionMarker = nil
-                    showLongPressedMapMarkerDialog = false
-                    showLongPressedSessionMarkerDialog = false
-
-                    let importedTrack = app.muster.visibleImportedTracks.first(where: { $0.id == trackID })
-                    let createdAt = importedTrack?.createdAt ?? Date()
-                    longPressedTrackTarget = .imported(trackID: trackID, name: trackName, createdAt: createdAt)
-                    showLongPressedTrackDialog = true
-                }
+                )
+                .ignoresSafeArea()
             }
-        )
-        .ignoresSafeArea()
+        }
     }
 
 
@@ -2970,6 +2984,22 @@ private var selectedMapModeOption: MapModeOption {
                 .padding(.horizontal, outerPadding)
                 .padding(.top, 10)
                 .padding(.bottom, 30)
+
+                if autosteerEnabled {
+                    Toggle(isOn: $autosteerGuidanceNoMap) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Guidance mode hides map")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("When Autosteer is ON, show a plain low-latency background.")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                    }
+                    .tint(.green)
+                    .padding(.horizontal, outerPadding)
+                    .padding(.bottom, 14)
+                }
 
                 Spacer(minLength: 0)
             }
