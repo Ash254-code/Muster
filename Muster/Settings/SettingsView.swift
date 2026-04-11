@@ -69,6 +69,7 @@ private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
 private let kAutosteerTrackModeKey = "autosteer_track_mode" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double 0...1
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -276,6 +277,7 @@ struct AutosteerSettingsView: View {
     @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
+    @AppStorage(kAutosteerLightbarStepCMKey) private var lightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var setupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var setupActive: Bool = false
     @Environment(\.dismiss) private var dismiss
@@ -373,6 +375,20 @@ struct AutosteerSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     Slider(value: $lookAheadM, in: 1...150, step: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Lightbar Step Size")
+                        Spacer()
+                        Text("\(Int(lightbarStepCM)) cm")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $lightbarStepCM, in: 1...50, step: 1)
+                    Text("Center stays green while within one step from guidance. Outside that, one red light is added for each step off line.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             } header: {
                 Text("Tuning")
