@@ -37,6 +37,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     @Binding var orientationRaw: String
     @Binding var mapStyleRaw: String
+    let guidanceNoMapEnabled: Bool
     @Binding var recenterNonce: Int
     @Binding var fitRadiosNonce: Int
 
@@ -145,6 +146,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         applyMapStyle(map)
         map.userTrackingMode = .none
+
+        context.coordinator.updateGuidanceBackgroundOverlayIfNeeded(on: map)
 
         context.coordinator.updateUserLocationAnnotation(
             map: map,
@@ -258,6 +261,11 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 
     private func applyMapStyle(_ map: MKMapView) {
+        if guidanceNoMapEnabled {
+            map.mapType = .standard
+            return
+        }
+
         switch mapStyleRaw {
         case "satellite":
             map.mapType = .satellite
@@ -284,6 +292,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var importedBoundaryPolygons: [ImportedBoundaryPolygon] = []
         private var xrsTrailPolylines: [XRSTrailPolyline] = []
         private var destinationLine: MKPolyline?
+        private var guidanceBackgroundOverlay: GuidanceBackgroundTileOverlay?
         private var temporaryABLine: MKPolyline?
         private var temporaryPointAAnnotation: TemporaryPointAnnotation?
         private var temporaryPointBAnnotation: TemporaryPointAnnotation?
@@ -333,6 +342,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         private var lastAppliedOrientationRaw: String = ""
         private var lastAppliedMapStyleRaw: String = ""
+        private var lastAppliedGuidanceNoMapEnabled: Bool = false
         private var lastAppliedHeadsUpPitchDegrees: Double = -1
         private var lastAppliedHeadsUpUserVerticalOffset: Double = -1
         private var lastAppliedHeadsUpBottomObstructionHeight: Double = -1
@@ -362,6 +372,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             self.metersPerPoint = metersPerPoint
             self.lastAppliedOrientationRaw = parent.orientationRaw
             self.lastAppliedMapStyleRaw = parent.mapStyleRaw
+            self.lastAppliedGuidanceNoMapEnabled = parent.guidanceNoMapEnabled
             self.lastAppliedHeadsUpPitchDegrees = parent.headsUpPitchDegrees
             self.lastAppliedHeadsUpUserVerticalOffset = min(max(parent.headsUpUserVerticalOffset.rounded(), 0), 10)
             self.lastAppliedHeadsUpBottomObstructionHeight = max(0, parent.headsUpBottomObstructionHeight)
@@ -411,6 +422,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         func detachMapView() {
             observedMap = nil
+            guidanceBackgroundOverlay = nil
             resetOverlaySignatures()
             stopDisplayLink()
         }
@@ -559,16 +571,18 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             let orientationChanged = parent.orientationRaw != lastAppliedOrientationRaw
             let mapStyleChanged = parent.mapStyleRaw != lastAppliedMapStyleRaw
+            let guidanceNoMapChanged = parent.guidanceNoMapEnabled != lastAppliedGuidanceNoMapEnabled
             let presetPitchChanged = presetPitch != lastPresetPitchDegrees
             let verticalOffsetChanged = snappedVerticalOffset != lastAppliedHeadsUpUserVerticalOffset
             let bottomObstructionChanged = snappedBottomObstructionHeight != lastAppliedHeadsUpBottomObstructionHeight
 
-            guard orientationChanged || mapStyleChanged || presetPitchChanged || verticalOffsetChanged || bottomObstructionChanged else {
+            guard orientationChanged || mapStyleChanged || guidanceNoMapChanged || presetPitchChanged || verticalOffsetChanged || bottomObstructionChanged else {
                 return
             }
 
             lastAppliedOrientationRaw = parent.orientationRaw
             lastAppliedMapStyleRaw = parent.mapStyleRaw
+            lastAppliedGuidanceNoMapEnabled = parent.guidanceNoMapEnabled
             lastAppliedHeadsUpPitchDegrees = presetPitch
             lastAppliedHeadsUpUserVerticalOffset = normalizedHeadsUpUserVerticalOffset()
             lastAppliedHeadsUpBottomObstructionHeight = normalizedHeadsUpBottomObstructionHeight()
@@ -615,10 +629,10 @@ struct MapViewRepresentable: UIViewRepresentable {
                 heading: heading,
                 distance: currentPreservedDistance(from: map),
                 pitch: pitchToApply,
-                snap: mapStyleChanged
+                snap: mapStyleChanged || guidanceNoMapChanged
             )
 
-            if mapStyleChanged {
+            if mapStyleChanged || guidanceNoMapChanged {
                 applyDrivingCameraIfPossible()
                 syncCameraStateFromMap(map)
             } else {
@@ -670,13 +684,13 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         private func applyStepZoom(map: MKMapView, deltaMeters: Double) {
-            let currentDistance = max(80, map.camera.centerCoordinateDistance)
+            let currentDistance = clampedDistance(map.camera.centerCoordinateDistance)
             let targetDistance = currentDistance + deltaMeters
             applyQuickZoom(map: map, distanceMeters: targetDistance)
         }
 
         private func applyQuickZoom(map: MKMapView, distanceMeters: Double) {
-            let distance = max(80, distanceMeters)
+            let distance = clampedDistance(distanceMeters)
             lastKnownCameraDistance = distance
 
             let logicalCenter: CLLocationCoordinate2D
@@ -968,7 +982,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             orientationRaw: String,
             animated: Bool
         ) {
-            let distance = max(80, distanceMeters)
+            let distance = clampedDistance(distanceMeters)
             let heading: CLLocationDirection = orientationRaw == "headsUp"
                 ? resolvedHeading(for: userLocation)
                 : 0
@@ -991,14 +1005,14 @@ struct MapViewRepresentable: UIViewRepresentable {
         ) {
             targetCenter = center
             targetHeading = normalizeHeading(heading)
-            targetDistance = max(80, distance)
+            targetDistance = clampedDistance(distance)
             targetPitch = pitch
             lastKnownCameraDistance = targetDistance
 
             if displayedCenter == nil || snap {
                 displayedCenter = center
                 displayedHeading = normalizeHeading(heading)
-                displayedDistance = max(80, distance)
+                displayedDistance = clampedDistance(distance)
                 displayedPitch = pitch
                 applyDrivingCameraIfPossible()
             }
@@ -1030,7 +1044,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             displayedHeading = normalizeHeading(displayedHeading + headingDelta * headingAlpha)
 
             displayedDistance += (targetDistance - displayedDistance) * distanceAlpha
-            displayedDistance = max(80, displayedDistance)
+            displayedDistance = clampedDistance(displayedDistance)
             lastKnownCameraDistance = displayedDistance
 
             displayedPitch += (targetPitch - displayedPitch) * pitchAlpha
@@ -1060,6 +1074,28 @@ struct MapViewRepresentable: UIViewRepresentable {
                     isAnimatingCameraTransition = false
                     lastDisplayTickTime = 0
                 }
+            }
+        }
+
+
+        private func maximumAllowedDistance() -> CLLocationDistance {
+            parent.guidanceNoMapEnabled ? 2_000 : 20_000_000
+        }
+
+        private func clampedDistance(_ distance: CLLocationDistance) -> CLLocationDistance {
+            min(max(80, distance), maximumAllowedDistance())
+        }
+
+        func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
+            if parent.guidanceNoMapEnabled {
+                if guidanceBackgroundOverlay == nil {
+                    let overlay = GuidanceBackgroundTileOverlay()
+                    guidanceBackgroundOverlay = overlay
+                    map.addOverlay(overlay, level: .aboveLabels)
+                }
+            } else if let guidanceBackgroundOverlay {
+                map.removeOverlay(guidanceBackgroundOverlay)
+                self.guidanceBackgroundOverlay = nil
             }
         }
 
@@ -1105,7 +1141,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 camera.pitch = pitch
             } else {
                 camera.centerCoordinate = center
-                camera.centerCoordinateDistance = max(80, distance)
+                camera.centerCoordinateDistance = clampedDistance(distance)
                 camera.heading = 0
                 camera.pitch = 0
             }
@@ -1114,8 +1150,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         private func currentPreservedDistance(from map: MKMapView) -> CLLocationDistance {
-            let mapDistance = max(80, map.camera.centerCoordinateDistance)
-            let storedDistance = max(80, lastKnownCameraDistance)
+            let mapDistance = clampedDistance(map.camera.centerCoordinateDistance)
+            let storedDistance = clampedDistance(lastKnownCameraDistance)
 
             if abs(storedDistance - mapDistance) > 1 {
                 return storedDistance
@@ -1125,17 +1161,14 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func syncCameraStateFromMap(_ map: MKMapView) {
-            let renderedDistance = max(80, map.camera.centerCoordinateDistance)
+            let renderedDistance = clampedDistance(map.camera.centerCoordinateDistance)
             let heading = normalizeHeading(map.camera.heading)
             let center = map.centerCoordinate
             let pitch = parent.orientationRaw == "headsUp" ? CGFloat(map.camera.pitch) : 0
             let logicalDistance: CLLocationDistance
 
             if parent.orientationRaw == "headsUp" {
-                logicalDistance = max(
-                    80,
-                    renderedDistance / distanceCompensationFactor(for: pitch)
-                )
+                logicalDistance = clampedDistance(renderedDistance / distanceCompensationFactor(for: pitch))
             } else {
                 logicalDistance = renderedDistance
             }
@@ -2367,6 +2400,10 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let backgroundOverlay = overlay as? GuidanceBackgroundTileOverlay {
+                return MKTileOverlayRenderer(tileOverlay: backgroundOverlay)
+            }
+
             let strokeScale = overlayStrokeScale(for: mapView)
 
             if let polyline = overlay as? TrackStyledPolyline {
@@ -3617,5 +3654,31 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
         case .other:
             return .systemGreen
         }
+    }
+}
+
+private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
+    private static let tileData: Data = {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
+        let image = renderer.image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+        }
+        return image.pngData() ?? Data()
+    }()
+
+    override init(urlTemplate URLTemplate: String?) {
+        super.init(urlTemplate: URLTemplate)
+        canReplaceMapContent = true
+        minimumZ = 0
+        maximumZ = 22
+    }
+
+    convenience init() {
+        self.init(urlTemplate: nil)
+    }
+
+    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
+        result(Self.tileData, nil)
     }
 }
