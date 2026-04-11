@@ -3619,7 +3619,3 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
         }
     }
 }
-private extension Notification.Name {
-    static let musterQuickZoomRequested = Notification.Name("muster_quick_zoom_requested")
-    static let musterStepZoomRequested = Notification.Name("muster_step_zoom_requested")
-}
