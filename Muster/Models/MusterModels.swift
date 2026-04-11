@@ -222,8 +222,8 @@ enum ImportCategory: String, Codable, CaseIterable, Hashable, Identifiable {
 
     var defaultIcon: String {
         switch self {
-        case .boundaries: return "⬜️"
-        case .tracks: return "〰️"
+        case .boundaries: return "◻️"
+        case .tracks: return "🛣️"
         case .waterPoints: return "💧"
         case .yards: return "🔸"
         case .other: return "📍"
