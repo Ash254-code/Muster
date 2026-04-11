@@ -306,7 +306,7 @@ struct TPMSDashboardView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
-            Text(tyre?.temperatureC.map { "\($0)°C" } ?? "--°C")
+            Text(tyre?.temperatureC.map { UnitFormatting.formattedTemperature(Double($0), includeUnit: true) } ?? "--°")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -467,7 +467,7 @@ struct TPMSDashboardView: View {
 
     private func detailText(for tyre: TyreReading) -> String {
         let pressure = tyre.pressurePSI.map { "\($0) psi" } ?? "-- psi"
-        let temp = tyre.temperatureC.map { "\($0)°C" } ?? "--°C"
+        let temp = tyre.temperatureC.map { UnitFormatting.formattedTemperature(Double($0), includeUnit: true) } ?? "--°"
         return "\(pressure) • \(temp)"
     }
 

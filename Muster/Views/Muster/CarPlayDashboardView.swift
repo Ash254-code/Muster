@@ -9,10 +9,9 @@ struct CarPlayDashboardView: View {
     }
 
     private var activeTrackDistanceText: String {
-        guard let session = activeSession else { return "0.0 km" }
+        guard let session = activeSession else { return UnitFormatting.formattedDistance(0, decimalsIfLarge: 1) }
         let metres = totalDistanceMeters(points: session.points)
-        let kilometres = max(0, metres / 1000)
-        return String(format: "%.1f km", kilometres)
+        return UnitFormatting.formattedDistance(metres, decimalsIfLarge: 1)
     }
 
     private var markerCountText: String {

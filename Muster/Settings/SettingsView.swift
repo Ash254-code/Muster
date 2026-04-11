@@ -74,6 +74,102 @@ private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
 private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
+let kDistanceUnitPreferenceKey = "units_distance_preference" // "metric" | "imperial"
+let kSpeedUnitPreferenceKey = "units_speed_preference" // "metric" | "imperial"
+let kTemperatureUnitPreferenceKey = "units_temperature_preference" // "celsius" | "fahrenheit"
+
+enum DistanceUnitPreference: String, CaseIterable, Identifiable {
+    case metric
+    case imperial
+    var id: String { rawValue }
+}
+
+enum SpeedUnitPreference: String, CaseIterable, Identifiable {
+    case metric
+    case imperial
+    var id: String { rawValue }
+}
+
+enum TemperatureUnitPreference: String, CaseIterable, Identifiable {
+    case celsius
+    case fahrenheit
+    var id: String { rawValue }
+}
+
+enum UnitFormatting {
+    private static let defaults = UserDefaults.standard
+
+    static var distancePreference: DistanceUnitPreference {
+        DistanceUnitPreference(rawValue: defaults.string(forKey: kDistanceUnitPreferenceKey) ?? "") ?? .metric
+    }
+
+    static var speedPreference: SpeedUnitPreference {
+        SpeedUnitPreference(rawValue: defaults.string(forKey: kSpeedUnitPreferenceKey) ?? "") ?? .metric
+    }
+
+    static var temperaturePreference: TemperatureUnitPreference {
+        TemperatureUnitPreference(rawValue: defaults.string(forKey: kTemperatureUnitPreferenceKey) ?? "") ?? .celsius
+    }
+
+    static func formattedDistance(_ meters: Double, decimalsIfLarge: Int = 1) -> String {
+        let safeMeters = max(0, meters)
+        switch distancePreference {
+        case .metric:
+            if safeMeters >= 1000 {
+                return String(format: "%.\(decimalsIfLarge)f km", safeMeters / 1000.0)
+            }
+            return "\(Int(safeMeters.rounded())) m"
+        case .imperial:
+            let miles = safeMeters / 1_609.344
+            if miles >= 1 {
+                return String(format: "%.\(decimalsIfLarge)f mi", miles)
+            }
+            let feet = safeMeters * 3.28084
+            return "\(Int(feet.rounded())) ft"
+        }
+    }
+
+    static func formattedDistanceCompact(_ meters: Double, decimalsIfLarge: Int = 1) -> String {
+        formattedDistance(meters, decimalsIfLarge: decimalsIfLarge)
+            .replacingOccurrences(of: " ", with: "")
+    }
+
+    static func speedValueAndUnit(fromMetersPerSecond mps: Double) -> (value: Double, unit: String) {
+        switch speedPreference {
+        case .metric:
+            return (mps * 3.6, "km/h")
+        case .imperial:
+            return (mps * 2.2369362921, "mph")
+        }
+    }
+
+    static func formattedSpeed(fromMetersPerSecond mps: Double, decimals: Int = 1) -> String {
+        let (value, unit) = speedValueAndUnit(fromMetersPerSecond: mps)
+        return String(format: "%.\(decimals)f %@", max(0, value), unit)
+    }
+
+    static func formattedTemperature(_ celsius: Double, includeUnit: Bool = false) -> String {
+        switch temperaturePreference {
+        case .celsius:
+            let value = Int(celsius.rounded())
+            return includeUnit ? "\(value)°C" : "\(value)°"
+        case .fahrenheit:
+            let fahrenheit = (celsius * 9.0 / 5.0) + 32.0
+            let value = Int(fahrenheit.rounded())
+            return includeUnit ? "\(value)°F" : "\(value)°"
+        }
+    }
+
+    static func formattedCentimeters(_ centimeters: Double) -> String {
+        switch distancePreference {
+        case .metric:
+            return "\(Int(centimeters.rounded())) cm"
+        case .imperial:
+            let inches = centimeters / 2.54
+            return String(format: "%.1f in", inches)
+        }
+    }
+}
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -320,7 +416,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Working Width")
                         Spacer()
-                        Text("\(Int(workingWidthM)) m")
+                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 1))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -370,7 +466,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Look-ahead Distance")
                         Spacer()
-                        Text("\(Int(lookAheadM)) m")
+                        Text(UnitFormatting.formattedDistance(lookAheadM, decimalsIfLarge: 1))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -381,7 +477,7 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Lightbar Step Size")
                         Spacer()
-                        Text("\(Int(lightbarStepCM)) cm")
+                        Text(UnitFormatting.formattedCentimeters(lightbarStepCM))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -409,6 +505,27 @@ struct AutosteerSettingsView: View {
 struct CruiseControlSettingsView: View {
     @AppStorage(kCruiseControlEnabledKey) private var cruiseEnabled: Bool = false
     @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseSpeedKPH: Double = 8
+    @AppStorage(kSpeedUnitPreferenceKey) private var speedUnitPreferenceRaw: String = SpeedUnitPreference.metric.rawValue
+
+    private var isImperialSpeed: Bool {
+        SpeedUnitPreference(rawValue: speedUnitPreferenceRaw) == .imperial
+    }
+
+    private var cruiseSliderBinding: Binding<Double> {
+        Binding(
+            get: {
+                if isImperialSpeed { return cruiseSpeedKPH * 0.621371 }
+                return cruiseSpeedKPH
+            },
+            set: { newValue in
+                if isImperialSpeed {
+                    cruiseSpeedKPH = newValue / 0.621371
+                } else {
+                    cruiseSpeedKPH = newValue
+                }
+            }
+        )
+    }
 
     var body: some View {
         Form {
@@ -417,11 +534,15 @@ struct CruiseControlSettingsView: View {
                 HStack {
                     Text("Target Speed")
                     Spacer()
-                    Text("\(cruiseSpeedKPH, specifier: "%.1f") km/h")
+                    Text(
+                        isImperialSpeed
+                        ? "\(cruiseSpeedKPH * 0.621371, specifier: "%.1f") mph"
+                        : "\(cruiseSpeedKPH, specifier: "%.1f") km/h"
+                    )
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
-                Slider(value: $cruiseSpeedKPH, in: 0.5...35, step: 0.5)
+                Slider(value: cruiseSliderBinding, in: isImperialSpeed ? 0.3...22 : 0.5...35, step: 0.5)
             } header: {
                 Text("Cruise Control")
             } footer: {
@@ -461,8 +582,38 @@ private struct AppearanceSettingsView: View {
 }
 
 private struct UnitsSettingsView: View {
+    @AppStorage(kDistanceUnitPreferenceKey) private var distanceUnitPreference: String = DistanceUnitPreference.metric.rawValue
+    @AppStorage(kSpeedUnitPreferenceKey) private var speedUnitPreference: String = SpeedUnitPreference.metric.rawValue
+    @AppStorage(kTemperatureUnitPreferenceKey) private var temperatureUnitPreference: String = TemperatureUnitPreference.celsius.rawValue
+
     var body: some View {
-        PlaceholderSettingsDetail(title: "Units")
+        Form {
+            Section("Distance") {
+                Picker("Distance Unit", selection: $distanceUnitPreference) {
+                    Text("Metric").tag(DistanceUnitPreference.metric.rawValue)
+                    Text("Imperial").tag(DistanceUnitPreference.imperial.rawValue)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("Speed") {
+                Picker("Speed Unit", selection: $speedUnitPreference) {
+                    Text("Metric").tag(SpeedUnitPreference.metric.rawValue)
+                    Text("Imperial").tag(SpeedUnitPreference.imperial.rawValue)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("Temperature") {
+                Picker("Temperature Unit", selection: $temperatureUnitPreference) {
+                    Text("Celsius").tag(TemperatureUnitPreference.celsius.rawValue)
+                    Text("Fahrenheit").tag(TemperatureUnitPreference.fahrenheit.rawValue)
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        .navigationTitle("Units")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 struct TPMSDashboardHostView: View {
@@ -1619,7 +1770,7 @@ struct RingsSettingsView: View {
 
                 Picker("Ring spacing", selection: $ringSpacingM) {
                     ForEach(spacingOptions, id: \.self) { v in
-                        Text("\(Int(v)) m").tag(v)
+                        Text(UnitFormatting.formattedDistance(v, decimalsIfLarge: 1)).tag(v)
                     }
                 }
 
@@ -1642,7 +1793,7 @@ struct RingsSettingsView: View {
                 Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
 
                 let ringsSummary =
-                    "Showing \(ringCount) rings at \(Int(ringSpacingM)) metre intervals in \(ringColorRaw.capitalized) " +
+                    "Showing \(ringCount) rings at \(UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1)) intervals in \(ringColorRaw.capitalized) " +
                     "at \(String(format: "%.2f", ringThicknessScale))x thickness" +
                     (ringDistanceLabelsEnabled ? " with" : " without") +
                     " distance labels."
@@ -1725,7 +1876,7 @@ private struct AdvancedMapSettingsView: View {
     }
 
     private func zoomLabel(_ meters: Double) -> String {
-        "\(Int(meters.rounded())) m"
+        UnitFormatting.formattedDistance(meters, decimalsIfLarge: 1)
     }
 
     var body: some View {
@@ -1735,7 +1886,7 @@ private struct AdvancedMapSettingsView: View {
                 LabeledContent("Heads-up angle", value: headsUpPitchLabel)
                 LabeledContent("Heads-up user position", value: headsUpUserPositionLabel)
                 LabeledContent("Ring count", value: "\(ringCount)")
-                LabeledContent("Ring spacing", value: "\(Int(ringSpacingM)) m")
+                LabeledContent("Ring spacing", value: UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1))
                 LabeledContent("Top left pill", value: topLeftPillLabel)
                 LabeledContent("Top right pill", value: topRightPillLabel)
                 LabeledContent("Quick zoom 1", value: zoomLabel(quickZoom1M))
@@ -1952,7 +2103,7 @@ private struct BatteryThermalSettingsView: View {
     }
 
     private func distanceFilterLabel(_ meters: Double) -> String {
-        "\(Int(snappedDistanceFilter(meters))) m"
+        UnitFormatting.formattedDistance(snappedDistanceFilter(meters), decimalsIfLarge: 1)
     }
 
     private func thermalColor(_ state: ProcessInfo.ThermalState) -> Color {

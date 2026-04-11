@@ -347,10 +347,7 @@ struct SessionDetailView: View {
             let etaSec = distanceM / max(0.5, speed)
 
             let distanceText: String = {
-                if distanceM >= 1000 {
-                    return String(format: "%.2f km", distanceM / 1000.0)
-                }
-                return String(format: "%.0f m", distanceM)
+                UnitFormatting.formattedDistance(distanceM, decimalsIfLarge: 2)
             }()
 
             let etaText: String = formatETA(seconds: etaSec)
