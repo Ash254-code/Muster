@@ -114,9 +114,10 @@ struct MapMainView: View {
     private struct AutosteerGuidanceStatus {
         let signedOffsetToNearestLineM: Double
         let nearestLineIndex: Int
+        static let supportedLineIndexRange = -80...80
 
-        var offsetCentimeters: Int {
-            Int((abs(signedOffsetToNearestLineM) * 100).rounded())
+        var offsetCentimeters: Double {
+            abs(signedOffsetToNearestLineM) * 100
         }
 
         var lineIsLeft: Bool {
@@ -2644,12 +2645,16 @@ private var selectedMapModeOption: MapModeOption {
 
         let ap = CGPoint(x: -a.x, y: -a.y)
         let signedDistanceToBaseLine = ((ab.x * ap.y) - (ab.y * ap.x)) / lineLength
-        let nearestLineIndex = (signedDistanceToBaseLine / autosteerWorkingWidthM).rounded()
-        let signedDistanceToNearestLine = signedDistanceToBaseLine - (nearestLineIndex * autosteerWorkingWidthM)
+        let rawNearestLineIndex = Int((signedDistanceToBaseLine / autosteerWorkingWidthM).rounded())
+        let nearestLineIndex = min(
+            AutosteerGuidanceStatus.supportedLineIndexRange.upperBound,
+            max(AutosteerGuidanceStatus.supportedLineIndexRange.lowerBound, rawNearestLineIndex)
+        )
+        let signedDistanceToNearestLine = signedDistanceToBaseLine - (Double(nearestLineIndex) * autosteerWorkingWidthM)
 
         return AutosteerGuidanceStatus(
             signedOffsetToNearestLineM: -signedDistanceToNearestLine,
-            nearestLineIndex: Int(nearestLineIndex)
+            nearestLineIndex: nearestLineIndex
         )
     }
 
@@ -2719,7 +2724,8 @@ private var selectedMapModeOption: MapModeOption {
 
     private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {
         let maxLights = 5
-        let activeRedLights = min(maxLights, max(0, Int(ceil(Double(guidance.offsetCentimeters) / 10))))
+        let guidanceStepCentimeters = max(autosteerLightbarStepCM, 1)
+        let activeRedLights = min(maxLights, max(0, Int(ceil(guidance.offsetCentimeters / guidanceStepCentimeters))))
 
         return VStack(spacing: 6) {
             GeometryReader { proxy in
@@ -2752,7 +2758,7 @@ private var selectedMapModeOption: MapModeOption {
             }
             .frame(height: 8)
 
-            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(guidance.offsetCentimeters) cm")
+            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.1f", guidance.offsetCentimeters)) cm")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.92))
                 .monospacedDigit()

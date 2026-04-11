@@ -287,6 +287,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var temporaryPointBAnnotation: TemporaryPointAnnotation?
         private var ringOverlays: [MKCircle] = []
         private var autosteerGuidancePolylines: [AutosteerGuidancePolyline] = []
+        private let autosteerGuidanceLineRange = -80...80
         private var ringLabelAnnotations: [RingLabelAnnotation] = []
 
         private var previousTrackSignature: String = ""
@@ -2158,7 +2159,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             let ny = ux
             let extensionMeters = 2_000_000.0
 
-            return stride(from: -20, through: 20, by: 1).compactMap { offset in
+            return stride(
+                from: autosteerGuidanceLineRange.lowerBound,
+                through: autosteerGuidanceLineRange.upperBound,
+                by: 1
+            ).compactMap { offset in
                 let shift = Double(offset) * spacingMeters
                 let shiftedAx = shift * nx
                 let shiftedAy = shift * ny
