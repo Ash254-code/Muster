@@ -204,31 +204,39 @@ struct ImportExportView: View {
                 Section {
                     LabeledContent {
                         Text("\(importedFileCount)")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundStyle(.secondary)
                     } label: {
                         summaryLabel(icon: "doc.on.doc", title: "Imported Files")
                     }
 
                     LabeledContent {
                         Text("\(boundaryCount)")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundStyle(.secondary)
                     } label: {
-                        summaryLabel(icon: ImportCategory.boundaries.defaultIcon, title: "Boundaries")
+                        summaryLabel(icon: "square.dashed", title: "Boundaries")
                     }
 
                     LabeledContent {
                         Text("\(trackCount)")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundStyle(.secondary)
                     } label: {
-                        summaryLabel(icon: ImportCategory.tracks.defaultIcon, title: "Tracks")
+                        summaryLabel(icon: "road.lanes", title: "Tracks")
                     }
 
                     LabeledContent {
                         Text("\(markerCount)")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundStyle(.secondary)
                     } label: {
-                        summaryLabel(icon: ImportCategory.other.defaultIcon, title: "Markers")
+                        summaryLabel(icon: "mappin.and.ellipse", title: "Markers")
                     }
                 } header: {
                     Text("Imported Data")
                 }
-
+            
 
                 if app.muster.importedMapFiles.isEmpty {
                     Section {
@@ -498,9 +506,16 @@ struct ImportExportView: View {
 
     @ViewBuilder
     private func summaryLabel(icon: String, title: String) -> some View {
-        HStack(spacing: 8) {
-            Text(icon)
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .regular))
+                .foregroundStyle(Color.blue)
+                .frame(width: 28, alignment: .center)
+
             Text(title)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
         }
     }
 
