@@ -433,11 +433,27 @@ struct MapMainView: View {
     }
 
     private var autosteerReadinessMessage: String {
+        let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
+        let tuneReady = autosteerLookAheadM > 0 && autosteerAggressiveness >= 0
+        let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
+        let sessionReady = activeSession?.isActive == true
+
+        let sessionSettingsDetail = [
+            "• Active session: \(sessionReady ? "✅" : "❌")",
+            "• Width 1–1000 m (current \(Int(autosteerWorkingWidthM))): \(widthReady ? "✅" : "❌")",
+            "• Look-ahead > 0 (current \(String(format: "%.1f", autosteerLookAheadM))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
+            "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
+            "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
+        ].joined(separator: "\n")
+
         [
             "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
             "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
             "Session/settings valid: \(autosteerConditionsReady ? "✅" : "❌")",
-            "Track guidance available: \(autosteerTrackReady ? "✅" : "❌")"
+            "Track guidance available: \(autosteerTrackReady ? "✅" : "❌")",
+            "",
+            "Session/settings details:",
+            sessionSettingsDetail
         ].joined(separator: "\n")
     }
 
