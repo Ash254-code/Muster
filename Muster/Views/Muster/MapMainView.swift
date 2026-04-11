@@ -1901,11 +1901,13 @@ struct MapMainView: View {
     // MARK: - Top pills
 
     private var chromeFill: Color {
-        colorScheme == .dark ? Color.black.opacity(0.94) : Color.white.opacity(0.92)
+        colorScheme == .dark
+            ? Color.black.opacity(0.94)
+            : Color(uiColor: .systemBackground).opacity(0.78)
     }
 
     private var chromeStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.14)
+        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.10)
     }
 
     private var chromePrimaryText: Color {
@@ -2311,10 +2313,10 @@ struct MapMainView: View {
                         Text(autosteerSetupPrimaryButtonTitle)
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Capsule().fill(.black.opacity(0.88)))
+                    .background(Capsule().fill(chromeFill))
                 }
                 .buttonStyle(.plain)
 
@@ -2323,10 +2325,10 @@ struct MapMainView: View {
                         autosteerPointB = nil
                     }
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Capsule().fill(.black.opacity(0.75)))
+                    .background(Capsule().fill(chromeFill))
                     .buttonStyle(.plain)
 
                     Button("Save Track") {
@@ -2344,7 +2346,7 @@ struct MapMainView: View {
             if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
                 Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(chromePrimaryText)
             }
         }
         .padding(.vertical, 8)
@@ -2355,7 +2357,7 @@ struct MapMainView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
         .alert("Enter Heading", isPresented: $showAutosteerHeadingPrompt) {
             TextField("Heading (e.g. 123.4567)", text: $autosteerHeadingInput)
@@ -2468,18 +2470,18 @@ struct MapMainView: View {
 
             Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.2f", absError)) m • \(Int(autosteerLightbarStepCM)) cm/step")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.black.opacity(0.88))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
         .accessibilityLabel("Autosteer lightbar")
         .accessibilityValue("Off guidance by \(stepCount) steps")
@@ -2488,7 +2490,7 @@ struct MapMainView: View {
     private func lightbarColor(for index: Int, errorMeters: Double, stepMeters: Double) -> Color {
         let absError = abs(errorMeters)
         if index == 0 {
-            return absError < stepMeters ? .green : .white.opacity(0.14)
+            return absError < stepMeters ? .green : chromeStroke
         }
 
         let side = index > 0 ? 1.0 : -1.0
@@ -2497,7 +2499,7 @@ struct MapMainView: View {
         if isErrorOnThisSide && absError >= threshold {
             return .red
         }
-        return .white.opacity(0.14)
+        return chromeStroke
     }
 
     private var autosteerSetupPrimaryButtonTitle: String {
@@ -2612,17 +2614,17 @@ struct MapMainView: View {
         } label: {
             Image(systemName: "scope")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
                 .frame(width: 48, height: 48)
                 .background(
                     Circle()
-                        .fill(.black.opacity(1.0))
+                        .fill(chromeFill)
                 )
                 .overlay(
                     Circle()
-                        .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                        .strokeBorder(chromeStroke, lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                .shadow(color: chromeShadow, radius: 10, y: 4)
         }
         .buttonStyle(.plain)
         .fixedSize()
@@ -2636,12 +2638,12 @@ struct MapMainView: View {
             } label: {
                 Image(systemName: isHeadsUp ? "safari.fill" : "location.north.line.fill")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
 
             Rectangle()
-                .fill(.white.opacity(0.2))
+                .fill(chromeStroke)
                 .frame(width: 24, height: 1)
 
             Button {
@@ -2651,7 +2653,7 @@ struct MapMainView: View {
             } label: {
                 Image(systemName: "square.3.layers.3d")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .frame(width: 48, height: 48)
             }
             .highPriorityGesture(
@@ -2665,13 +2667,13 @@ struct MapMainView: View {
         .frame(width: 48)
         .background(
             Capsule(style: .continuous)
-                .fill(.black.opacity(1.0))
+                .fill(chromeFill)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .shadow(color: chromeShadow, radius: 10, y: 4)
         .fixedSize()
     }
 
@@ -2919,20 +2921,20 @@ struct MapMainView: View {
 
             Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.1f", guidance.offsetCentimeters)) cm")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.92))
+                .foregroundStyle(chromePrimaryText)
                 .monospacedDigit()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.black.opacity(0.95))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+        .shadow(color: chromeShadow, radius: 10, y: 4)
     }
 
     private func autosteerGuidanceBarMaxWidth(for totalWidth: CGFloat) -> CGFloat {
@@ -2961,12 +2963,12 @@ struct MapMainView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(.white.opacity(0.14))
+                                .fill(chromeStroke)
                                 .frame(width: 44, height: 44)
 
                             Image(systemName: "xmark")
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(chromePrimaryText)
                         }
                     }
                     .buttonStyle(.plain)
@@ -2976,7 +2978,7 @@ struct MapMainView: View {
 
                 Text("Map Modes")
                     .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .padding(.top, 6)
                     .padding(.bottom, 20)
 
@@ -2996,7 +2998,7 @@ struct MapMainView: View {
                 VStack(spacing: 12) {
                     Text("Camera Angle")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
+                        .foregroundStyle(chromeSecondaryText)
                         .padding(.top, 18)
 
                     HStack(spacing: 12) {
@@ -3014,10 +3016,10 @@ struct MapMainView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Guidance mode hides map")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(chromePrimaryText)
                             Text("When Autosteer is ON, show a plain low-latency background.")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.65))
+                                .foregroundStyle(chromeSecondaryText)
                         }
                     }
                     .tint(.green)
@@ -3030,13 +3032,13 @@ struct MapMainView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(.black.opacity(0.98))
+                    .fill(chromeFill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(chromeStroke, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.30), radius: 18, y: 8)
+            .shadow(color: chromeShadow, radius: 18, y: 8)
         }
         .frame(height: 660)
     }
@@ -3064,19 +3066,19 @@ struct MapMainView: View {
                         Text(option.title)
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(.black.opacity(0.42))
+                            .fill(chromeFill)
                     )
                     .padding(10)
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(
-                            isSelected ? option.tint : .white.opacity(0.12),
+                            isSelected ? option.tint : chromeStroke,
                             lineWidth: isSelected ? 3 : 1
                         )
                 )
@@ -3517,7 +3519,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                 .overlay(
                                     Circle()
                                         .strokeBorder(
-                                            isSheepPinReady ? .blue : .white.opacity(0.3),
+                                            isSheepPinReady ? .blue : chromeStroke,
                                             lineWidth: 1.5
                                         )
                                 )
@@ -4153,11 +4155,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     Text(title)
                         .font(.system(size: 12, weight: .medium))
                 }
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(chromeSecondaryText)
 
                 Text(value)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -4165,13 +4167,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(chromeStroke, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+            .shadow(color: chromeShadow, radius: 8, y: 3)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 72)
@@ -4192,18 +4194,18 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(chromePrimaryText)
             .frame(maxWidth: .infinity)
             .frame(height: 72)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.black.opacity(1.0))
+                    .fill(chromeFill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(.white.opacity(0.3), lineWidth: 2)
+                    .strokeBorder(chromeStroke, lineWidth: 2)
             )
-            .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+            .shadow(color: chromeShadow, radius: 10, y: 4)
         }
         .buttonStyle(.plain)
     }
@@ -4224,29 +4226,29 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(chromeSecondaryText)
                 .frame(width: 28)
 
             Text(title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(chromePrimaryText)
 
             Spacer()
 
             Text(value)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.76))
+                .foregroundStyle(chromeSecondaryText)
                 .lineLimit(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.white.opacity(0.05))
+                .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                .strokeBorder(chromeStroke, lineWidth: 1)
         )
     }
 
