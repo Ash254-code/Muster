@@ -94,7 +94,40 @@ struct ImportExportView: View {
     @State private var importResultSelectedCount: Int = 0
     @State private var importResultSupportedCount: Int = 0
     @State private var selectedTrackImportMapSetID: UUID? = nil
-    @State private var expandedImportCategories: Set<ImportCategory> = []
+    @State private var expandedImportCategories: Set<ImportedFileDisplayCategory> = []
+
+    private enum ImportedFileDisplayCategory: String, CaseIterable, Hashable, Identifiable {
+        case mapSets
+        case boundaries
+        case tracks
+        case waterPoints
+        case yards
+        case other
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .mapSets: return "Map Sets"
+            case .boundaries: return "Boundaries"
+            case .tracks: return "Tracks"
+            case .waterPoints: return "Water Points"
+            case .yards: return "Yards"
+            case .other: return "Other"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .mapSets: return "🗺️"
+            case .boundaries: return "⬜️"
+            case .tracks: return "〰️"
+            case .waterPoints: return "💧"
+            case .yards: return "🔸"
+            case .other: return "📍"
+            }
+        }
+    }
 
     private var importedFileCount: Int {
         app.muster.importedMapFiles.count
@@ -116,9 +149,9 @@ struct ImportExportView: View {
         app.muster.importedMapFiles.reduce(0) { $0 + $1.tracks.count }
     }
 
-    private var importedFilesByCategory: [(category: ImportCategory, files: [ImportedMapFile])] {
-        ImportCategory.allCases.compactMap { category in
-            let files = app.muster.importedMapFiles.filter { $0.assignedCategory == category }
+    private var importedFilesByCategory: [(category: ImportedFileDisplayCategory, files: [ImportedMapFile])] {
+        ImportedFileDisplayCategory.allCases.compactMap { category in
+            let files = app.muster.importedMapFiles.filter { displayCategory(for: $0) == category }
             guard !files.isEmpty else { return nil }
             return (category: category, files: files)
         }
@@ -451,7 +484,7 @@ struct ImportExportView: View {
         }
     }
 
-    private func expandedBinding(for category: ImportCategory) -> Binding<Bool> {
+    private func expandedBinding(for category: ImportedFileDisplayCategory) -> Binding<Bool> {
         Binding(
             get: { expandedImportCategories.contains(category) },
             set: { isExpanded in
@@ -462,6 +495,55 @@ struct ImportExportView: View {
                 }
             }
         )
+    }
+
+    private func displayCategory(for file: ImportedMapFile) -> ImportedFileDisplayCategory {
+        if isLikelyMapSetFile(file) {
+            return .mapSets
+        }
+
+        let hasBoundaries = file.boundaries.isEmpty == false
+        let hasMarkers = file.markers.isEmpty == false
+        let hasTracks = file.tracks.isEmpty == false
+
+        if hasBoundaries, !hasMarkers, !hasTracks {
+            return .boundaries
+        }
+
+        if hasTracks, !hasBoundaries, !hasMarkers {
+            return .tracks
+        }
+
+        if hasMarkers, !hasBoundaries, !hasTracks {
+            let markerCategories = Set(file.markers.map(\.category))
+            if markerCategories == Set([.waterPoints]) {
+                return .waterPoints
+            }
+            if markerCategories == Set([.yards]) {
+                return .yards
+            }
+        }
+
+        switch file.assignedCategory {
+        case .boundaries: return .boundaries
+        case .tracks: return .tracks
+        case .waterPoints: return .waterPoints
+        case .yards: return .yards
+        case .other: return .other
+        }
+    }
+
+    private func isLikelyMapSetFile(_ file: ImportedMapFile) -> Bool {
+        let normalizedName = file.fileName.lowercased()
+        if normalizedName.contains("map set") || normalizedName.contains("mapset") {
+            return true
+        }
+
+        let hasBoundaries = file.boundaries.isEmpty == false
+        let hasMarkers = file.markers.isEmpty == false
+        let hasTracks = file.tracks.isEmpty == false
+
+        return (hasBoundaries && hasMarkers) || (hasBoundaries && hasTracks)
     }
 
     // MARK: - Import
@@ -870,8 +952,8 @@ struct ImportExportView: View {
         ["geojson", "json", "gpx", "kml", "kmz"]
     }
 
-    private func categoryIcon(for category: ImportCategory) -> String {
-        app.muster.iconForImportCategory(category)
+    private func categoryIcon(for category: ImportedFileDisplayCategory) -> String {
+        category.icon
     }
 
     private func selectionOptions(for pending: PendingImportedFile) -> [ImportCategorySelectionOption] {
