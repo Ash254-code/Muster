@@ -457,7 +457,7 @@ struct MapMainView: View {
         ].joined(separator: "\n")
     }
 
-    private var autosteerReadinessMessage: String {
+    private var autosteerReadinessAccessibilityHint: String {
         let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
         let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
         let sessionReady = activeSession?.isActive == true
@@ -2218,7 +2218,7 @@ private var selectedMapModeOption: MapModeOption {
             .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
             .accessibilityLabel("Autosteer readiness")
             .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
-            .accessibilityHint(autosteerReadinessMessage)
+            .accessibilityHint(autosteerReadinessAccessibilityHint)
         }
         .buttonStyle(.plain)
         .highPriorityGesture(
