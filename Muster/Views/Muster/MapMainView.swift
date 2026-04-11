@@ -486,16 +486,6 @@ struct MapMainView: View {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
     }
 
-    private var autosteerCrossTrackErrorMeters: Double? {
-        guard
-            autosteerActive,
-            let user = location.lastLocation?.coordinate,
-            let pointA = autosteerPointA,
-            let pointB = autosteerPointB
-        else { return nil }
-        return signedCrossTrackDistanceMeters(point: user, lineStart: pointA, lineEnd: pointB)
-    }
-
     private var existingPaddocksForSelectedFarm: [String] {
         let farmName = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let farm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(farmName) == .orderedSame }) else {
@@ -1369,8 +1359,8 @@ private var selectedMapModeOption: MapModeOption {
                 }
             }
             .overlay(alignment: .top) {
-                if let crossTrackErrorMeters = autosteerCrossTrackErrorMeters {
-                    autosteerLightbar(errorMeters: crossTrackErrorMeters)
+                if autosteerActive {
+                    autosteerLightbar(guidance: autosteerGuidanceStatus)
                         .padding(.top, 18)
                         .padding(.horizontal, 12)
                 }
@@ -2393,21 +2383,21 @@ private var selectedMapModeOption: MapModeOption {
         }
     }
 
-    private func autosteerLightbar(errorMeters: Double) -> some View {
+    private func autosteerLightbar(guidance: AutosteerGuidanceStatus) -> some View {
         let stepMeters = max(autosteerLightbarStepCM / 100.0, 0.01)
-        let absError = abs(errorMeters)
+        let absError = abs(guidance.signedOffsetToNearestLineM)
         let stepCount = Int(absError / stepMeters)
 
         return VStack(spacing: 8) {
             HStack(spacing: 5) {
                 ForEach(-4...4, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(lightbarColor(for: index, errorMeters: errorMeters, stepMeters: stepMeters))
+                        .fill(lightbarColor(for: index, errorMeters: guidance.signedOffsetToNearestLineM, stepMeters: stepMeters))
                         .frame(width: index == 0 ? 18 : 14, height: 8)
                 }
             }
 
-            Text(String(format: "Offset %.2f m • %d cm/step", absError, Int(autosteerLightbarStepCM)))
+            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(String(format: "%.2f", absError)) m • \(Int(autosteerLightbarStepCM)) cm/step")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
                 .monospacedDigit()
@@ -2439,32 +2429,6 @@ private var selectedMapModeOption: MapModeOption {
             return .red
         }
         return .white.opacity(0.14)
-    }
-
-    private func signedCrossTrackDistanceMeters(
-        point: CLLocationCoordinate2D,
-        lineStart: CLLocationCoordinate2D,
-        lineEnd: CLLocationCoordinate2D
-    ) -> Double {
-        let lat0 = lineStart.latitude * .pi / 180
-        let metersPerDegLat = 111_132.92
-        let metersPerDegLon = 111_412.84 * cos(lat0)
-
-        let ax = lineStart.longitude * metersPerDegLon
-        let ay = lineStart.latitude * metersPerDegLat
-        let bx = lineEnd.longitude * metersPerDegLon
-        let by = lineEnd.latitude * metersPerDegLat
-        let px = point.longitude * metersPerDegLon
-        let py = point.latitude * metersPerDegLat
-
-        let vx = bx - ax
-        let vy = by - ay
-        let wx = px - ax
-        let wy = py - ay
-        let length = hypot(vx, vy)
-        guard length > 0.0001 else { return 0 }
-
-        return ((vx * wy) - (vy * wx)) / length
     }
 
     private var autosteerSetupPrimaryButtonTitle: String {

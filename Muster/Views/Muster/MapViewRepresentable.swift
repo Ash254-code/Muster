@@ -2059,9 +2059,16 @@ struct MapViewRepresentable: UIViewRepresentable {
                 return "\(values[0]),\(values[1])"
             }.joined(separator: "|")
             let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())"
+            let lockedLineChanged = autosteerLockedLineIndex != lockedLineIndex
             // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
             // force a re-add even when the computed signature has not changed.
-            guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else { return }
+            guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else {
+                if lockedLineChanged {
+                    autosteerLockedLineIndex = lockedLineIndex
+                    refreshAutosteerGuidanceRenderers(on: map)
+                }
+                return
+            }
             autosteerGuidanceSignature = signature
             autosteerLockedLineIndex = lockedLineIndex
 
@@ -2075,6 +2082,34 @@ struct MapViewRepresentable: UIViewRepresentable {
             let lines = buildAutosteerGuidanceLines(pointA: a, pointB: b, spacingMeters: normalizedSpacing)
             autosteerGuidancePolylines = lines
             map.addOverlays(lines, level: .aboveRoads)
+        }
+
+        private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {
+            let strokeScale = overlayStrokeScale(for: map)
+            for polyline in autosteerGuidancePolylines {
+                guard let renderer = map.renderer(for: polyline) as? MKPolylineRenderer else { continue }
+                applyAutosteerGuidanceStyle(
+                    to: renderer,
+                    guidanceLine: polyline,
+                    strokeScale: strokeScale
+                )
+                renderer.setNeedsDisplay()
+            }
+        }
+
+        private func applyAutosteerGuidanceStyle(
+            to renderer: MKPolylineRenderer,
+            guidanceLine: AutosteerGuidancePolyline,
+            strokeScale: CGFloat
+        ) {
+            if guidanceLine.offsetIndex == autosteerLockedLineIndex {
+                renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.95)
+            } else {
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+            }
+            renderer.lineWidth = 2 * strokeScale
+            renderer.lineCap = .round
+            renderer.lineJoin = .round
         }
 
         private func referenceGuidanceLineEndpoints(
@@ -2235,15 +2270,18 @@ struct MapViewRepresentable: UIViewRepresentable {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
                 if polyline is AutosteerGuidancePolyline {
-                    if let guidanceLine = polyline as? AutosteerGuidancePolyline,
-                       guidanceLine.offsetIndex == autosteerLockedLineIndex {
-                        renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.95)
+                    if let guidanceLine = polyline as? AutosteerGuidancePolyline {
+                        applyAutosteerGuidanceStyle(
+                            to: renderer,
+                            guidanceLine: guidanceLine,
+                            strokeScale: strokeScale
+                        )
                     } else {
                         renderer.strokeColor = UIColor.white.withAlphaComponent(0.95)
+                        renderer.lineWidth = 2 * strokeScale
+                        renderer.lineCap = .round
+                        renderer.lineJoin = .round
                     }
-                    renderer.lineWidth = 2 * strokeScale
-                    renderer.lineCap = .round
-                    renderer.lineJoin = .round
                 } else if polyline === temporaryABLine {
                     renderer.strokeColor = UIColor.systemGreen
                     renderer.lineWidth = 4 * strokeScale
