@@ -2056,6 +2056,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             userLocation: CLLocation?
         ) {
             let normalizedSpacing = max(1, spacingMeters)
+            let userCoordinate = userLocation?.coordinate
             let signatureCoordinates = previewCoordinates.map { values in
                 guard values.count >= 2 else { return "0,0" }
                 return "\(values[0]),\(values[1])"
@@ -2069,15 +2070,21 @@ struct MapViewRepresentable: UIViewRepresentable {
             ].map { String($0) }.joined(separator: ",")
             let effectiveLockedIndex = lockedLineIndex
                 ?? nearestLineIndex(
-                    to: userLocation?.coordinate ?? map.centerCoordinate,
+                    to: userCoordinate ?? map.centerCoordinate,
                     previewCoordinates: previewCoordinates,
                     spacingMeters: normalizedSpacing
                 )
+            let lockedLineChanged = autosteerLockedLineIndex != effectiveLockedIndex
             autosteerLockedLineIndex = effectiveLockedIndex
             let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())|\(rectSignature)|\(effectiveLockedIndex ?? 0)"
             // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
             // force a re-add even when the computed signature has not changed.
-            guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else { return }
+            guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else {
+                if lockedLineChanged {
+                    refreshAutosteerGuidanceRenderers(on: map)
+                }
+                return
+            }
             autosteerGuidanceSignature = signature
 
             if autosteerGuidancePolylines.isEmpty == false {
@@ -2085,7 +2092,10 @@ struct MapViewRepresentable: UIViewRepresentable {
                 autosteerGuidancePolylines.removeAll()
             }
 
-            guard let (a, b) = referenceGuidanceLineEndpoints(from: previewCoordinates) else { return }
+            guard let (a, b) = referenceGuidanceLineEndpoints(
+                from: previewCoordinates,
+                userCoordinate: userCoordinate ?? map.centerCoordinate
+            ) else { return }
 
             let lines = buildAutosteerGuidanceLines(
                 pointA: a,
@@ -2099,7 +2109,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         private func referenceGuidanceLineEndpoints(
-            from previewCoordinates: [[Double]]
+            from previewCoordinates: [[Double]],
+            userCoordinate: CLLocationCoordinate2D? = nil
         ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
             let validCoordinates: [CLLocationCoordinate2D] = previewCoordinates.compactMap { pair in
                 guard pair.count >= 2 else { return nil }
@@ -2109,7 +2120,19 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             guard validCoordinates.count >= 2 else { return nil }
 
-            let first = validCoordinates[0]
+            let first: CLLocationCoordinate2D
+            if let userCoordinate {
+                first = validCoordinates.min(by: { lhs, rhs in
+                    CLLocation(latitude: lhs.latitude, longitude: lhs.longitude).distance(
+                        from: CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
+                    ) < CLLocation(latitude: rhs.latitude, longitude: rhs.longitude).distance(
+                        from: CLLocation(latitude: userCoordinate.latitude, longitude: userCoordinate.longitude)
+                    )
+                }) ?? validCoordinates[0]
+            } else {
+                first = validCoordinates[0]
+            }
+
             let last = validCoordinates[validCoordinates.count - 1]
             if CLLocation(latitude: first.latitude, longitude: first.longitude)
                 .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude)) > 0.5 {
@@ -2124,6 +2147,17 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             return nil
+        }
+
+        private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {
+            for overlay in autosteerGuidancePolylines {
+                if let renderer = map.renderer(for: overlay) as? MKPolylineRenderer,
+                   let guidanceLine = overlay as? AutosteerGuidancePolyline {
+                    renderer.strokeColor = guidanceLine.offsetIndex == autosteerLockedLineIndex
+                        ? UIColor.systemTeal
+                        : UIColor.systemTeal.withAlphaComponent(0.45)
+                }
+            }
         }
 
         private func buildAutosteerGuidanceLines(
