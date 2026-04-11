@@ -107,10 +107,6 @@ struct ImportExportView: View {
         app.muster.importedMapFiles.count
     }
 
-    private var visibleImportedFileCount: Int {
-        app.muster.visibleImportedMapFiles.count
-    }
-
     private var boundaryCount: Int {
         app.muster.importedMapFiles.reduce(0) { $0 + $1.boundaries.count }
     }
@@ -206,11 +202,10 @@ struct ImportExportView: View {
 
             if mode == .import {
                 Section {
-                    LabeledContent("Imported files", value: "\(importedFileCount)")
-                    LabeledContent("Visible on map", value: "\(visibleImportedFileCount)")
+                    LabeledContent("Imported Files", value: "\(importedFileCount)")
                     LabeledContent("Boundaries", value: "\(boundaryCount)")
-                    LabeledContent("Markers", value: "\(markerCount)")
                     LabeledContent("Tracks", value: "\(trackCount)")
+                    LabeledContent("Markers", value: "\(markerCount)")
                 } header: {
                     Text("Imported Data")
                 }
