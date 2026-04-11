@@ -93,39 +93,13 @@ struct ImportExportView: View {
     @State private var importResultSelectedCount: Int = 0
     @State private var importResultSupportedCount: Int = 0
     @State private var selectedTrackImportMapSetID: UUID? = nil
-    @State private var expandedImportCategories: Set<ImportedFileDisplayCategory> = []
+    @State private var expandedImportCategories: Set<String> = []
 
-    private enum ImportedFileDisplayCategory: String, CaseIterable, Hashable, Identifiable {
-        case mapSets
-        case boundaries
-        case tracks
-        case waterPoints
-        case yards
-        case other
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .mapSets: return "Map Sets"
-            case .boundaries: return "Boundaries"
-            case .tracks: return "Tracks"
-            case .waterPoints: return "Water Points"
-            case .yards: return "Yards"
-            case .other: return "Other"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .mapSets: return "🗺️"
-            case .boundaries: return "⬜️"
-            case .tracks: return "〰️"
-            case .waterPoints: return "💧"
-            case .yards: return "🔸"
-            case .other: return "📍"
-            }
-        }
+    private struct ImportedFileListSection: Identifiable, Hashable {
+        let id: String
+        let title: String
+        let icon: String
+        let sortOrder: Int
     }
 
     private var importedFileCount: Int {
@@ -148,12 +122,17 @@ struct ImportExportView: View {
         app.muster.importedMapFiles.reduce(0) { $0 + $1.tracks.count }
     }
 
-    private var importedFilesByCategory: [(category: ImportedFileDisplayCategory, files: [ImportedMapFile])] {
-        ImportedFileDisplayCategory.allCases.compactMap { category in
-            let files = app.muster.importedMapFiles.filter { displayCategory(for: $0) == category }
-            guard !files.isEmpty else { return nil }
-            return (category: category, files: files)
-        }
+    private var importedFilesByCategory: [(section: ImportedFileListSection, files: [ImportedMapFile])] {
+        let grouped = Dictionary(grouping: app.muster.importedMapFiles, by: sectionForImportedFile)
+
+        return grouped
+            .map { (section: $0.key, files: $0.value) }
+            .sorted {
+                if $0.section.sortOrder != $1.section.sortOrder {
+                    return $0.section.sortOrder < $1.section.sortOrder
+                }
+                return $0.section.title.localizedCaseInsensitiveCompare($1.section.title) == .orderedAscending
+            }
     }
 
     private var exportableSessions: [MusterSession] {
@@ -246,10 +225,10 @@ struct ImportExportView: View {
                         Text("Imported files are stored in the app and can be shown or hidden on the map.")
                     }
                 } else {
-                    ForEach(importedFilesByCategory, id: \.category) { categoryGroup in
+                    ForEach(importedFilesByCategory, id: \.section.id) { categoryGroup in
                         Section {
                             DisclosureGroup(
-                                isExpanded: expandedBinding(for: categoryGroup.category)
+                                isExpanded: expandedBinding(for: categoryGroup.section.id)
                             ) {
                                 ForEach(categoryGroup.files) { file in
                                     NavigationLink {
@@ -292,7 +271,7 @@ struct ImportExportView: View {
                                     deleteImportedFiles(at: offsets, in: categoryGroup.files)
                                 }
                             } label: {
-                                Text("\(categoryIcon(for: categoryGroup.category)) \(categoryGroup.category.title) - \(categoryGroup.files.count)")
+                                Text("\(categoryGroup.section.icon) \(categoryGroup.section.title) - \(categoryGroup.files.count)")
                             }
                         } footer: {
                             Text("Imported files are stored in the app and can be shown or hidden on the map.")
@@ -456,66 +435,47 @@ struct ImportExportView: View {
         }
     }
 
-    private func expandedBinding(for category: ImportedFileDisplayCategory) -> Binding<Bool> {
+    private func expandedBinding(for categoryID: String) -> Binding<Bool> {
         Binding(
-            get: { expandedImportCategories.contains(category) },
+            get: { expandedImportCategories.contains(categoryID) },
             set: { isExpanded in
                 if isExpanded {
-                    expandedImportCategories.insert(category)
+                    expandedImportCategories.insert(categoryID)
                 } else {
-                    expandedImportCategories.remove(category)
+                    expandedImportCategories.remove(categoryID)
                 }
             }
         )
     }
 
-    private func displayCategory(for file: ImportedMapFile) -> ImportedFileDisplayCategory {
-        if isLikelyMapSetFile(file) {
-            return .mapSets
+    private func sectionForImportedFile(_ file: ImportedMapFile) -> ImportedFileListSection {
+        if file.assignedCategory == .other,
+           let customID = file.assignedCustomCategoryID,
+           let customCategory = app.muster.customImportCategories.first(where: { $0.id == customID }) {
+            return ImportedFileListSection(
+                id: "custom-\(customID.uuidString)",
+                title: customCategory.title,
+                icon: customCategory.icon,
+                sortOrder: 50
+            )
         }
 
-        let hasBoundaries = file.boundaries.isEmpty == false
-        let hasMarkers = file.markers.isEmpty == false
-        let hasTracks = file.tracks.isEmpty == false
-
-        if hasBoundaries, !hasMarkers, !hasTracks {
-            return .boundaries
-        }
-
-        if hasTracks, !hasBoundaries, !hasMarkers {
-            return .tracks
-        }
-
-        if hasMarkers, !hasBoundaries, !hasTracks {
-            let markerCategories = Set(file.markers.map(\.category))
-            if markerCategories == Set([.waterPoints]) {
-                return .waterPoints
-            }
-            if markerCategories == Set([.yards]) {
-                return .yards
-            }
-        }
-
-        switch file.assignedCategory {
-        case .boundaries: return .boundaries
-        case .tracks: return .tracks
-        case .waterPoints: return .waterPoints
-        case .yards: return .yards
-        case .other: return .other
-        }
+        return ImportedFileListSection(
+            id: "default-\(file.assignedCategory.rawValue)",
+            title: file.assignedCategory.title,
+            icon: app.muster.iconForImportCategory(file.assignedCategory),
+            sortOrder: sortOrder(for: file.assignedCategory)
+        )
     }
 
-    private func isLikelyMapSetFile(_ file: ImportedMapFile) -> Bool {
-        let normalizedName = file.fileName.lowercased()
-        if normalizedName.contains("map set") || normalizedName.contains("mapset") {
-            return true
+    private func sortOrder(for category: ImportCategory) -> Int {
+        switch category {
+        case .boundaries: return 10
+        case .tracks: return 20
+        case .waterPoints: return 30
+        case .yards: return 40
+        case .other: return 90
         }
-
-        let hasBoundaries = file.boundaries.isEmpty == false
-        let hasMarkers = file.markers.isEmpty == false
-        let hasTracks = file.tracks.isEmpty == false
-
-        return (hasBoundaries && hasMarkers) || (hasBoundaries && hasTracks)
     }
 
     // MARK: - Import
@@ -619,7 +579,7 @@ struct ImportExportView: View {
             pending,
             as: category,
             trackMapSetID: trackMapSetID,
-            customIcon: option.customCategory?.icon
+            selectedCustomCategory: option.customCategory
         )
 
         if applyCategoryToAllPendingImports {
@@ -629,7 +589,7 @@ struct ImportExportView: View {
                     item,
                     as: category,
                     trackMapSetID: trackMapSetID,
-                    customIcon: option.customCategory?.icon
+                    selectedCustomCategory: option.customCategory
                 )
             }
             pendingImports.removeAll { isSelectionOption(option, applicableTo: $0) }
@@ -648,13 +608,13 @@ struct ImportExportView: View {
         _ pending: PendingImportedFile,
         as category: ImportCategory,
         trackMapSetID: UUID?,
-        customIcon: String? = nil
+        selectedCustomCategory: CustomImportCategory? = nil
     ) {
         let adjustedFile = remapImportedFile(
             pending.file,
             to: category,
             trackMapSetID: trackMapSetID,
-            customIcon: customIcon
+            selectedCustomCategory: selectedCustomCategory
         )
 
         app.muster.addImportedMapFile(
@@ -672,7 +632,7 @@ struct ImportExportView: View {
         _ file: ImportedMapFile,
         to category: ImportCategory,
         trackMapSetID: UUID?,
-        customIcon: String?
+        selectedCustomCategory: CustomImportCategory?
     ) -> ImportedMapFile {
         switch category {
         case .boundaries:
@@ -720,6 +680,7 @@ struct ImportExportView: View {
                 fileName: file.fileName,
                 format: file.format,
                 assignedCategory: .boundaries,
+                assignedCustomCategoryID: nil,
                 boundaries: boundaries,
                 markers: updatedMarkers,
                 tracks: remainingTracks,
@@ -753,6 +714,7 @@ struct ImportExportView: View {
                 fileName: file.fileName,
                 format: file.format,
                 assignedCategory: .tracks,
+                assignedCustomCategoryID: nil,
                 boundaries: updatedBoundaries,
                 markers: updatedMarkers,
                 tracks: updatedTracks,
@@ -764,7 +726,7 @@ struct ImportExportView: View {
                 var updated = marker
                 updated.category = category
                 if category == .other,
-                   let customIcon,
+                   let customIcon = selectedCustomCategory?.icon,
                    !customIcon.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updated.emoji = customIcon
                 }
@@ -789,6 +751,7 @@ struct ImportExportView: View {
                 fileName: file.fileName,
                 format: file.format,
                 assignedCategory: category,
+                assignedCustomCategoryID: category == .other ? selectedCustomCategory?.id : nil,
                 boundaries: updatedBoundaries,
                 markers: updatedMarkers,
                 tracks: updatedTracks,
@@ -922,10 +885,6 @@ struct ImportExportView: View {
 
     private var supportedImportExtensions: Set<String> {
         ["geojson", "json", "gpx", "kml", "kmz"]
-    }
-
-    private func categoryIcon(for category: ImportedFileDisplayCategory) -> String {
-        category.icon
     }
 
     private func selectionOptions(for pending: PendingImportedFile) -> [ImportCategorySelectionOption] {

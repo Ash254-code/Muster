@@ -716,6 +716,9 @@ final class MusterStore: ObservableObject, Codable {
 
         var updated = file
         updated.assignedCategory = assignedCategory
+        if assignedCategory != .other {
+            updated.assignedCustomCategoryID = nil
+        }
         updated = updated.applyingAssignedCategoryToChildren()
         updated = assigningRequiredTrackMapSet(to: updated)
 
@@ -734,6 +737,9 @@ final class MusterStore: ObservableObject, Codable {
 
         var updated = file
         updated.assignedCategory = assignedCategory
+        if assignedCategory != .other {
+            updated.assignedCustomCategoryID = nil
+        }
         updated = updated.applyingAssignedCategoryToChildren()
         updated = assigningRequiredTrackMapSet(to: updated)
 
@@ -798,6 +804,9 @@ final class MusterStore: ObservableObject, Codable {
         guard let fileIndex = importedMapFiles.firstIndex(where: { $0.id == fileID }) else { return }
 
         importedMapFiles[fileIndex].assignedCategory = category
+        if category != .other {
+            importedMapFiles[fileIndex].assignedCustomCategoryID = nil
+        }
         importedMapFiles[fileIndex] = importedMapFiles[fileIndex].applyingAssignedCategoryToChildren()
         save()
     }
@@ -891,14 +900,18 @@ final class MusterStore: ObservableObject, Codable {
 
             if normalized.boundaries.isEmpty == false && normalized.assignedCategory == .other {
                 normalized.assignedCategory = .boundaries
+                normalized.assignedCustomCategoryID = nil
             } else if normalized.tracks.isEmpty == false && normalized.assignedCategory == .other {
                 normalized.assignedCategory = .tracks
+                normalized.assignedCustomCategoryID = nil
             } else if normalized.markers.isEmpty == false && normalized.assignedCategory == .other {
                 let markerCategories = Set(normalized.markers.map(\.category))
                 if markerCategories == [.waterPoints] {
                     normalized.assignedCategory = .waterPoints
+                    normalized.assignedCustomCategoryID = nil
                 } else if markerCategories == [.yards] {
                     normalized.assignedCategory = .yards
+                    normalized.assignedCustomCategoryID = nil
                 }
             }
 
