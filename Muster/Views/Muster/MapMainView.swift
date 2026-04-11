@@ -37,6 +37,7 @@ private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
 private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
+private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -273,6 +274,7 @@ struct MapMainView: View {
     @AppStorage(kAutosteerWorkingWidthKey) private var autosteerWorkingWidthM: Double = 36
     @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
+    @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
@@ -373,6 +375,16 @@ struct MapMainView: View {
 
     private var isAutosteerTrackSetupActive: Bool {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
+    }
+
+    private var autosteerCrossTrackErrorMeters: Double? {
+        guard
+            autosteerActive,
+            let user = location.lastLocation?.coordinate,
+            let pointA = autosteerPointA,
+            let pointB = autosteerPointB
+        else { return nil }
+        return signedCrossTrackDistanceMeters(point: user, lineStart: pointA, lineEnd: pointB)
     }
 
     private var existingPaddocksForSelectedFarm: [String] {
@@ -1139,6 +1151,13 @@ private var selectedMapModeOption: MapModeOption {
                         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: panelDetent)
                         .transition(.opacity)
                     }
+            }
+            .overlay(alignment: .top) {
+                if let crossTrackErrorMeters = autosteerCrossTrackErrorMeters {
+                    autosteerLightbar(errorMeters: crossTrackErrorMeters)
+                        .padding(.top, 18)
+                        .padding(.horizontal, 12)
+                }
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
@@ -2106,6 +2125,80 @@ private var selectedMapModeOption: MapModeOption {
                 curvePulse = true
             }
         }
+    }
+
+    private func autosteerLightbar(errorMeters: Double) -> some View {
+        let stepMeters = max(autosteerLightbarStepCM / 100.0, 0.01)
+        let absError = abs(errorMeters)
+        let stepCount = Int(absError / stepMeters)
+
+        return VStack(spacing: 8) {
+            HStack(spacing: 5) {
+                ForEach(-4...4, id: \.self) { index in
+                    Capsule(style: .continuous)
+                        .fill(lightbarColor(for: index, errorMeters: errorMeters, stepMeters: stepMeters))
+                        .frame(width: index == 0 ? 18 : 14, height: 8)
+                }
+            }
+
+            Text(String(format: "Offset %.2f m • %d cm/step", absError, Int(autosteerLightbarStepCM)))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.black.opacity(0.88))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+        )
+        .accessibilityLabel("Autosteer lightbar")
+        .accessibilityValue("Off guidance by \(stepCount) steps")
+    }
+
+    private func lightbarColor(for index: Int, errorMeters: Double, stepMeters: Double) -> Color {
+        let absError = abs(errorMeters)
+        if index == 0 {
+            return absError < stepMeters ? .green : .white.opacity(0.14)
+        }
+
+        let side = index > 0 ? 1.0 : -1.0
+        let isErrorOnThisSide = (errorMeters.sign == .plus && side > 0) || (errorMeters.sign == .minus && side < 0)
+        let threshold = stepMeters * Double(abs(index))
+        if isErrorOnThisSide && absError >= threshold {
+            return .red
+        }
+        return .white.opacity(0.14)
+    }
+
+    private func signedCrossTrackDistanceMeters(
+        point: CLLocationCoordinate2D,
+        lineStart: CLLocationCoordinate2D,
+        lineEnd: CLLocationCoordinate2D
+    ) -> Double {
+        let lat0 = lineStart.latitude * .pi / 180
+        let metersPerDegLat = 111_132.92
+        let metersPerDegLon = 111_412.84 * cos(lat0)
+
+        let ax = lineStart.longitude * metersPerDegLon
+        let ay = lineStart.latitude * metersPerDegLat
+        let bx = lineEnd.longitude * metersPerDegLon
+        let by = lineEnd.latitude * metersPerDegLat
+        let px = point.longitude * metersPerDegLon
+        let py = point.latitude * metersPerDegLat
+
+        let vx = bx - ax
+        let vy = by - ay
+        let wx = px - ax
+        let wy = py - ay
+        let length = hypot(vx, vy)
+        guard length > 0.0001 else { return 0 }
+
+        return ((vx * wy) - (vy * wx)) / length
     }
 
     private var autosteerSetupPrimaryButtonTitle: String {
