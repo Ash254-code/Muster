@@ -1410,6 +1410,7 @@ private var selectedMapModeOption: MapModeOption {
             autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
             autosteerTrackSpacingMeters: autosteerWorkingWidthM,
             autosteerLockedLineIndex: autosteerActive ? autosteerGuidanceStatus.nearestLineIndex : nil,
+            autosteerUserCoordinate: location.lastLocation?.coordinate,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
             recenterNonce: $recenterNonce,
@@ -2661,12 +2662,16 @@ private var selectedMapModeOption: MapModeOption {
     private func autosteerReferenceLineCoordinates(
         userCoordinate: CLLocationCoordinate2D
     ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
-        if let pendingSetupLine = referenceGuidanceLineEndpoints(from: previewCoordinatesForPendingSetup()) {
+        if let pendingSetupLine = referenceGuidanceLineEndpoints(
+            from: previewCoordinatesForPendingSetup(),
+            userCoordinate: userCoordinate
+        ) {
             return pendingSetupLine
         }
 
         if let selectedTrackLine = referenceGuidanceLineEndpoints(
-            from: selectedAutosteerTrackRecord?.previewCoordinates ?? []
+            from: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
+            userCoordinate: userCoordinate
         ) {
             return selectedTrackLine
         }
@@ -2694,7 +2699,8 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private func referenceGuidanceLineEndpoints(
-        from previewCoordinates: [[Double]]
+        from previewCoordinates: [[Double]],
+        userCoordinate: CLLocationCoordinate2D
     ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
         let validCoordinates: [CLLocationCoordinate2D] = previewCoordinates.compactMap { pair in
             guard pair.count >= 2 else { return nil }
@@ -2704,22 +2710,45 @@ private var selectedMapModeOption: MapModeOption {
 
         guard validCoordinates.count >= 2 else { return nil }
 
-        let first = validCoordinates[0]
-        let last = validCoordinates[validCoordinates.count - 1]
+        let earthRadiusM = 6_378_137.0
+        let latitudeRadians = userCoordinate.latitude * .pi / 180
+        let metersPerDegreeLat = earthRadiusM * .pi / 180
+        let metersPerDegreeLon = metersPerDegreeLat * cos(latitudeRadians)
 
-        if CLLocation(latitude: first.latitude, longitude: first.longitude)
-            .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude)) > 0.5 {
-            return (first, last)
+        func localPoint(_ coordinate: CLLocationCoordinate2D) -> CGPoint {
+            CGPoint(
+                x: (coordinate.longitude - userCoordinate.longitude) * metersPerDegreeLon,
+                y: (coordinate.latitude - userCoordinate.latitude) * metersPerDegreeLat
+            )
         }
 
-        if let fallback = validCoordinates.dropFirst().first(where: { candidate in
-            CLLocation(latitude: first.latitude, longitude: first.longitude)
-                .distance(from: CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)) > 0.5
-        }) {
-            return (first, fallback)
+        let minSegmentLengthMeters = 0.5
+        var bestSegment: (CLLocationCoordinate2D, CLLocationCoordinate2D)?
+        var bestDistance = Double.greatestFiniteMagnitude
+
+        for index in 0..<(validCoordinates.count - 1) {
+            let start = validCoordinates[index]
+            let end = validCoordinates[index + 1]
+            let segmentLength = CLLocation(latitude: start.latitude, longitude: start.longitude)
+                .distance(from: CLLocation(latitude: end.latitude, longitude: end.longitude))
+            guard segmentLength > minSegmentLengthMeters else { continue }
+
+            let a = localPoint(start)
+            let b = localPoint(end)
+            let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
+            let lengthSquared = (ab.x * ab.x) + (ab.y * ab.y)
+            guard lengthSquared > 0 else { continue }
+
+            let t = min(1, max(0, -((a.x * ab.x) + (a.y * ab.y)) / lengthSquared))
+            let closestPoint = CGPoint(x: a.x + (ab.x * t), y: a.y + (ab.y * t))
+            let distanceToSegment = hypot(closestPoint.x, closestPoint.y)
+            if distanceToSegment < bestDistance {
+                bestDistance = distanceToSegment
+                bestSegment = (start, end)
+            }
         }
 
-        return nil
+        return bestSegment
     }
 
     private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {

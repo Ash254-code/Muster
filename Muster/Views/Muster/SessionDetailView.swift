@@ -76,6 +76,7 @@ struct SessionDetailView: View {
             autosteerTrackPreviewCoordinates: [],
             autosteerTrackSpacingMeters: 36,
             autosteerLockedLineIndex: nil,
+            autosteerUserCoordinate: location.lastLocation?.coordinate,
             orientationRaw: $orientationRaw,
             mapStyleRaw: .constant("standard"),
             recenterNonce: $recenterNonce,
