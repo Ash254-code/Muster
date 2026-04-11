@@ -124,6 +124,11 @@ struct MapMainView: View {
         }
     }
 
+    private struct RawAutosteerGuidanceSample {
+        let signedDistanceToBaseLineM: Double
+        let nearestLineIndex: Int
+    }
+
     private enum MapModeOption: String, CaseIterable, Identifiable {
         case explore
         case driving
@@ -327,6 +332,11 @@ struct MapMainView: View {
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
+    @State private var autosteerFilteredSignedOffsetM: Double = 0
+    @State private var autosteerLockedGuidanceLineIndex: Int = 0
+    @State private var autosteerLastGuidanceTimestamp: Date? = nil
+    @State private var autosteerLastRawBaseDistanceM: Double? = nil
+    @State private var autosteerGuidanceSeeded = false
     @State private var mapCenterCoordinate: CLLocationCoordinate2D? = nil
     @State private var knownFarms: [AutosteerFarmRecord] = []
     @State private var selectedFarmOption: String = "__new__"
@@ -904,6 +914,22 @@ private var selectedMapModeOption: MapModeOption {
             }
             .onChange(of: autosteerSetupActive) { _, isActive in
                 handleAutosteerSetupActiveChanged(isActive)
+                resetAutosteerGuidanceFilter()
+            }
+            .onChange(of: autosteerWorkingWidthM) { _, _ in
+                resetAutosteerGuidanceFilter()
+            }
+            .onChange(of: autosteerTrackModeRaw) { _, _ in
+                resetAutosteerGuidanceFilter()
+            }
+            .onChange(of: autosteerFarmName) { _, _ in
+                resetAutosteerGuidanceFilter()
+            }
+            .onChange(of: autosteerPaddockName) { _, _ in
+                resetAutosteerGuidanceFilter()
+            }
+            .onChange(of: autosteerTrackName) { _, _ in
+                resetAutosteerGuidanceFilter()
             }
             .onChange(of: mapCenterChangeToken) { _, _ in
                 handleMapCenterCoordinateChanged(mapCenterCoordinate)
@@ -1155,6 +1181,7 @@ private var selectedMapModeOption: MapModeOption {
             .onChange(of: location.lastLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
 
+                updateAutosteerGuidanceFilter(using: loc)
                 evaluateFenceApproachWarning(using: loc)
 
                 smartETA.update(distance: destinationDistanceMeters)
@@ -2616,15 +2643,26 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private var autosteerGuidanceStatus: AutosteerGuidanceStatus {
-        guard autosteerWorkingWidthM > 0,
-              let userCoordinate = location.lastLocation?.coordinate else {
+        guard autosteerWorkingWidthM > 0 else {
             return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
         }
+        if autosteerGuidanceSeeded {
+            return AutosteerGuidanceStatus(
+                signedOffsetToNearestLineM: autosteerFilteredSignedOffsetM,
+                nearestLineIndex: autosteerLockedGuidanceLineIndex
+            )
+        }
+        guard let userCoordinate = location.lastLocation?.coordinate,
+              let raw = rawAutosteerGuidanceSample(userCoordinate: userCoordinate) else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
+        }
+        let signedDistanceToNearestLine = raw.signedDistanceToBaseLineM - (Double(raw.nearestLineIndex) * autosteerWorkingWidthM)
+        return AutosteerGuidanceStatus(signedOffsetToNearestLineM: -signedDistanceToNearestLine, nearestLineIndex: raw.nearestLineIndex)
+    }
 
+    private func rawAutosteerGuidanceSample(userCoordinate: CLLocationCoordinate2D) -> RawAutosteerGuidanceSample? {
         let referenceLine = autosteerReferenceLineCoordinates(userCoordinate: userCoordinate)
-        guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else {
-            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
-        }
+        guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else { return nil }
 
         let earthRadiusM = 6_378_137.0
         let latitudeRadians = userCoordinate.latitude * .pi / 180
@@ -2642,19 +2680,75 @@ private var selectedMapModeOption: MapModeOption {
         let b = localPoint(lineB)
         let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
         let lineLength = hypot(ab.x, ab.y)
-        guard lineLength > 0.01 else {
-            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0, nearestLineIndex: 0)
-        }
+        guard lineLength > 0.01 else { return nil }
 
         let ap = CGPoint(x: -a.x, y: -a.y)
         let signedDistanceToBaseLine = ((ab.x * ap.y) - (ab.y * ap.x)) / lineLength
         let nearestLineIndex = Int((signedDistanceToBaseLine / autosteerWorkingWidthM).rounded())
-        let signedDistanceToNearestLine = signedDistanceToBaseLine - (Double(nearestLineIndex) * autosteerWorkingWidthM)
-
-        return AutosteerGuidanceStatus(
-            signedOffsetToNearestLineM: -signedDistanceToNearestLine,
+        return RawAutosteerGuidanceSample(
+            signedDistanceToBaseLineM: signedDistanceToBaseLine,
             nearestLineIndex: nearestLineIndex
         )
+    }
+
+    private func updateAutosteerGuidanceFilter(using location: CLLocation) {
+        guard autosteerWorkingWidthM > 0,
+              let raw = rawAutosteerGuidanceSample(userCoordinate: location.coordinate) else {
+            resetAutosteerGuidanceFilter()
+            return
+        }
+
+        let now = location.timestamp
+        let speedMPS = max(location.speed, 0)
+        let lookAheadSeconds = speedMPS > 0.3 ? max(0.35, min(2.2, autosteerLookAheadM / speedMPS)) : 0.35
+
+        let predictedBaseDistanceM: Double
+        if let lastBase = autosteerLastRawBaseDistanceM,
+           let lastTimestamp = autosteerLastGuidanceTimestamp {
+            let dt = max(0.02, min(0.7, now.timeIntervalSince(lastTimestamp)))
+            let lateralVelocityMPS = (raw.signedDistanceToBaseLineM - lastBase) / dt
+            predictedBaseDistanceM = raw.signedDistanceToBaseLineM + (lateralVelocityMPS * lookAheadSeconds)
+        } else {
+            predictedBaseDistanceM = raw.signedDistanceToBaseLineM
+        }
+
+        let projectedLineIndex = Int((predictedBaseDistanceM / autosteerWorkingWidthM).rounded())
+        let chosenLineIndex: Int
+        if autosteerGuidanceSeeded {
+            let distanceToLockedLine = abs(predictedBaseDistanceM - (Double(autosteerLockedGuidanceLineIndex) * autosteerWorkingWidthM))
+            let speedFactor = min(speedMPS / 12.0, 1.0)
+            let lockSwitchThreshold = (autosteerWorkingWidthM * 0.58) + (autosteerWorkingWidthM * 0.24 * speedFactor)
+            chosenLineIndex = distanceToLockedLine > lockSwitchThreshold ? projectedLineIndex : autosteerLockedGuidanceLineIndex
+        } else {
+            chosenLineIndex = projectedLineIndex
+        }
+
+        let projectedDistanceToChosenLine = predictedBaseDistanceM - (Double(chosenLineIndex) * autosteerWorkingWidthM)
+        let measuredOffsetToChosenLine = -(raw.signedDistanceToBaseLineM - (Double(chosenLineIndex) * autosteerWorkingWidthM))
+        let targetOffsetM = -projectedDistanceToChosenLine
+        let dynamicTargetOffsetM = measuredOffsetToChosenLine + ((targetOffsetM - measuredOffsetToChosenLine) * min(speedMPS / 10.0, 0.8))
+
+        if autosteerGuidanceSeeded, let lastTimestamp = autosteerLastGuidanceTimestamp {
+            let dt = max(0.02, min(0.7, now.timeIntervalSince(lastTimestamp)))
+            let smoothingTimeConstant = max(0.10, 0.36 - (0.18 * min(speedMPS / 12.0, 1.0)))
+            let alpha = dt / (smoothingTimeConstant + dt)
+            autosteerFilteredSignedOffsetM += (dynamicTargetOffsetM - autosteerFilteredSignedOffsetM) * alpha
+        } else {
+            autosteerFilteredSignedOffsetM = dynamicTargetOffsetM
+            autosteerGuidanceSeeded = true
+        }
+
+        autosteerLockedGuidanceLineIndex = chosenLineIndex
+        autosteerLastRawBaseDistanceM = raw.signedDistanceToBaseLineM
+        autosteerLastGuidanceTimestamp = now
+    }
+
+    private func resetAutosteerGuidanceFilter() {
+        autosteerGuidanceSeeded = false
+        autosteerFilteredSignedOffsetM = 0
+        autosteerLockedGuidanceLineIndex = 0
+        autosteerLastRawBaseDistanceM = nil
+        autosteerLastGuidanceTimestamp = nil
     }
 
     private func autosteerReferenceLineCoordinates(
