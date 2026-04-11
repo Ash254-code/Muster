@@ -876,29 +876,33 @@ private var selectedMapModeOption: MapModeOption {
             .confirmationDialog(
                 "Autosteer",
                 isPresented: $showAutosteerQuickActions,
-                titleVisibility: .visible
-            ) {
-                Button(selectedAutosteerFarmDisplay) {}
-                Button(selectedAutosteerPaddockDisplay) {}
-                Button(selectedAutosteerNameDisplay) {}
-                Button("Settings") {
-                    showAutosteerSettings = true
+                titleVisibility: .visible,
+                actions: {
+                    Button(selectedAutosteerFarmDisplay) {}
+                    Button(selectedAutosteerPaddockDisplay) {}
+                    Button(selectedAutosteerNameDisplay) {}
+                    Button("Settings") {
+                        showAutosteerSettings = true
+                    }
+                    Button("Select Track") {
+                        refreshKnownFarms()
+                        showAutosteerTrackSelector = true
+                    }
+                    Button("New A + B Track") {
+                        beginAutosteerSetup(mode: "A+B line")
+                    }
+                    Button("New A + Heading") {
+                        beginAutosteerSetup(mode: "A+Heading")
+                    }
+                    Button("New Curve Track") {
+                        beginAutosteerSetup(mode: "Curve Track")
+                    }
+                    Button("Cancel", role: .cancel) {}
+                },
+                message: {
+                    EmptyView()
                 }
-                Button("Select Track") {
-                    refreshKnownFarms()
-                    showAutosteerTrackSelector = true
-                }
-                Button("New A + B Track") {
-                    beginAutosteerSetup(mode: "A+B line")
-                }
-                Button("New A + Heading") {
-                    beginAutosteerSetup(mode: "A+Heading")
-                }
-                Button("New Curve Track") {
-                    beginAutosteerSetup(mode: "Curve Track")
-                }
-                Button("Cancel", role: .cancel) {}
-            }
+            )
             .alert(
                 "Confirm Delete",
                 isPresented: $showTrackDeleteConfirmationAlert,
