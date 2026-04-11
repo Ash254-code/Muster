@@ -2116,15 +2116,9 @@ struct MapViewRepresentable: UIViewRepresentable {
             let verticalMeters = CLLocation(latitude: top.latitude, longitude: top.longitude)
                 .distance(from: CLLocation(latitude: bottom.latitude, longitude: bottom.longitude))
             let halfSpanMeters = (max(horizontalMeters, verticalMeters) / 2) + (spacingMeters * 2)
-            let visibleCount = max(6, Int(ceil(halfSpanMeters / max(spacingMeters, 1))))
-            var lower = -visibleCount
-            var upper = visibleCount
-            if let lockedLineIndex {
-                lower = min(lower, lockedLineIndex - 2)
-                upper = max(upper, lockedLineIndex + 2)
-            }
-            let hardCap = 120
-            return max(-hardCap, lower)...min(hardCap, upper)
+            let visibleCount = min(120, max(6, Int(ceil(halfSpanMeters / max(spacingMeters, 1)))))
+            let centerIndex = lockedLineIndex ?? 0
+            return (centerIndex - visibleCount)...(centerIndex + visibleCount)
         }
 
         private func refreshAutosteerGuidanceRenderers(on map: MKMapView) {

@@ -114,7 +114,6 @@ struct MapMainView: View {
     private struct AutosteerGuidanceStatus {
         let signedOffsetToNearestLineM: Double
         let nearestLineIndex: Int
-        static let supportedLineIndexRange = -80...80
 
         var offsetCentimeters: Double {
             abs(signedOffsetToNearestLineM) * 100
@@ -2646,11 +2645,7 @@ private var selectedMapModeOption: MapModeOption {
 
         let ap = CGPoint(x: -a.x, y: -a.y)
         let signedDistanceToBaseLine = ((ab.x * ap.y) - (ab.y * ap.x)) / lineLength
-        let rawNearestLineIndex = Int((signedDistanceToBaseLine / autosteerWorkingWidthM).rounded())
-        let nearestLineIndex = min(
-            AutosteerGuidanceStatus.supportedLineIndexRange.upperBound,
-            max(AutosteerGuidanceStatus.supportedLineIndexRange.lowerBound, rawNearestLineIndex)
-        )
+        let nearestLineIndex = Int((signedDistanceToBaseLine / autosteerWorkingWidthM).rounded())
         let signedDistanceToNearestLine = signedDistanceToBaseLine - (Double(nearestLineIndex) * autosteerWorkingWidthM)
 
         return AutosteerGuidanceStatus(
