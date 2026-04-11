@@ -1239,6 +1239,7 @@ struct MapMainView: View {
         GeometryReader { geo in
             ZStack {
                 mapLayer(totalHeight: geo.size.height)
+                    .ignoresSafeArea()
                 
                 if showArrivedBanner {
                     VStack {
