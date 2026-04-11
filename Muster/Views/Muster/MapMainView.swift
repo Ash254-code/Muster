@@ -111,6 +111,18 @@ struct MapMainView: View {
         let animateRotation: Bool
     }
 
+    private struct AutosteerGuidanceStatus {
+        let signedOffsetToNearestLineM: Double
+
+        var offsetCentimeters: Int {
+            Int((abs(signedOffsetToNearestLineM) * 100).rounded())
+        }
+
+        var lineIsLeft: Bool {
+            signedOffsetToNearestLineM < 0
+        }
+    }
+
     private enum MapModeOption: String, CaseIterable, Identifiable {
         case explore
         case driving
@@ -1237,6 +1249,14 @@ private var selectedMapModeOption: MapModeOption {
                         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: panelDetent)
                         .transition(.opacity)
                     }
+            }
+            .overlay(alignment: .bottom) {
+                if !showMapLayerSheet, autosteerEnabled {
+                    autosteerGuidanceBar(autosteerGuidanceStatus)
+                        .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
+                        .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
             .overlay(alignment: .top) {
                 if let crossTrackErrorMeters = autosteerCrossTrackErrorMeters {
@@ -2499,6 +2519,137 @@ private var selectedMapModeOption: MapModeOption {
     private func recenterOnUser() {
         followUser = true
         recenterNonce &+= 1
+    }
+
+    private var autosteerGuidanceStatus: AutosteerGuidanceStatus {
+        guard autosteerWorkingWidthM > 0,
+              let userCoordinate = location.lastLocation?.coordinate else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
+
+        let referenceLine = autosteerReferenceLineCoordinates(userCoordinate: userCoordinate)
+        guard let lineA = referenceLine?.0, let lineB = referenceLine?.1 else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
+
+        let earthRadiusM = 6_378_137.0
+        let latitudeRadians = userCoordinate.latitude * .pi / 180
+        let metersPerDegreeLat = earthRadiusM * .pi / 180
+        let metersPerDegreeLon = metersPerDegreeLat * cos(latitudeRadians)
+
+        func localPoint(_ c: CLLocationCoordinate2D) -> CGPoint {
+            CGPoint(
+                x: (c.longitude - userCoordinate.longitude) * metersPerDegreeLon,
+                y: (c.latitude - userCoordinate.latitude) * metersPerDegreeLat
+            )
+        }
+
+        let a = localPoint(lineA)
+        let b = localPoint(lineB)
+        let ab = CGPoint(x: b.x - a.x, y: b.y - a.y)
+        let lineLength = hypot(ab.x, ab.y)
+        guard lineLength > 0.01 else {
+            return AutosteerGuidanceStatus(signedOffsetToNearestLineM: 0)
+        }
+
+        let ap = CGPoint(x: -a.x, y: -a.y)
+        let signedDistanceToBaseLine = ((ab.x * ap.y) - (ab.y * ap.x)) / lineLength
+        let nearestLineIndex = (signedDistanceToBaseLine / autosteerWorkingWidthM).rounded()
+        let signedDistanceToNearestLine = signedDistanceToBaseLine - (nearestLineIndex * autosteerWorkingWidthM)
+
+        return AutosteerGuidanceStatus(signedOffsetToNearestLineM: -signedDistanceToNearestLine)
+    }
+
+    private func autosteerReferenceLineCoordinates(
+        userCoordinate: CLLocationCoordinate2D
+    ) -> (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
+        let preview = previewCoordinatesForPendingSetup()
+
+        if preview.count >= 2 {
+            let a = CLLocationCoordinate2D(latitude: preview[0][0], longitude: preview[0][1])
+            let b = CLLocationCoordinate2D(latitude: preview[1][0], longitude: preview[1][1])
+            return (a, b)
+        }
+
+        if displayedActiveTrackPoints.count >= 2 {
+            let a = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 2].coordinate
+            let b = displayedActiveTrackPoints[displayedActiveTrackPoints.count - 1].coordinate
+            if a.latitude != b.latitude || a.longitude != b.longitude {
+                return (a, b)
+            }
+        }
+
+        guard let heading = location.headingDegrees else { return nil }
+        let headingRadians = heading * .pi / 180
+        let distanceMeters: CLLocationDistance = 120
+        let earthRadiusM = 6_378_137.0
+        let dLat = (distanceMeters * cos(headingRadians)) / earthRadiusM
+        let dLon = (distanceMeters * sin(headingRadians)) / (earthRadiusM * cos(userCoordinate.latitude * .pi / 180))
+
+        let projected = CLLocationCoordinate2D(
+            latitude: userCoordinate.latitude + (dLat * 180 / .pi),
+            longitude: userCoordinate.longitude + (dLon * 180 / .pi)
+        )
+        return (userCoordinate, projected)
+    }
+
+    private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {
+        let maxLights = 5
+        let activeRedLights = min(maxLights, max(0, Int(ceil(Double(guidance.offsetCentimeters) / 10))))
+
+        return VStack(spacing: 6) {
+            GeometryReader { proxy in
+                let segmentSpacing: CGFloat = 6
+                let centerWidth = min(26, max(16, proxy.size.width * 0.12))
+                let sideLightWidth = max(
+                    8,
+                    (proxy.size.width - centerWidth - (segmentSpacing * 10)) / 10
+                )
+
+                HStack(spacing: segmentSpacing) {
+                    ForEach(0..<maxLights, id: \.self) { index in
+                        let threshold = maxLights - index
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
+                            .frame(width: sideLightWidth, height: 6)
+                    }
+
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(.green)
+                        .frame(width: centerWidth, height: 8)
+
+                    ForEach(0..<maxLights, id: \.self) { index in
+                        let threshold = index + 1
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(!guidance.lineIsLeft && activeRedLights >= threshold ? .red : .red.opacity(0.16))
+                            .frame(width: sideLightWidth, height: 6)
+                    }
+                }
+            }
+            .frame(height: 8)
+
+            Text("\(guidance.offsetCentimeters) cm")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.black.opacity(0.95))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+    }
+
+    private func autosteerGuidanceBarMaxWidth(for totalWidth: CGFloat) -> CGFloat {
+        // Reserve room for left/right floating control columns and breathing space.
+        let reservedSideWidth: CGFloat = 160
+        return max(150, totalWidth - reservedSideWidth)
     }
 
     // MARK: - Map layer sheet
