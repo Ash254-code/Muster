@@ -3434,7 +3434,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
-        .padding(.bottom, 8)
+        .padding(.bottom, -16)
         .contentShape(Rectangle())
         .gesture(bottomPanelDragGesture)
     }
