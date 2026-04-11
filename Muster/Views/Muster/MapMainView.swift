@@ -35,6 +35,10 @@ private let kXRSRadioTrailsEnabledKey = "xrs_radio_trails_enabled" // Bool
 private let kXRSRadioTrailColorKey = "xrs_radio_trail_color" // String
 private let kAutosteerEnabledKey = "autosteer_enabled" // Bool
 private let kAutosteerWorkingWidthKey = "autosteer_working_width_m" // Double
+private let kAutosteerTrackModeKey = "autosteer_track_mode" // String
+private let kAutosteerFarmNameKey = "autosteer_farm_name" // String
+private let kAutosteerPaddockNameKey = "autosteer_paddock_name" // String
+private let kAutosteerTrackNameKey = "autosteer_track_name" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
 private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
@@ -272,6 +276,10 @@ struct MapMainView: View {
     @AppStorage(kXRSRadioTrailColorKey) private var xrsRadioTrailColorRaw: String = "blue"
     @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
     @AppStorage(kAutosteerWorkingWidthKey) private var autosteerWorkingWidthM: Double = 36
+    @AppStorage(kAutosteerTrackModeKey) private var autosteerTrackModeRaw: String = "A+B line"
+    @AppStorage(kAutosteerFarmNameKey) private var autosteerFarmName: String = ""
+    @AppStorage(kAutosteerPaddockNameKey) private var autosteerPaddockName: String = ""
+    @AppStorage(kAutosteerTrackNameKey) private var autosteerTrackName: String = ""
     @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
@@ -292,6 +300,7 @@ struct MapMainView: View {
     @State private var showTPMSDashboard = false
     @State private var showAutosteerSettings = false
     @State private var showAutosteerQuickActions = false
+    @State private var showAutosteerTrackSelector = false
     @State private var autosteerActive = false
     @State private var autosteerPointA: CLLocationCoordinate2D? = nil
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
@@ -421,6 +430,41 @@ struct MapMainView: View {
             return []
         }
         return farm.paddocks.map(\.name)
+    }
+
+    private var selectedAutosteerFarmDisplay: String {
+        let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return farm.isEmpty ? "—" : farm
+    }
+
+    private var selectedAutosteerPaddockDisplay: String {
+        let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return paddock.isEmpty ? "—" : paddock
+    }
+
+    private var selectedAutosteerNameDisplay: String {
+        let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return track.isEmpty ? "—" : track
+    }
+
+    private var selectedAutosteerTrackRecord: AutosteerTrackRecord? {
+        let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard farm.isEmpty == false, paddock.isEmpty == false, track.isEmpty == false else { return nil }
+
+        func findTrack(in farms: [AutosteerFarmRecord]) -> AutosteerTrackRecord? {
+            farms
+                .first(where: { $0.name.caseInsensitiveCompare(farm) == .orderedSame })?
+                .paddocks.first(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame })?
+                .tracks.first(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame })
+        }
+
+        if let match = findTrack(in: knownFarms) {
+            return match
+        }
+
+        return findTrack(in: AutosteerLibraryStore.load())
     }
 
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
@@ -835,6 +879,9 @@ private var selectedMapModeOption: MapModeOption {
                     AutosteerSettingsView()
                 }
             }
+            .sheet(isPresented: $showAutosteerTrackSelector) {
+                autosteerTrackSelectorSheet
+            }
             .fullScreenCover(isPresented: $showPreviousMusters) {
                 previousMustersCover
             }
@@ -869,22 +916,33 @@ private var selectedMapModeOption: MapModeOption {
             .confirmationDialog(
                 "Autosteer",
                 isPresented: $showAutosteerQuickActions,
-                titleVisibility: .visible
-            ) {
-                Button("Settings") {
-                    showAutosteerSettings = true
+                titleVisibility: .visible,
+                actions: {
+                    Button(selectedAutosteerFarmDisplay) {}
+                    Button(selectedAutosteerPaddockDisplay) {}
+                    Button(selectedAutosteerNameDisplay) {}
+                    Button("Settings") {
+                        showAutosteerSettings = true
+                    }
+                    Button("Select Track") {
+                        refreshKnownFarms()
+                        showAutosteerTrackSelector = true
+                    }
+                    Button("New A + B Track") {
+                        beginAutosteerSetup(mode: "A+B line")
+                    }
+                    Button("New A + Heading") {
+                        beginAutosteerSetup(mode: "A+Heading")
+                    }
+                    Button("New Curve Track") {
+                        beginAutosteerSetup(mode: "Curve Track")
+                    }
+                    Button("Cancel", role: .cancel) {}
+                },
+                message: {
+                    EmptyView()
                 }
-                Button("New A + B Track") {
-                    beginAutosteerSetup(mode: "A+B line")
-                }
-                Button("New A + Heading") {
-                    beginAutosteerSetup(mode: "A+Heading")
-                }
-                Button("New Curve Track") {
-                    beginAutosteerSetup(mode: "Curve Track")
-                }
-                Button("Cancel", role: .cancel) {}
-            }
+            )
             .alert(
                 "Confirm Delete",
                 isPresented: $showTrackDeleteConfirmationAlert,
@@ -1228,6 +1286,8 @@ private var selectedMapModeOption: MapModeOption {
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
+            autosteerTrackPreviewCoordinates: selectedAutosteerTrackRecord?.previewCoordinates ?? [],
+            autosteerTrackSpacingMeters: autosteerWorkingWidthM,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
             recenterNonce: $recenterNonce,
@@ -2169,17 +2229,30 @@ private var selectedMapModeOption: MapModeOption {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Save") {
+                            let trimmedFarm = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let trimmedPaddock = autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let trimmedTrack = autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+
                             AutosteerLibraryStore.upsertTrack(
-                                farmName: autosteerSaveFarm,
-                                paddockName: autosteerSavePaddock,
-                                trackName: autosteerSaveTrackName,
+                                farmName: trimmedFarm,
+                                paddockName: trimmedPaddock,
+                                trackName: trimmedTrack,
                                 mode: autosteerSetupModeRaw,
                                 previewCoordinates: previewCoordinatesForPendingSetup()
                             )
+                            autosteerFarmName = trimmedFarm
+                            autosteerPaddockName = trimmedPaddock
+                            autosteerTrackName = trimmedTrack
+                            autosteerTrackModeRaw = autosteerSetupModeRaw
+                            refreshKnownFarms()
                             resetAutosteerSetupFlow()
                             showAutosteerTrackSaveSheet = false
                         }
-                        .disabled(autosteerSaveFarm.isEmpty || autosteerSavePaddock.isEmpty || autosteerSaveTrackName.isEmpty)
+                        .disabled(
+                            autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
                     }
                 }
             }
@@ -2191,78 +2264,61 @@ private var selectedMapModeOption: MapModeOption {
         }
     }
 
-    private func autosteerLightbar(errorMeters: Double) -> some View {
-        let stepMeters = max(autosteerLightbarStepCM / 100.0, 0.01)
-        let absError = abs(errorMeters)
-        let stepCount = Int(absError / stepMeters)
+    private var autosteerTrackSelectorSheet: some View {
+        NavigationStack {
+            List {
+                if knownFarms.isEmpty {
+                    Text("No saved autosteer tracks yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(knownFarms) { farm in
+                        Section(farm.name) {
+                            ForEach(farm.paddocks) { paddock in
+                                ForEach(paddock.tracks) { track in
+                                    Button {
+                                        autosteerFarmName = farm.name
+                                        autosteerPaddockName = paddock.name
+                                        autosteerTrackName = track.name
+                                        autosteerTrackModeRaw = track.mode
+                                        showAutosteerTrackSelector = false
+                                    } label: {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(track.name)
+                                                    .foregroundStyle(.primary)
+                                                Text("\(farm.name) > \(paddock.name) > \(track.name)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(2)
+                                            }
 
-        return VStack(spacing: 8) {
-            HStack(spacing: 5) {
-                ForEach(-4...4, id: \.self) { index in
-                    Capsule(style: .continuous)
-                        .fill(lightbarColor(for: index, errorMeters: errorMeters, stepMeters: stepMeters))
-                        .frame(width: index == 0 ? 18 : 14, height: 8)
+                                            Spacer()
+
+                                            if autosteerFarmName.caseInsensitiveCompare(farm.name) == .orderedSame &&
+                                                autosteerPaddockName.caseInsensitiveCompare(paddock.name) == .orderedSame &&
+                                                autosteerTrackName.caseInsensitiveCompare(track.name) == .orderedSame {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundStyle(.green)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
-            Text(String(format: "Offset %.2f m • %d cm/step", absError, Int(autosteerLightbarStepCM)))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .monospacedDigit()
+            .navigationTitle("Select Track")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Close") {
+                        showAutosteerTrackSelector = false
+                    }
+                }
+            }
+            .onAppear(perform: refreshKnownFarms)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.black.opacity(0.88))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-        )
-        .accessibilityLabel("Autosteer lightbar")
-        .accessibilityValue("Off guidance by \(stepCount) steps")
-    }
-
-    private func lightbarColor(for index: Int, errorMeters: Double, stepMeters: Double) -> Color {
-        let absError = abs(errorMeters)
-        if index == 0 {
-            return absError < stepMeters ? .green : .white.opacity(0.14)
-        }
-
-        let side = index > 0 ? 1.0 : -1.0
-        let isErrorOnThisSide = (errorMeters.sign == .plus && side > 0) || (errorMeters.sign == .minus && side < 0)
-        let threshold = stepMeters * Double(abs(index))
-        if isErrorOnThisSide && absError >= threshold {
-            return .red
-        }
-        return .white.opacity(0.14)
-    }
-
-    private func signedCrossTrackDistanceMeters(
-        point: CLLocationCoordinate2D,
-        lineStart: CLLocationCoordinate2D,
-        lineEnd: CLLocationCoordinate2D
-    ) -> Double {
-        let lat0 = lineStart.latitude * .pi / 180
-        let metersPerDegLat = 111_132.92
-        let metersPerDegLon = 111_412.84 * cos(lat0)
-
-        let ax = lineStart.longitude * metersPerDegLon
-        let ay = lineStart.latitude * metersPerDegLat
-        let bx = lineEnd.longitude * metersPerDegLon
-        let by = lineEnd.latitude * metersPerDegLat
-        let px = point.longitude * metersPerDegLon
-        let py = point.latitude * metersPerDegLat
-
-        let vx = bx - ax
-        let vy = by - ay
-        let wx = px - ax
-        let wy = py - ay
-        let length = hypot(vx, vy)
-        guard length > 0.0001 else { return 0 }
-
-        return ((vx * wy) - (vy * wx)) / length
     }
 
     private var autosteerSetupPrimaryButtonTitle: String {
@@ -2306,7 +2362,7 @@ private var selectedMapModeOption: MapModeOption {
     }
 
     private func completeAutosteerSetupAndPromptForSave() {
-        knownFarms = AutosteerLibraryStore.load()
+        refreshKnownFarms()
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
         showAutosteerTrackSaveSheet = true
@@ -2333,6 +2389,10 @@ private var selectedMapModeOption: MapModeOption {
         autosteerSetupActive = true
         followUser = false
         curveRecordedCenters = []
+    }
+
+    private func refreshKnownFarms() {
+        knownFarms = AutosteerLibraryStore.load()
     }
 
     private func previewCoordinatesForPendingSetup() -> [[Double]] {
@@ -3465,6 +3525,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         smartETA.reset()
         syncDisplayedActiveTrackPoints()
         resetSheepCountSelection()
+        refreshKnownFarms()
 
         Task {
             await refreshWeatherIfNeeded()
