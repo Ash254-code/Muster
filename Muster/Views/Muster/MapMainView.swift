@@ -1451,6 +1451,7 @@ struct MapMainView: View {
             autosteerUserCoordinate: autosteerEnabled ? location.lastLocation?.coordinate : nil,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
+            guidanceNoMapEnabled: shouldShowGuidanceOnlyViewport,
             recenterNonce: $recenterNonce,
             fitRadiosNonce: $fitRadiosNonce,
             metersPerPoint: $metersPerPoint,
