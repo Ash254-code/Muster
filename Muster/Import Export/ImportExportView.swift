@@ -202,10 +202,29 @@ struct ImportExportView: View {
 
             if mode == .import {
                 Section {
-                    LabeledContent("Imported Files", value: "\(importedFileCount)")
-                    LabeledContent("Boundaries", value: "\(boundaryCount)")
-                    LabeledContent("Tracks", value: "\(trackCount)")
-                    LabeledContent("Markers", value: "\(markerCount)")
+                    LabeledContent {
+                        Text("\(importedFileCount)")
+                    } label: {
+                        summaryLabel(icon: "doc.on.doc", title: "Imported Files")
+                    }
+
+                    LabeledContent {
+                        Text("\(boundaryCount)")
+                    } label: {
+                        summaryLabel(icon: ImportCategory.boundaries.defaultIcon, title: "Boundaries")
+                    }
+
+                    LabeledContent {
+                        Text("\(trackCount)")
+                    } label: {
+                        summaryLabel(icon: ImportCategory.tracks.defaultIcon, title: "Tracks")
+                    }
+
+                    LabeledContent {
+                        Text("\(markerCount)")
+                    } label: {
+                        summaryLabel(icon: ImportCategory.other.defaultIcon, title: "Markers")
+                    }
                 } header: {
                     Text("Imported Data")
                 }
@@ -267,7 +286,13 @@ struct ImportExportView: View {
                                     deleteImportedFiles(at: offsets, in: categoryGroup.files)
                                 }
                             } label: {
-                                Text("\(categoryGroup.section.icon) \(categoryGroup.section.title) - \(categoryGroup.files.count)")
+                                let sectionIcon = categoryGroup.section.icon.isEmpty
+                                    ? (categoryGroup.section.title == ImportCategory.boundaries.title
+                                        ? ImportCategory.boundaries.defaultIcon
+                                        : ImportCategory.tracks.defaultIcon)
+                                    : categoryGroup.section.icon
+
+                                Text("\(sectionIcon) \(categoryGroup.section.title) - \(categoryGroup.files.count)")
                             }
                         } footer: {
                             Text("Imported files are stored in the app and can be shown or hidden on the map.")
@@ -469,6 +494,14 @@ struct ImportExportView: View {
                 }
             }
         )
+    }
+
+    @ViewBuilder
+    private func summaryLabel(icon: String, title: String) -> some View {
+        HStack(spacing: 8) {
+            Text(icon)
+            Text(title)
+        }
     }
 
     private func sectionForImportedFile(_ file: ImportedMapFile) -> ImportedFileListSection {
