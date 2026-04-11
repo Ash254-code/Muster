@@ -892,7 +892,60 @@ private var selectedMapModeOption: MapModeOption {
                 }
             }
             .sheet(isPresented: $showAutosteerTrackSelector) {
-                autosteerTrackSelectorSheet
+                NavigationStack {
+                    List {
+                        if knownFarms.isEmpty {
+                            Text("No saved autosteer tracks yet.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(knownFarms) { farm in
+                                Section(farm.name) {
+                                    ForEach(farm.paddocks) { paddock in
+                                        ForEach(paddock.tracks) { track in
+                                            Button {
+                                                autosteerFarmName = farm.name
+                                                autosteerPaddockName = paddock.name
+                                                autosteerTrackName = track.name
+                                                autosteerTrackModeRaw = track.mode
+                                                showAutosteerTrackSelector = false
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading, spacing: 4) {
+                                                        Text(track.name)
+                                                            .foregroundStyle(.primary)
+                                                        Text("\(farm.name) > \(paddock.name) > \(track.name)")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.secondary)
+                                                            .lineLimit(2)
+                                                    }
+
+                                                    Spacer()
+
+                                                    if autosteerFarmName.caseInsensitiveCompare(farm.name) == .orderedSame &&
+                                                        autosteerPaddockName.caseInsensitiveCompare(paddock.name) == .orderedSame &&
+                                                        autosteerTrackName.caseInsensitiveCompare(track.name) == .orderedSame {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .foregroundStyle(.green)
+                                                    }
+                                                }
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Select Track")
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Close") {
+                                showAutosteerTrackSelector = false
+                            }
+                        }
+                    }
+                    .onAppear(perform: refreshKnownFarms)
+                }
             }
             .fullScreenCover(isPresented: $showPreviousMusters) {
                 previousMustersCover
