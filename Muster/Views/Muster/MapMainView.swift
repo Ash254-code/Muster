@@ -367,6 +367,34 @@ struct MapMainView: View {
         autosteerEnabled && gpsConnectedForAutosteer && autosteerConditionsReady
     }
 
+    private var temporaryPreviewPointA: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointA
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line", "A+Heading":
+            return autosteerPointA
+        default:
+            return nil
+        }
+    }
+
+    private var temporaryPreviewPointB: CLLocationCoordinate2D? {
+        if markerSheetPointA != nil || markerSheetPointB != nil {
+            return markerSheetPointB
+        }
+
+        guard isAutosteerTrackSetupActive else { return nil }
+        switch autosteerSetupModeRaw {
+        case "A+B line":
+            return autosteerPointB
+        default:
+            return nil
+        }
+    }
+
     private var autosteerReadinessCount: Int {
         [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerGoReady].filter { $0 }.count
     }
@@ -1193,8 +1221,8 @@ private var selectedMapModeOption: MapModeOption {
             headsUpBottomObstructionHeight: headsUpBottomObstructionHeight(for: totalHeight),
             destinationCoordinate: effectiveTargetCoordinate,
             activeDestinationMarkerID: activeDestinationMarkerID,
-            temporaryPointA: markerSheetPointA,
-            temporaryPointB: markerSheetPointB,
+            temporaryPointA: temporaryPreviewPointA,
+            temporaryPointB: temporaryPreviewPointB,
             onRequestGoToMarker: { marker in
                 startGoTo(marker)
             },
@@ -1996,25 +2024,55 @@ private var selectedMapModeOption: MapModeOption {
 
     private var autosteerTrackSetupOverlay: some View {
         VStack(spacing: 10) {
-            Button(action: handleAutosteerSetupPrimaryAction) {
-                HStack(spacing: 8) {
-                    if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 10, height: 10)
-                            .scaleEffect(curvePulse ? 1.25 : 0.8)
-                            .opacity(curvePulse ? 0.4 : 1.0)
-                            .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+            HStack(spacing: 8) {
+                Button(action: handleAutosteerSetupPrimaryAction) {
+                    HStack(spacing: 8) {
+                        if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 10, height: 10)
+                                .scaleEffect(curvePulse ? 1.25 : 0.8)
+                                .opacity(curvePulse ? 0.4 : 1.0)
+                                .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+                        }
+                        Text(autosteerSetupPrimaryButtonTitle)
+                            .font(.system(size: 15, weight: .semibold))
                     }
-                    Text(autosteerSetupPrimaryButtonTitle)
-                        .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.black.opacity(0.88)))
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Capsule().fill(.black.opacity(0.88)))
+                .buttonStyle(.plain)
+
+                if autosteerSetupModeRaw == "A+B line", autosteerPointB != nil {
+                    Button("Undo point B") {
+                        autosteerPointB = nil
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.black.opacity(0.75)))
+                    .buttonStyle(.plain)
+
+                    Button("Save Track") {
+                        completeAutosteerSetupAndPromptForSave()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.white.opacity(0.88)))
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
+
+            if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
+                Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -2111,7 +2169,9 @@ private var selectedMapModeOption: MapModeOption {
     private var autosteerSetupPrimaryButtonTitle: String {
         switch autosteerSetupModeRaw {
         case "A+B line":
-            return autosteerPointA == nil ? "Mark point A" : "Mark point B"
+            if autosteerPointA == nil { return "Mark point A" }
+            if autosteerPointB == nil { return "Mark point B" }
+            return "Re-mark point B"
         case "A+Heading":
             return "Mark point A"
         case "Curve Track":
@@ -2130,7 +2190,6 @@ private var selectedMapModeOption: MapModeOption {
                 autosteerPointA = coordinate
             } else {
                 autosteerPointB = coordinate
-                completeAutosteerSetupAndPromptForSave()
             }
         case "A+Heading":
             autosteerPointA = coordinate

@@ -182,7 +182,7 @@ struct MarkerSheet: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Save") {
+                    Button("Save Track") {
                         step = .enterName
                     }
                     .buttonStyle(.borderedProminent)
