@@ -634,7 +634,7 @@ private struct MarkerTemplatesSettingsView: View {
                             .environmentObject(app)
                     } label: {
                         HStack(spacing: 12) {
-                            Text(app.muster.iconForImportCategory(category))
+                            Text(displayIcon(for: category))
                                 .font(.title3)
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -735,6 +735,11 @@ private struct MarkerTemplatesSettingsView: View {
         return ImportColorPreset.allCases.first {
             $0.strokeHex.caseInsensitiveCompare(currentStroke) == .orderedSame
         }
+    }
+
+    private func displayIcon(for category: ImportCategory) -> String {
+        let icon = app.muster.iconForImportCategory(category)
+        return icon.isEmpty ? category.defaultIcon : icon
     }
 }
 
