@@ -293,6 +293,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var xrsTrailPolylines: [XRSTrailPolyline] = []
         private var destinationLine: MKPolyline?
         private var guidanceBackgroundOverlay: GuidanceBackgroundTileOverlay?
+        private var guidanceBackgroundStyle: UIUserInterfaceStyle?
         private var temporaryABLine: MKPolyline?
         private var temporaryPointAAnnotation: TemporaryPointAnnotation?
         private var temporaryPointBAnnotation: TemporaryPointAnnotation?
@@ -1088,14 +1089,21 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
             if parent.guidanceNoMapEnabled {
-                if guidanceBackgroundOverlay == nil {
-                    let overlay = GuidanceBackgroundTileOverlay()
+                let desiredStyle: UIUserInterfaceStyle = map.traitCollection.userInterfaceStyle == .dark ? .dark : .light
+                let needsOverlayRefresh = guidanceBackgroundOverlay == nil || guidanceBackgroundStyle != desiredStyle
+                if needsOverlayRefresh {
+                    if let existing = guidanceBackgroundOverlay {
+                        map.removeOverlay(existing)
+                    }
+                    let overlay = GuidanceBackgroundTileOverlay(style: desiredStyle)
                     guidanceBackgroundOverlay = overlay
+                    guidanceBackgroundStyle = desiredStyle
                     map.addOverlay(overlay, level: .aboveRoads)
                 }
             } else if let guidanceBackgroundOverlay {
                 map.removeOverlay(guidanceBackgroundOverlay)
                 self.guidanceBackgroundOverlay = nil
+                guidanceBackgroundStyle = nil
             }
         }
 
@@ -3661,27 +3669,34 @@ final class ImportedMarkerAnnotationView: MKMarkerAnnotationView {
 }
 
 private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
-    private static let tileData: Data = {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
-        let image = renderer.image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
-        }
-        return image.pngData() ?? Data()
-    }()
+    private static let lightTileData: Data = GuidanceBackgroundTileOverlay.makeTileData(color: .white)
+    private static let darkTileData: Data = GuidanceBackgroundTileOverlay.makeTileData(
+        color: UIColor(white: 0.12, alpha: 1.0)
+    )
+    private let tileData: Data
 
-    override init(urlTemplate URLTemplate: String?) {
+    init(urlTemplate URLTemplate: String?, style: UIUserInterfaceStyle) {
+        tileData = style == .dark ? Self.darkTileData : Self.lightTileData
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = false
+        canReplaceMapContent = true
         minimumZ = 0
         maximumZ = 22
     }
 
-    convenience init() {
-        self.init(urlTemplate: nil)
+    convenience init(style: UIUserInterfaceStyle) {
+        self.init(urlTemplate: nil, style: style)
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        result(Self.tileData, nil)
+        result(tileData, nil)
+    }
+
+    private static func makeTileData(color: UIColor) -> Data {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
+        let image = renderer.image { context in
+            color.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+        }
+        return image.pngData() ?? Data()
     }
 }
