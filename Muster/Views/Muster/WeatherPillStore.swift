@@ -17,9 +17,21 @@ final class WeatherPillStore: ObservableObject {
 
     private var lastFetchLocation: CLLocation?
     private var lastFetchTime: Date?
+    private var lastTemperatureCelsius: Double?
+    private var lastWindMetersPerSecond: Double?
+    private var cancellables: Set<AnyCancellable> = []
 
     private let minFetchInterval: TimeInterval = 60 * 10
     private let minDistanceForRefresh: CLLocationDistance = 1000
+
+    init() {
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.reformatCachedValues()
+            }
+            .store(in: &cancellables)
+    }
 
     func refreshIfNeeded(for location: CLLocation?) async {
         guard let location else {
@@ -68,10 +80,13 @@ final class WeatherPillStore: ObservableObject {
             let current = weather.currentWeather
 
             let temperatureC = current.temperature.converted(to: .celsius).value
+            lastTemperatureCelsius = temperatureC
             temperatureText = formattedTemperature(temperatureC)
             symbolName = sanitizedSymbolName(current.symbolName)
 
             let windSpeedKmh = current.wind.speed.converted(to: .kilometersPerHour).value
+            let windMps = windSpeedKmh / 3.6
+            lastWindMetersPerSecond = windMps
             windText = formattedWindSpeed(windSpeedKmh)
 
             // Meteorological wind direction = where wind comes FROM.
@@ -104,12 +119,21 @@ final class WeatherPillStore: ObservableObject {
     }
 
     private func formattedTemperature(_ celsius: Double) -> String {
-        UnitFormatting.formattedTemperature(celsius)
+        UnitFormatting.formattedTemperature(celsius, includeUnit: true)
     }
 
     private func formattedWindSpeed(_ kmh: Double) -> String {
         let metersPerSecond = kmh / 3.6
         return UnitFormatting.formattedSpeed(fromMetersPerSecond: metersPerSecond, decimals: 0)
+    }
+
+    private func reformatCachedValues() {
+        if let lastTemperatureCelsius {
+            temperatureText = formattedTemperature(lastTemperatureCelsius)
+        }
+        if let lastWindMetersPerSecond {
+            windText = UnitFormatting.formattedSpeed(fromMetersPerSecond: lastWindMetersPerSecond, decimals: 0)
+        }
     }
 
     private func sanitizedSymbolName(_ symbolName: String) -> String {
