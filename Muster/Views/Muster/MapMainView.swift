@@ -2489,9 +2489,15 @@ struct MapMainView: View {
                     .frame(width: 66, height: 66)
 
                 VStack(spacing: 0) {
-                    Text(autosteerActive ? "ON" : "GO")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
+                    if autosteerActive && autosteerGoReady {
+                        Image(systemName: "steeringwheel")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(autosteerActive ? "ON" : "GO")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
+                    }
                     Text("\(autosteerReadinessCount)/4")
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundStyle(chromeSecondaryText)
