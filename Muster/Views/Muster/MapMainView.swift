@@ -2369,6 +2369,18 @@ struct MapMainView: View {
     private var autosteerTrackSetupOverlay: some View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
+                if autosteerSetupModeRaw == "A+B line" {
+                    Button("X") {
+                        resetAutosteerSetupFlow()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(chromePrimaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(chromeFill))
+                    .buttonStyle(.plain)
+                }
+
                 Button(action: handleAutosteerSetupPrimaryAction) {
                     HStack(spacing: 8) {
                         if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {

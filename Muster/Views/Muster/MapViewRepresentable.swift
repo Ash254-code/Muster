@@ -3198,18 +3198,18 @@ final class TemporaryPointAnnotationView: MKAnnotationView {
     }
 
     func configure(label: String) {
-        labelView.text = " \(label) "
+        labelView.text = label
     }
 
     private func setup() {
         canShowCallout = false
-        frame = CGRect(x: 0, y: 0, width: 36, height: 44)
-        centerOffset = CGPoint(x: 0, y: -22)
+        frame = CGRect(x: 0, y: 0, width: 52, height: 28)
+        centerOffset = .zero
         backgroundColor = .clear
 
-        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 24, weight: .bold)
+        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 20, weight: .bold)
         glyphView.translatesAutoresizingMaskIntoConstraints = false
-        glyphView.image = UIImage(systemName: "scope", withConfiguration: symbolConfig)?
+        glyphView.image = UIImage(systemName: "plus", withConfiguration: symbolConfig)?
             .withTintColor(.systemGreen, renderingMode: .alwaysOriginal)
         glyphView.contentMode = .scaleAspectFit
         glyphView.isUserInteractionEnabled = false
@@ -3219,7 +3219,7 @@ final class TemporaryPointAnnotationView: MKAnnotationView {
         labelView.textColor = .white
         labelView.textAlignment = .center
         labelView.backgroundColor = UIColor.black.withAlphaComponent(0.72)
-        labelView.layer.cornerRadius = 8
+        labelView.layer.cornerRadius = 7
         labelView.layer.masksToBounds = true
         labelView.isUserInteractionEnabled = false
 
@@ -3228,13 +3228,13 @@ final class TemporaryPointAnnotationView: MKAnnotationView {
 
         NSLayoutConstraint.activate([
             glyphView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            glyphView.topAnchor.constraint(equalTo: topAnchor),
+            glyphView.centerYAnchor.constraint(equalTo: centerYAnchor),
             glyphView.widthAnchor.constraint(equalToConstant: 28),
             glyphView.heightAnchor.constraint(equalToConstant: 28),
-            labelView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            labelView.topAnchor.constraint(equalTo: glyphView.bottomAnchor, constant: 2),
-            labelView.widthAnchor.constraint(greaterThanOrEqualToConstant: 16),
-            labelView.heightAnchor.constraint(equalToConstant: 16)
+            labelView.leadingAnchor.constraint(equalTo: glyphView.trailingAnchor, constant: 3),
+            labelView.centerYAnchor.constraint(equalTo: glyphView.centerYAnchor),
+            labelView.widthAnchor.constraint(equalToConstant: 14),
+            labelView.heightAnchor.constraint(equalToConstant: 14)
         ])
     }
 }
