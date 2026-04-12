@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>        .buttonStyle(.plain)
+				<string>            } label: {
 </string>
 				<key>leading</key>
-				<string>                .shadow(color: chromeShadow, radius: 10, y: 4)
-        }
+				<string>                    showMapLayerSheet.toggle()
+                }
 </string>
 				<key>trailing</key>
-				<string>        .fixedSize()
-    }
-
+				<string>                Image(systemName: "square.3.layers.3d")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(chromePrimaryText)
 </string>
 			</dict>
 			<key>type</key>
