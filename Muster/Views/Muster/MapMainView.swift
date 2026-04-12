@@ -1503,11 +1503,8 @@ struct MapMainView: View {
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
-                    autosteerTrackSetupOverlay(
-                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
-                    )
-                    .padding(.top, 76)
-                    .padding(.horizontal, 12)
+                    autosteerTrackSetupOverlay(maxWidth: geo.size.width)
+                        .padding(.top, 76)
                 }
             }
             .overlay(alignment: .center) {
@@ -2525,57 +2522,54 @@ struct MapMainView: View {
         return "Current Track"
     }
 
+    private func autosteerTrackPillButton(
+        _ title: String,
+        foreground: Color = chromePrimaryText,
+        fill: Color = chromeFill,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: action)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(foreground)
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(minHeight: 40)
+            .background(Capsule().fill(fill))
+            .buttonStyle(.plain)
+    }
+
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(autosteerCurrentTrackHeading)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromeSecondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if autosteerSetupModeRaw != "A+B line" {
+                Text(autosteerCurrentTrackHeading)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromeSecondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             HStack(spacing: 8) {
                 if autosteerSetupModeRaw == "A+B line" {
-                    Button("X") {
+                    autosteerTrackPillButton("X") {
                         resetAutosteerSetupFlow()
                     }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(chromePrimaryText)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(chromeFill))
-                    .buttonStyle(.plain)
 
-                    Button(autosteerPointA == nil ? "Mark A" : "Re-mark A") {
+                    autosteerTrackPillButton(autosteerPointA == nil ? "Mark A" : "Re-mark A") {
                         guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
                         autosteerPointA = coordinate
                     }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(chromePrimaryText)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(chromeFill))
-                    .buttonStyle(.plain)
 
-                    Button(autosteerPointB == nil ? "Mark B" : "Re-mark B") {
-                        guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
-                        autosteerPointB = coordinate
+                    if autosteerPointA != nil {
+                        autosteerTrackPillButton(autosteerPointB == nil ? "Mark B" : "Re-mark B") {
+                            guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
+                            autosteerPointB = coordinate
+                        }
                     }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(chromePrimaryText)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(chromeFill))
-                    .buttonStyle(.plain)
 
                     if autosteerPointA != nil, autosteerPointB != nil {
-                        Button("Save Track") {
+                        autosteerTrackPillButton("Save", foreground: .black, fill: .white.opacity(0.88)) {
                             completeAutosteerSetupAndPromptForSave()
                         }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(Capsule().fill(.white.opacity(0.88)))
-                        .buttonStyle(.plain)
                     }
                 } else {
                     Button(action: handleAutosteerSetupPrimaryAction) {
@@ -2601,11 +2595,6 @@ struct MapMainView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
-                Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(chromePrimaryText)
-            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
