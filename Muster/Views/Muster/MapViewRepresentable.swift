@@ -1092,7 +1092,6 @@ struct MapViewRepresentable: UIViewRepresentable {
                 if guidanceBackgroundOverlay == nil {
                     let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
-                    guidanceBackgroundStyle = style
                     map.addOverlay(overlay, level: .aboveRoads)
                 }
             } else if let guidanceBackgroundOverlay {
@@ -3707,6 +3706,5 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
         case .plain:
             result(Self.tileData, nil)
         }
-        return image.pngData() ?? Data()
     }
 }

@@ -16,9 +16,9 @@
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3707</string>
+					<string>3706</string>
 					<key>Timestamp</key>
-					<string>797643838.033936</string>
+					<string>797644566.757902</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -34,13 +34,17 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string></string>
+				<string>            result(Self.tileData, nil)
+</string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        switch style {
+        case .plain:
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>        }
+    }
+}
+</string>
 			</dict>
 			<key>title</key>
 			<string>Change track nad boundary appearance</string>
@@ -59,9 +63,9 @@
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3707</string>
+					<string>3706</string>
 					<key>Timestamp</key>
-					<string>797643838.033816</string>
+					<string>797644566.757888</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -77,13 +81,17 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string></string>
+				<string>            result(Self.tileData, nil)
+</string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        switch style {
+        case .plain:
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>        }
+    }
+}
+</string>
 			</dict>
 			<key>title</key>
 			<string>imported waypoint icon</string>
@@ -102,9 +110,9 @@
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3707</string>
+					<string>3706</string>
 					<key>Timestamp</key>
-					<string>797643838.0338989</string>
+					<string>797644566.757895</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -120,13 +128,17 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string></string>
+				<string>            result(Self.tileData, nil)
+</string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        switch style {
+        case .plain:
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>        }
+    }
+}
+</string>
 			</dict>
 			<key>title</key>
 			<string>Orange dotted go to line</string>
@@ -145,9 +157,9 @@
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3707</string>
+					<string>3706</string>
 					<key>Timestamp</key>
-					<string>797643838.033856</string>
+					<string>797644566.7578501</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -163,13 +175,17 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string></string>
+				<string>            result(Self.tileData, nil)
+</string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        switch style {
+        case .plain:
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>        }
+    }
+}
+</string>
 			</dict>
 			<key>title</key>
 			<string>Rings</string>
@@ -206,15 +222,15 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>padding</string>
+				<string>       </string>
 				<key>leading</key>
-				<string>        .shadow(color: chromeShadow, radius: 18, y: 4)
-        .padding(.horizontal, 6)
-        .</string>
+				<string>                        .fill(isSelected ? Color(red: 0.0, green: 0.48, blue: 1.0) : .white.opacity(0.3))
+                )
+         </string>
 				<key>trailing</key>
-				<string>(.bottom, -16)
-        .contentShape(Rectangle())
-        .gesture(bottomPanelDragGesture)
+				<string>.overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(isSelected ? Color(red: 0.35, green: 0.70, blue: 1.0) : .white.opacity(0.3), lineWidth: 1)
 </string>
 			</dict>
 			<key>type</key>
