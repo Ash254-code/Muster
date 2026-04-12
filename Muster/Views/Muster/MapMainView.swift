@@ -596,9 +596,15 @@ struct MapMainView: View {
         TopSidePillMetric(rawValue: topRightPillMetricRaw) ?? .wind
     }
 
-    private var speedText: String {
+    private var speedNumberText: String {
         guard let s = location.lastLocation?.speed, s >= 0 else { return "—" }
-        return UnitFormatting.formattedSpeed(fromMetersPerSecond: s, decimals: 0)
+        let (value, _) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: s)
+        return String(format: "%.0f", max(0, value))
+    }
+
+    private var speedUnitText: String {
+        let (_, unit) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: 0)
+        return unit
     }
 
     private var elevationText: String {
@@ -2356,12 +2362,18 @@ struct MapMainView: View {
     }
 
     private var topSpeedPill: some View {
-        Text(speedText)
-            .font(.system(size: 28, weight: .bold, design: .rounded))
-            .foregroundStyle(chromePrimaryText)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
+        VStack(spacing: 0) {
+            Text(speedNumberText)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text(speedUnitText)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromeSecondaryText)
+        }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
