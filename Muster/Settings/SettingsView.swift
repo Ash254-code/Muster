@@ -3241,6 +3241,47 @@ enum AutosteerLibraryStore {
         }
         save(farms)
     }
+
+    static func trackExists(
+        farmName: String,
+        paddockName: String,
+        trackName: String
+    ) -> Bool {
+        let farm = farmName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let paddock = paddockName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let track = trackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard farm.isEmpty == false, paddock.isEmpty == false, track.isEmpty == false else { return false }
+
+        return load().contains { farmRecord in
+            guard farmRecord.name.caseInsensitiveCompare(farm) == .orderedSame else { return false }
+            return farmRecord.paddocks.contains { paddockRecord in
+                guard paddockRecord.name.caseInsensitiveCompare(paddock) == .orderedSame else { return false }
+                return paddockRecord.tracks.contains { $0.name.caseInsensitiveCompare(track) == .orderedSame }
+            }
+        }
+    }
+
+    static func nextUniqueTrackName(
+        farmName: String,
+        paddockName: String,
+        baseTrackName: String
+    ) -> String {
+        let base = baseTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard base.isEmpty == false else { return baseTrackName }
+
+        if trackExists(farmName: farmName, paddockName: paddockName, trackName: base) == false {
+            return base
+        }
+
+        var suffix = 2
+        while true {
+            let candidate = "\(base) \(suffix)"
+            if trackExists(farmName: farmName, paddockName: paddockName, trackName: candidate) == false {
+                return candidate
+            }
+            suffix += 1
+        }
+    }
 }
 
 private struct TrackPreviewMapSheet: View {

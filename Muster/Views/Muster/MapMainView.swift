@@ -356,8 +356,10 @@ struct MapMainView: View {
     @State private var selectedTrackQuickPick: String? = nil
     @State private var showAddFarmPrompt = false
     @State private var showAddPaddockPrompt = false
+    @State private var showDuplicateTrackWarning = false
     @State private var newFarmNameInput = ""
     @State private var newPaddockNameInput = ""
+    @State private var pendingTrackSaveRequest: PendingAutosteerTrackSaveRequest? = nil
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -2536,27 +2538,45 @@ struct MapMainView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Save") {
-                            let trimmedFarm = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let trimmedPaddock = autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let trimmedTrack = autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                            AutosteerLibraryStore.upsertTrack(
-                                farmName: trimmedFarm,
-                                paddockName: trimmedPaddock,
-                                trackName: trimmedTrack,
-                                mode: autosteerSetupModeRaw,
-                                previewCoordinates: previewCoordinatesForPendingSetup()
-                            )
-                            autosteerFarmName = trimmedFarm
-                            autosteerPaddockName = trimmedPaddock
-                            autosteerTrackName = trimmedTrack
-                            autosteerTrackModeRaw = autosteerSetupModeRaw
-                            refreshKnownFarms()
-                            resetAutosteerSetupFlow()
-                            showAutosteerTrackSaveSheet = false
+                            handleAutosteerTrackSaveTapped()
                         }
                         .disabled(isAutosteerSaveFormComplete == false)
                         .tint(isAutosteerSaveFormComplete ? .blue : .secondary)
+                    }
+                }
+                .confirmationDialog(
+                    "Duplicate Track",
+                    isPresented: $showDuplicateTrackWarning,
+                    titleVisibility: .visible
+                ) {
+                    Button("Overwrite Existing", role: .destructive) {
+                        if let request = pendingTrackSaveRequest {
+                            persistAutosteerTrackSave(
+                                farmName: request.farmName,
+                                paddockName: request.paddockName,
+                                trackName: request.trackName
+                            )
+                        }
+                    }
+                    Button("Keep Both") {
+                        guard let request = pendingTrackSaveRequest else { return }
+                        let uniqueTrackName = AutosteerLibraryStore.nextUniqueTrackName(
+                            farmName: request.farmName,
+                            paddockName: request.paddockName,
+                            baseTrackName: request.trackName
+                        )
+                        persistAutosteerTrackSave(
+                            farmName: request.farmName,
+                            paddockName: request.paddockName,
+                            trackName: uniqueTrackName
+                        )
+                    }
+                    Button("Cancel", role: .cancel) {
+                        pendingTrackSaveRequest = nil
+                    }
+                } message: {
+                    if let request = pendingTrackSaveRequest {
+                        Text("A track named \(request.farmName) > \(request.paddockName) > \(request.trackName) already exists.")
                     }
                 }
                 .alert("Add Farm", isPresented: $showAddFarmPrompt) {
@@ -2685,6 +2705,12 @@ struct MapMainView: View {
         }
     }
 
+    private struct PendingAutosteerTrackSaveRequest {
+        let farmName: String
+        let paddockName: String
+        let trackName: String
+    }
+
     private func handleAutosteerSetupPrimaryAction() {
         guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
 
@@ -2737,6 +2763,59 @@ struct MapMainView: View {
         newPaddockNameInput = ""
         showAddFarmPrompt = false
         showAddPaddockPrompt = false
+        showDuplicateTrackWarning = false
+        pendingTrackSaveRequest = nil
+    }
+
+    private func handleAutosteerTrackSaveTapped() {
+        let request = PendingAutosteerTrackSaveRequest(
+            farmName: autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines),
+            paddockName: autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines),
+            trackName: autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        guard request.farmName.isEmpty == false, request.paddockName.isEmpty == false, request.trackName.isEmpty == false else {
+            return
+        }
+
+        if AutosteerLibraryStore.trackExists(
+            farmName: request.farmName,
+            paddockName: request.paddockName,
+            trackName: request.trackName
+        ) {
+            pendingTrackSaveRequest = request
+            showDuplicateTrackWarning = true
+            return
+        }
+
+        persistAutosteerTrackSave(
+            farmName: request.farmName,
+            paddockName: request.paddockName,
+            trackName: request.trackName
+        )
+    }
+
+    private func persistAutosteerTrackSave(
+        farmName: String,
+        paddockName: String,
+        trackName: String
+    ) {
+        AutosteerLibraryStore.upsertTrack(
+            farmName: farmName,
+            paddockName: paddockName,
+            trackName: trackName,
+            mode: autosteerSetupModeRaw,
+            previewCoordinates: previewCoordinatesForPendingSetup()
+        )
+        autosteerFarmName = farmName
+        autosteerPaddockName = paddockName
+        autosteerTrackName = trackName
+        autosteerSaveTrackName = trackName
+        autosteerTrackModeRaw = autosteerSetupModeRaw
+        pendingTrackSaveRequest = nil
+        refreshKnownFarms()
+        resetAutosteerSetupFlow()
+        showAutosteerTrackSaveSheet = false
     }
 
     private func beginAutosteerSetup(mode: String) {
