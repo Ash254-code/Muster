@@ -238,8 +238,10 @@ struct MapMainView: View {
     @State private var showImportFilterSheet = false
     @State private var showImportFlow = false
     @State private var showMapSetsSheet = false
+    @State private var cruiseSpeedPopupText: String?
     @State private var zoomDistancePopupText: String?
     @State private var zoomDistanceHideWorkItem: DispatchWorkItem?
+    @State private var cruiseSpeedPopupHideWorkItem: DispatchWorkItem?
     @State private var mapStyleBeforeAutosteerLock: String = "standard"
     @State private var startMapSetCreationFlowOnOpen = false
     @State private var showMissingMapSetPrompt = false
@@ -327,6 +329,8 @@ struct MapMainView: View {
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
+    @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
+    @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 0
 
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
@@ -595,17 +599,6 @@ struct MapMainView: View {
     private var speedText: String {
         guard let s = location.lastLocation?.speed, s >= 0 else { return "—" }
         return UnitFormatting.formattedSpeed(fromMetersPerSecond: s, decimals: 0)
-    }
-
-    private var speedNumberText: String {
-        guard let s = location.lastLocation?.speed, s >= 0 else { return "—" }
-        let (value, _) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: s)
-        return String(format: "%.0f", max(0, value))
-    }
-
-    private var speedUnitText: String {
-        let (_, unit) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: 0)
-        return unit
     }
 
     private var elevationText: String {
@@ -1345,6 +1338,24 @@ struct MapMainView: View {
                         .shadow(color: .black.opacity(0.28), radius: 12, y: 5)
                         .transition(.scale(scale: 0.92).combined(with: .opacity))
                         .zIndex(36)
+                        .allowsHitTesting(false)
+                }
+
+                if let cruiseSpeedPopupText {
+                    Text(cruiseSpeedPopupText)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 14)
+                        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(.white.opacity(0.35), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.28), radius: 14, y: 6)
+                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                        .zIndex(37)
                         .allowsHitTesting(false)
                 }
 
@@ -2345,18 +2356,12 @@ struct MapMainView: View {
     }
 
     private var topSpeedPill: some View {
-        VStack(spacing: 0) {
-            Text(speedNumberText)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(chromePrimaryText)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-
-            Text(speedUnitText)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromeSecondaryText)
-        }
+        Text(speedText)
+            .font(.system(size: 28, weight: .bold, design: .rounded))
+            .foregroundStyle(chromePrimaryText)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
@@ -2364,18 +2369,7 @@ struct MapMainView: View {
             Capsule(style: .continuous)
                 .fill(chromeFill)
         )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(
-                    activeSession?.isActive == true ? .red : .clear,
-                    lineWidth: 4
-                )
-        )
-        .shadow(
-            color: activeSession?.isActive == true ? .red.opacity(0.25) : .black.opacity(0.16),
-            radius: 10,
-            y: 4
-        )
+        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
     }
 
     private var moveBanner: some View {
@@ -2526,7 +2520,11 @@ struct MapMainView: View {
         let fraction = Double(autosteerReadinessCount) / 4.0
         return Button {
             if autosteerGoReady {
+                let shouldActivateAutosteer = autosteerActive == false
                 autosteerActive.toggle()
+                if shouldActivateAutosteer, cruiseControlEnabled {
+                    showCruiseControlSetSpeedPopup()
+                }
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(autosteerActive ? .success : .warning)
             } else {
@@ -4706,6 +4704,9 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         zoomDistanceHideWorkItem?.cancel()
         zoomDistanceHideWorkItem = nil
         zoomDistancePopupText = nil
+        cruiseSpeedPopupHideWorkItem?.cancel()
+        cruiseSpeedPopupHideWorkItem = nil
+        cruiseSpeedPopupText = nil
 
         Task {
             await GoToLiveActivityManager.shared.stop()
@@ -4726,6 +4727,26 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             }
         }
         zoomDistanceHideWorkItem = hideWorkItem
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: hideWorkItem)
+    }
+
+    private func showCruiseControlSetSpeedPopup() {
+        cruiseSpeedPopupHideWorkItem?.cancel()
+
+        let cruiseSpeedMetersPerSecond = max(0, cruiseControlSpeedKPH) / 3.6
+        let speedText = UnitFormatting.formattedSpeed(fromMetersPerSecond: cruiseSpeedMetersPerSecond, decimals: 0)
+
+        withAnimation(.easeInOut(duration: 0.18)) {
+            cruiseSpeedPopupText = speedText
+        }
+
+        let hideWorkItem = DispatchWorkItem {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                cruiseSpeedPopupText = nil
+            }
+        }
+        cruiseSpeedPopupHideWorkItem = hideWorkItem
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: hideWorkItem)
     }
