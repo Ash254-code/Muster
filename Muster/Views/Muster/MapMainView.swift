@@ -347,6 +347,7 @@ struct MapMainView: View {
     @State private var showAutosteerTrackSelector = false
     @State private var showAutosteerLightbarStepEditor = false
     @State private var autosteerLightbarStepDraftCM: Double = 2
+    @State private var didTriggerAutosteerLongPress = false
     @State private var autosteerActive = false
     @State private var autosteerPointA: CLLocationCoordinate2D? = nil
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
@@ -2679,6 +2680,10 @@ struct MapMainView: View {
     private var autosteerReadinessButton: some View {
         let fraction = Double(autosteerReadinessCount) / 4.0
         return Button {
+            if didTriggerAutosteerLongPress {
+                didTriggerAutosteerLongPress = false
+                return
+            }
             if autosteerGoReady {
                 let shouldActivateAutosteer = autosteerActive == false
                 autosteerActive.toggle()
@@ -2739,6 +2744,14 @@ struct MapMainView: View {
             .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
             .accessibilityHint(autosteerReadinessAccessibilityHint)
         }
+        .buttonStyle(.plain)
+        .highPriorityGesture(
+            LongPressGesture(minimumDuration: 0.65)
+                .onEnded { _ in
+                    didTriggerAutosteerLongPress = true
+                    showAutosteerQuickActions = true
+                }
+        )
         .sheet(isPresented: $showAutosteerReadinessSheet) {
             NavigationStack {
                 List {
