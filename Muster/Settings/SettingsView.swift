@@ -700,10 +700,14 @@ struct AutosteerSettingsView: View {
         case curve = "Curve Track"
         var id: String { rawValue }
     }
+    private static let workingWidthRange: ClosedRange<Double> = 1...1000
+    private static let workingWidthStep: Double = 0.01
 
     @StateObject private var location = LocationService()
     @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
     @AppStorage(kAutosteerWorkingWidthKey) private var workingWidthM: Double = 36
+    @State private var workingWidthText: String = ""
+    @State private var showWorkingWidthEditor: Bool = false
     @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
@@ -750,11 +754,29 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Working Width")
                         Spacer()
-                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 1))
+                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 2))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $workingWidthM, in: 1...1000, step: 1)
+                    Button {
+                        startWorkingWidthEditing()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text("\(workingWidthM, specifier: "%.2f")")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("m")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Image(systemName: "keyboard")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("Implement Setup")
@@ -826,6 +848,18 @@ struct AutosteerSettingsView: View {
         }
         .navigationTitle("Autosteer")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            syncWorkingWidthText()
+        }
+        .onChange(of: workingWidthM) { _, newValue in
+            let clamped = min(max(newValue, Self.workingWidthRange.lowerBound), Self.workingWidthRange.upperBound)
+            let rounded = roundedWorkingWidth(clamped)
+            if rounded != workingWidthM {
+                workingWidthM = rounded
+                return
+            }
+            syncWorkingWidthText()
+        }
         .task {
             location.requestPermission()
             location.start()
@@ -833,6 +867,138 @@ struct AutosteerSettingsView: View {
         .onDisappear {
             location.stop()
         }
+        .sheet(isPresented: $showWorkingWidthEditor) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Enter working width")
+                        .font(.headline)
+                    Text("Set a value from 1.00 m to 1000.00 m.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Spacer()
+                        Text(workingWidthText.isEmpty ? "0" : workingWidthText)
+                            .font(.title2.monospacedDigit().weight(.semibold))
+                        Text("m")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                        keypadButton("1") { appendWorkingWidthCharacter("1") }
+                        keypadButton("2") { appendWorkingWidthCharacter("2") }
+                        keypadButton("3") { appendWorkingWidthCharacter("3") }
+                        keypadButton("4") { appendWorkingWidthCharacter("4") }
+                        keypadButton("5") { appendWorkingWidthCharacter("5") }
+                        keypadButton("6") { appendWorkingWidthCharacter("6") }
+                        keypadButton("7") { appendWorkingWidthCharacter("7") }
+                        keypadButton("8") { appendWorkingWidthCharacter("8") }
+                        keypadButton("9") { appendWorkingWidthCharacter("9") }
+                        keypadButton(".") { appendWorkingWidthCharacter(".") }
+                        keypadButton("0") { appendWorkingWidthCharacter("0") }
+                        keypadButton("⌫") { deleteWorkingWidthCharacter() }
+                    }
+
+                    HStack(spacing: 10) {
+                        Button("Cancel") {
+                            cancelWorkingWidthEditing()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                        Button("Save") {
+                            saveWorkingWidthEditing()
+                        }
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.accentColor.opacity(0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+                .padding()
+                .navigationTitle("Working Width")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            cancelWorkingWidthEditing()
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Save") {
+                            saveWorkingWidthEditing()
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+            .presentationDetents([.height(520)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func roundedWorkingWidth(_ value: Double) -> Double {
+        (value / Self.workingWidthStep).rounded() * Self.workingWidthStep
+    }
+
+    private func syncWorkingWidthText() {
+        workingWidthText = String(format: "%.2f", workingWidthM)
+    }
+
+    private func applyWorkingWidthText() {
+        let normalized = workingWidthText.replacingOccurrences(of: ",", with: ".")
+        guard let parsed = Double(normalized) else {
+            syncWorkingWidthText()
+            return
+        }
+        let clamped = min(max(parsed, Self.workingWidthRange.lowerBound), Self.workingWidthRange.upperBound)
+        workingWidthM = roundedWorkingWidth(clamped)
+        syncWorkingWidthText()
+    }
+
+    private func startWorkingWidthEditing() {
+        syncWorkingWidthText()
+        showWorkingWidthEditor = true
+    }
+
+    private func cancelWorkingWidthEditing() {
+        showWorkingWidthEditor = false
+        syncWorkingWidthText()
+    }
+
+    private func saveWorkingWidthEditing() {
+        applyWorkingWidthText()
+        showWorkingWidthEditor = false
+    }
+
+    private func appendWorkingWidthCharacter(_ character: String) {
+        if character == "." {
+            guard !workingWidthText.contains(".") else { return }
+            if workingWidthText.isEmpty { workingWidthText = "0" }
+        }
+        workingWidthText.append(character)
+    }
+
+    private func deleteWorkingWidthCharacter() {
+        guard !workingWidthText.isEmpty else { return }
+        workingWidthText.removeLast()
+    }
+
+    @ViewBuilder
+    private func keypadButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
