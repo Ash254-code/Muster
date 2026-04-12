@@ -2531,14 +2531,13 @@ struct MapMainView: View {
     }
 
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .center, spacing: 10) {
             Text("Create New Track")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromeSecondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+            PillWrapLayout(spacing: 8, rowSpacing: 8) {
                 if autosteerSetupModeRaw == "A+B line" {
                     autosteerTrackPillButton("X") {
                         resetAutosteerSetupFlow()
@@ -2583,15 +2582,11 @@ struct MapMainView: View {
                     .buttonStyle(.plain)
                 }
             }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 2)
-            }
             .frame(maxWidth: .infinity)
-
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
-        .frame(maxWidth: maxWidth, alignment: .leading)
+        .frame(maxWidth: min(maxWidth - 24, 560), alignment: .center)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -2785,6 +2780,95 @@ struct MapMainView: View {
         .onAppear {
             if autosteerSetupModeRaw == "Curve Track" {
                 curvePulse = true
+            }
+        }
+    }
+
+    private struct PillWrapLayout: Layout {
+        var spacing: CGFloat
+        var rowSpacing: CGFloat
+
+        func sizeThatFits(
+            proposal: ProposedViewSize,
+            subviews: Subviews,
+            cache: inout ()
+        ) -> CGSize {
+            let availableWidth = proposal.width ?? .greatestFiniteMagnitude
+            var currentRowWidth: CGFloat = 0
+            var currentRowHeight: CGFloat = 0
+            var maxRowWidth: CGFloat = 0
+            var totalHeight: CGFloat = 0
+
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                let canFitInCurrentRow = currentRowWidth == 0 || (currentRowWidth + spacing + size.width) <= availableWidth
+
+                if canFitInCurrentRow {
+                    currentRowWidth = currentRowWidth == 0 ? size.width : currentRowWidth + spacing + size.width
+                    currentRowHeight = max(currentRowHeight, size.height)
+                } else {
+                    maxRowWidth = max(maxRowWidth, currentRowWidth)
+                    totalHeight += currentRowHeight + rowSpacing
+                    currentRowWidth = size.width
+                    currentRowHeight = size.height
+                }
+            }
+
+            maxRowWidth = max(maxRowWidth, currentRowWidth)
+            totalHeight += currentRowHeight
+
+            return CGSize(
+                width: proposal.width ?? maxRowWidth,
+                height: totalHeight
+            )
+        }
+
+        func placeSubviews(
+            in bounds: CGRect,
+            proposal: ProposedViewSize,
+            subviews: Subviews,
+            cache: inout ()
+        ) {
+            let availableWidth = bounds.width
+            var rows: [[(index: Int, size: CGSize)]] = []
+            var currentRow: [(index: Int, size: CGSize)] = []
+            var currentRowWidth: CGFloat = 0
+
+            for (index, subview) in subviews.enumerated() {
+                let size = subview.sizeThatFits(.unspecified)
+                let canFitInCurrentRow = currentRow.isEmpty || (currentRowWidth + spacing + size.width) <= availableWidth
+
+                if canFitInCurrentRow {
+                    currentRow.append((index: index, size: size))
+                    currentRowWidth = currentRow.count == 1 ? size.width : currentRowWidth + spacing + size.width
+                } else {
+                    rows.append(currentRow)
+                    currentRow = [(index: index, size: size)]
+                    currentRowWidth = size.width
+                }
+            }
+
+            if !currentRow.isEmpty {
+                rows.append(currentRow)
+            }
+
+            var y = bounds.minY
+            for row in rows {
+                let rowWidth = row.reduce(CGFloat.zero) { partial, entry in
+                    partial + entry.size.width
+                } + CGFloat(max(0, row.count - 1)) * spacing
+                let rowHeight = row.reduce(CGFloat.zero) { max($0, $1.size.height) }
+                var x = bounds.minX + max(0, (availableWidth - rowWidth) / 2)
+
+                for entry in row {
+                    subviews[entry.index].place(
+                        at: CGPoint(x: x, y: y),
+                        proposal: ProposedViewSize(width: entry.size.width, height: entry.size.height)
+                    )
+                    x += entry.size.width + spacing
+                }
+
+                y += rowHeight + rowSpacing
             }
         }
     }
