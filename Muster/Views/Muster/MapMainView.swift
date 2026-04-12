@@ -2544,11 +2544,7 @@ struct MapMainView: View {
                         .tint(isAutosteerSaveFormComplete ? .blue : .secondary)
                     }
                 }
-                .confirmationDialog(
-                    "Duplicate Track",
-                    isPresented: $showDuplicateTrackWarning,
-                    titleVisibility: .visible
-                ) {
+                .alert("Duplicate Track", isPresented: $showDuplicateTrackWarning) {
                     Button("Overwrite Existing", role: .destructive) {
                         if let request = pendingTrackSaveRequest {
                             persistAutosteerTrackSave(
