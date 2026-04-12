@@ -146,6 +146,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         applyMapStyle(map)
         map.userTrackingMode = .none
+        let blankCanvasMode = guidanceNoMapEnabled || mapStyleRaw == "blank"
 
         context.coordinator.updateGuidanceBackgroundOverlayIfNeeded(on: map)
 
@@ -184,53 +185,74 @@ struct MapViewRepresentable: UIViewRepresentable {
             fitRadiosNonce: fitRadiosNonce
         )
 
-        context.coordinator.updatePreviousTracks(
-            map: map,
-            sessions: previousSessions
-        )
-        context.coordinator.updateImportedTracks(
-            map: map,
-            importedTracks: importedTracks
-        )
-        context.coordinator.updateImportedBoundaries(
-            map: map,
-            importedBoundaries: importedBoundaries
-        )
-        context.coordinator.updateActiveBreadcrumb(
-            map: map,
-            points: activeTrackPoints
-        )
-        context.coordinator.updateSessionMarkers(
-            map: map,
-            markers: markers,
-            activeDestinationMarkerID: activeDestinationMarkerID
-        )
-        context.coordinator.updateMapMarkers(
-            map: map,
-            mapMarkers: mapMarkers
-        )
-        context.coordinator.updateXRSContacts(
-            map: map,
-            contacts: xrsContacts
-        )
-        context.coordinator.updateXRSTrails(
-            map: map,
-            trailGroups: xrsTrailGroups,
-            colorRaw: xrsTrailColorRaw
-        )
-        context.coordinator.updateImportedMarkers(
-            map: map,
-            importedMarkers: importedMarkers
-        )
-        context.coordinator.updateRings(
-            map: map,
-            centerLocation: userLocation,
-            ringCount: ringCount,
-            spacingM: ringSpacingMeters,
-            colorRaw: ringColorRaw,
-            thicknessScale: ringThicknessScale,
-            labelsEnabled: ringDistanceLabelsEnabled
-        )
+        if blankCanvasMode {
+            context.coordinator.updatePreviousTracks(map: map, sessions: [])
+            context.coordinator.updateImportedTracks(map: map, importedTracks: [])
+            context.coordinator.updateImportedBoundaries(map: map, importedBoundaries: [])
+            context.coordinator.updateActiveBreadcrumb(map: map, points: [])
+            context.coordinator.updateSessionMarkers(map: map, markers: [], activeDestinationMarkerID: nil)
+            context.coordinator.updateMapMarkers(map: map, mapMarkers: [])
+            context.coordinator.updateXRSContacts(map: map, contacts: [])
+            context.coordinator.updateXRSTrails(map: map, trailGroups: [], colorRaw: xrsTrailColorRaw)
+            context.coordinator.updateImportedMarkers(map: map, importedMarkers: [])
+            context.coordinator.updateRings(
+                map: map,
+                centerLocation: nil,
+                ringCount: 0,
+                spacingM: ringSpacingMeters,
+                colorRaw: ringColorRaw,
+                thicknessScale: ringThicknessScale,
+                labelsEnabled: false
+            )
+        } else {
+            context.coordinator.updatePreviousTracks(
+                map: map,
+                sessions: previousSessions
+            )
+            context.coordinator.updateImportedTracks(
+                map: map,
+                importedTracks: importedTracks
+            )
+            context.coordinator.updateImportedBoundaries(
+                map: map,
+                importedBoundaries: importedBoundaries
+            )
+            context.coordinator.updateActiveBreadcrumb(
+                map: map,
+                points: activeTrackPoints
+            )
+            context.coordinator.updateSessionMarkers(
+                map: map,
+                markers: markers,
+                activeDestinationMarkerID: activeDestinationMarkerID
+            )
+            context.coordinator.updateMapMarkers(
+                map: map,
+                mapMarkers: mapMarkers
+            )
+            context.coordinator.updateXRSContacts(
+                map: map,
+                contacts: xrsContacts
+            )
+            context.coordinator.updateXRSTrails(
+                map: map,
+                trailGroups: xrsTrailGroups,
+                colorRaw: xrsTrailColorRaw
+            )
+            context.coordinator.updateImportedMarkers(
+                map: map,
+                importedMarkers: importedMarkers
+            )
+            context.coordinator.updateRings(
+                map: map,
+                centerLocation: userLocation,
+                ringCount: ringCount,
+                spacingM: ringSpacingMeters,
+                colorRaw: ringColorRaw,
+                thicknessScale: ringThicknessScale,
+                labelsEnabled: ringDistanceLabelsEnabled
+            )
+        }
         context.coordinator.updateAutosteerGuidance(
             map: map,
             previewCoordinates: autosteerTrackPreviewCoordinates,
@@ -265,10 +287,16 @@ struct MapViewRepresentable: UIViewRepresentable {
             map.mapType = .satellite
             map.isPitchEnabled = false
             map.showsBuildings = false
+            map.isRotateEnabled = false
+            map.isZoomEnabled = false
+            map.isScrollEnabled = false
             return
         }
 
         map.isPitchEnabled = true
+        map.isRotateEnabled = true
+        map.isZoomEnabled = true
+        map.isScrollEnabled = true
 
         switch mapStyleRaw {
         case "satellite":
