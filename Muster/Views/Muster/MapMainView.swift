@@ -1150,7 +1150,7 @@ struct MapMainView: View {
                         showAutosteerTrackSelector = true
                     }
 
-                    Button("New Tracks") {}
+                    Button("Create New Tracks") {}
                         .disabled(true)
                     Button("A + B Track") {
                         beginAutosteerSetup(mode: "A+B line")
