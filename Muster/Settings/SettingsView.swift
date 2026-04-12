@@ -318,14 +318,121 @@ private struct GroupTrackingSettingsView: View {
                 NavigationLink("Radio") {
                     RadioSettingsView()
                 }
+                NavigationLink("Cellular") {
+                    CellularTrackingSettingsView()
+                }
             } footer: {
-                Text("Settings for tracking other users via radio position updates.")
+                Text("Configure group tracking via XRS radio and cellular sharing.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Group Tracking")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct CellularTrackingSettingsView: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.openURL) private var openURL
+    @StateObject private var locationService = LocationService()
+
+    @State private var inviteName = ""
+    @State private var invitePhoneNumber = ""
+    @State private var myPhoneNumber = ""
+    @State private var isSharingMyLocation = false
+
+    var body: some View {
+        Form {
+            Section("Invite by text") {
+                TextField("Name", text: $inviteName)
+                    .textInputAutocapitalization(.words)
+                TextField("Phone number", text: $invitePhoneNumber)
+                    .keyboardType(.phonePad)
+
+                Button("Send invitation via text") {
+                    sendInvite()
+                }
+                .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Section("Your location") {
+                TextField("My phone number", text: $myPhoneNumber)
+                    .keyboardType(.phonePad)
+                Button(isSharingMyLocation ? "Sharing location..." : "Share my location") {
+                    startSharingMyLocation()
+                }
+                .disabled(myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } footer: {
+                Text("Cellular updates are used first. If they are stale, XRS Radio location is used as a fallback until cellular updates resume.")
+            }
+
+            Section("Shared members") {
+                if app.cellularTracking.members.isEmpty {
+                    Text("No invited members yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(app.cellularTracking.members) { member in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(member.name)
+                                Text(member.phoneNumber)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(member.status == .live ? "Live" : (member.status == .offline ? "Offline" : "Expired"))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(statusColor(for: member))
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Cellular")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: locationService.lastLocation) { _, location in
+            guard isSharingMyLocation, let location else { return }
+            app.cellularTracking.updateCellularLocation(
+                for: myPhoneNumber,
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude
+            )
+        }
+    }
+
+    private func sendInvite() {
+        app.cellularTracking.sendInvitation(name: inviteName, phoneNumber: invitePhoneNumber)
+
+        let messageBody = "Join my Muster group tracking via cellular sharing."
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let recipients = invitePhoneNumber.filter(\.isNumber)
+
+        if let url = URL(string: "sms:\(recipients)&body=\(messageBody)") {
+            openURL(url)
+        }
+
+        inviteName = ""
+        invitePhoneNumber = ""
+    }
+
+    private func startSharingMyLocation() {
+        isSharingMyLocation = true
+        app.cellularTracking.sendInvitation(name: "Me", phoneNumber: myPhoneNumber)
+        locationService.requestPermission()
+        locationService.start()
+        locationService.forceRefreshNow()
+    }
+
+    private func statusColor(for member: CellularTrackingMember) -> Color {
+        switch member.status {
+        case .live:
+            return .green
+        case .offline:
+            return .orange
+        case .expired:
+            return .red
+        }
     }
 }
 

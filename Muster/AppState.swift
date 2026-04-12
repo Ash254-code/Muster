@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import CoreLocation
 
 @MainActor
 final class AppState: ObservableObject {
@@ -16,6 +17,11 @@ final class AppState: ObservableObject {
             bindRadio()
         }
     }
+    @Published var cellularTracking = CellularGroupTrackingStore() {
+        didSet {
+            bindCellularTracking()
+        }
+    }
     @Published var pendingQuickAction: HomeScreenQuickAction? = nil
 
     private let ble = BLERadioDebugger.shared
@@ -24,6 +30,7 @@ final class AppState: ObservableObject {
     private var didBootstrap = false
     private var cancellables: Set<AnyCancellable> = []
     private var xrsCancellables: Set<AnyCancellable> = []
+    private var cellularCancellables: Set<AnyCancellable> = []
     private var radioMaintenanceCancellable: AnyCancellable?
     private var radioDuckReleaseCancellable: AnyCancellable?
     private var isRadioAudioDuckActive = false
@@ -32,6 +39,7 @@ final class AppState: ObservableObject {
     init() {
         bindMuster()
         bindXRS()
+        bindCellularTracking()
         bindRadio()
     }
 
@@ -49,6 +57,7 @@ final class AppState: ObservableObject {
 
         muster.load()
         xrs.load()
+        cellularTracking.load()
 
         bindRadio()
         ble.reconnectLastKnownPeripheralIfPossible()
@@ -163,6 +172,23 @@ final class AppState: ObservableObject {
             .store(in: &xrsCancellables)
     }
 
+    private func bindCellularTracking() {
+        cellularCancellables.removeAll()
+
+        cellularTracking.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cellularCancellables)
+
+        cellularTracking.$members
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.cellularTracking.save()
+            }
+            .store(in: &cellularCancellables)
+    }
+
     private func bindRadio() {
         ble.onReceiveActivity = { [weak self] in
             self?.noteRadioActivity()
@@ -176,6 +202,12 @@ final class AppState: ObservableObject {
                 status: contact.status,
                 latitude: contact.lat,
                 longitude: contact.lon
+            )
+            self.cellularTracking.updateRadioFallbackLocation(
+                for: contact.name,
+                latitude: contact.lat,
+                longitude: contact.lon,
+                at: contact.updatedAt
             )
         }
 
@@ -295,5 +327,169 @@ final class AppState: ObservableObject {
         }
 
         return data
+    }
+}
+
+struct CellularTrackingMember: Identifiable, Codable, Hashable {
+    var id: UUID
+    var name: String
+    var phoneNumber: String
+    var isSharing: Bool
+    var lastCellularLatitude: Double?
+    var lastCellularLongitude: Double?
+    var lastCellularUpdate: Date?
+    var lastRadioLatitude: Double?
+    var lastRadioLongitude: Double?
+    var lastRadioUpdate: Date?
+
+    enum Status {
+        case live
+        case offline
+        case expired
+    }
+
+    var lastCellularCoordinate: CLLocationCoordinate2D? {
+        guard let lastCellularLatitude, let lastCellularLongitude else { return nil }
+        return CLLocationCoordinate2D(latitude: lastCellularLatitude, longitude: lastCellularLongitude)
+    }
+
+    var lastRadioCoordinate: CLLocationCoordinate2D? {
+        guard let lastRadioLatitude, let lastRadioLongitude else { return nil }
+        return CLLocationCoordinate2D(latitude: lastRadioLatitude, longitude: lastRadioLongitude)
+    }
+
+    var status: Status {
+        guard isSharing else { return .expired }
+        guard let lastCellularUpdate else {
+            return lastRadioUpdate == nil ? .offline : .expired
+        }
+        let age = Date().timeIntervalSince(lastCellularUpdate)
+        if age <= 120 { return .live }
+        if age <= 600 { return .offline }
+        return .expired
+    }
+}
+
+@MainActor
+final class CellularGroupTrackingStore: ObservableObject {
+    @Published private(set) var members: [CellularTrackingMember] = []
+
+    private let defaultsKey = "cellular_group_tracking_members_v1"
+
+    func load() {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return }
+        guard let decoded = try? JSONDecoder().decode([CellularTrackingMember].self, from: data) else { return }
+        members = decoded
+    }
+
+    func save() {
+        guard let data = try? JSONEncoder().encode(members) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    func sendInvitation(name: String, phoneNumber: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPhone = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedPhone.isEmpty else { return }
+
+        if let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == normalizedPhone(trimmedPhone) }) {
+            members[index].name = trimmedName
+            members[index].phoneNumber = trimmedPhone
+            members[index].isSharing = true
+            return
+        }
+
+        members.append(
+            CellularTrackingMember(
+                id: UUID(),
+                name: trimmedName,
+                phoneNumber: trimmedPhone,
+                isSharing: true,
+                lastCellularLatitude: nil,
+                lastCellularLongitude: nil,
+                lastCellularUpdate: nil,
+                lastRadioLatitude: nil,
+                lastRadioLongitude: nil,
+                lastRadioUpdate: nil
+            )
+        )
+    }
+
+    func updateCellularLocation(for phoneNumber: String, latitude: Double, longitude: Double, at date: Date = Date()) {
+        guard let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == normalizedPhone(phoneNumber) }) else { return }
+        members[index].lastCellularLatitude = latitude
+        members[index].lastCellularLongitude = longitude
+        members[index].lastCellularUpdate = date
+        members[index].isSharing = true
+    }
+
+    func updateRadioFallbackLocation(for name: String, latitude: Double, longitude: Double, at date: Date = Date()) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        guard let index = members.firstIndex(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) else {
+            return
+        }
+
+        members[index].lastRadioLatitude = latitude
+        members[index].lastRadioLongitude = longitude
+        members[index].lastRadioUpdate = date
+    }
+
+    func setSharing(_ isSharing: Bool, for memberID: UUID) {
+        guard let index = members.firstIndex(where: { $0.id == memberID }) else { return }
+        members[index].isSharing = isSharing
+    }
+
+    func mappedContactsWithRadioFallback(_ radioContacts: [XRSRadioContact]) -> [XRSRadioContact] {
+        var mapped: [XRSRadioContact] = []
+
+        for member in members where member.isSharing {
+            let cellularAge = member.lastCellularUpdate.map { Date().timeIntervalSince($0) } ?? .greatestFiniteMagnitude
+            if cellularAge <= 600, let coordinate = member.lastCellularCoordinate, let updatedAt = member.lastCellularUpdate {
+                mapped.append(
+                    XRSRadioContact(
+                        id: member.id,
+                        name: member.name,
+                        status: "Cellular",
+                        lat: coordinate.latitude,
+                        lon: coordinate.longitude,
+                        updatedAt: updatedAt,
+                        rawMessage: "CELLULAR"
+                    )
+                )
+                continue
+            }
+
+            if let radioMatch = radioContacts.first(where: { $0.name.caseInsensitiveCompare(member.name) == .orderedSame }) {
+                mapped.append(radioMatch)
+            } else if let radioCoordinate = member.lastRadioCoordinate, let radioDate = member.lastRadioUpdate {
+                mapped.append(
+                    XRSRadioContact(
+                        id: member.id,
+                        name: member.name,
+                        status: "Radio fallback",
+                        lat: radioCoordinate.latitude,
+                        lon: radioCoordinate.longitude,
+                        updatedAt: radioDate,
+                        rawMessage: "RADIO_FALLBACK"
+                    )
+                )
+            }
+        }
+
+        let managedNames = Set(mapped.map { normalizedName($0.name) })
+        let unmanagedRadio = radioContacts.filter { !managedNames.contains(normalizedName($0.name)) }
+        return (mapped + unmanagedRadio).sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private func normalizedPhone(_ value: String) -> String {
+        value.filter { $0.isNumber }
+    }
+
+    private func normalizedName(_ value: String) -> String {
+        value.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
