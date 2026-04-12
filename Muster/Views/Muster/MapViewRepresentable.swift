@@ -285,7 +285,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled {
-            map.mapType = .hybridFlyover
+            map.mapType = .satelliteFlyover
             map.showsBuildings = false
             map.isPitchEnabled = true
             map.isRotateEnabled = true
@@ -308,7 +308,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         case "plain":
             map.mapType = .mutedStandard
         case "blank":
-            map.mapType = .hybridFlyover
+            map.mapType = .satelliteFlyover
         default:
             map.mapType = .standard
         }
