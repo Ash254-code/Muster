@@ -2524,7 +2524,7 @@ struct MapMainView: View {
     }
 
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(autosteerCurrentTrackHeading)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromeSecondaryText)
@@ -2539,18 +2539,23 @@ struct MapMainView: View {
                                 .frame(width: 10, height: 10)
                                 .scaleEffect(curvePulse ? 1.25 : 0.8)
                                 .opacity(curvePulse ? 0.4 : 1.0)
-                                .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+                                .animation(
+                                    .easeInOut(duration: 0.75).repeatForever(autoreverses: true),
+                                    value: curvePulse
+                                )
                         }
+
                         Text(autosteerSetupPrimaryButtonTitle)
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(chromePrimaryText)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(chromeFill))
-                    .buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
 
+                if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
                     Button("Re-mark B") {
                         remarkAutosteerPointB()
                     }
@@ -2561,6 +2566,20 @@ struct MapMainView: View {
                     .background(Capsule().fill(chromeFill))
                     .buttonStyle(.plain)
 
+                    if autosteerPointB != nil {
+                        Button("Save Track") {
+                            completeAutosteerSetupAndPromptForSave()
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Capsule().fill(.white.opacity(0.88)))
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                if autosteerSetupModeRaw == "Curve Track", curveTrackHasRecordedPoints {
                     Button("Save Track") {
                         completeAutosteerSetupAndPromptForSave()
                     }
@@ -2571,29 +2590,8 @@ struct MapMainView: View {
                     .background(Capsule().fill(.white.opacity(0.88)))
                     .buttonStyle(.plain)
                 }
-            } else {
-                HStack(spacing: 8) {
-                    Button(action: handleAutosteerSetupPrimaryAction) {
-                        HStack(spacing: 8) {
-                            if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 10, height: 10)
-                                    .scaleEffect(curvePulse ? 1.25 : 0.8)
-                                    .opacity(curvePulse ? 0.4 : 1.0)
-                                    .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
-                            }
-                            Text(autosteerSetupPrimaryButtonTitle)
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .foregroundStyle(chromePrimaryText)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Capsule().fill(chromeFill))
-                    }
-                    .buttonStyle(.plain)
-                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
                 Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
@@ -2603,15 +2601,16 @@ struct MapMainView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
-        .frame(maxWidth: maxWidth)
+        .frame(maxWidth: maxWidth, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
         )
+    
         .alert("Enter Heading", isPresented: $showAutosteerHeadingPrompt) {
             TextField("Heading (e.g. 123.4567)", text: $autosteerHeadingInput)
                 .keyboardType(.decimalPad)
