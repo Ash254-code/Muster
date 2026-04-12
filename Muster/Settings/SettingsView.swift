@@ -700,10 +700,13 @@ struct AutosteerSettingsView: View {
         case curve = "Curve Track"
         var id: String { rawValue }
     }
+    private static let workingWidthRange: ClosedRange<Double> = 1...1000
+    private static let workingWidthStep: Double = 0.01
 
     @StateObject private var location = LocationService()
     @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
     @AppStorage(kAutosteerWorkingWidthKey) private var workingWidthM: Double = 36
+    @State private var workingWidthText: String = ""
     @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
@@ -750,11 +753,28 @@ struct AutosteerSettingsView: View {
                     HStack {
                         Text("Working Width")
                         Spacer()
-                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 1))
+                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 2))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $workingWidthM, in: 1...1000, step: 1)
+                    HStack(spacing: 12) {
+                        TextField("1.00", text: $workingWidthText)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .onSubmit(applyWorkingWidthText)
+
+                        Text("m")
+                            .foregroundStyle(.secondary)
+
+                        Stepper(
+                            "",
+                            value: $workingWidthM,
+                            in: Self.workingWidthRange,
+                            step: Self.workingWidthStep
+                        )
+                        .labelsHidden()
+                    }
                 }
             } header: {
                 Text("Implement Setup")
@@ -826,6 +846,18 @@ struct AutosteerSettingsView: View {
         }
         .navigationTitle("Autosteer")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            syncWorkingWidthText()
+        }
+        .onChange(of: workingWidthM) { _, newValue in
+            let clamped = min(max(newValue, Self.workingWidthRange.lowerBound), Self.workingWidthRange.upperBound)
+            let rounded = roundedWorkingWidth(clamped)
+            if rounded != workingWidthM {
+                workingWidthM = rounded
+                return
+            }
+            syncWorkingWidthText()
+        }
         .task {
             location.requestPermission()
             location.start()
@@ -833,6 +865,25 @@ struct AutosteerSettingsView: View {
         .onDisappear {
             location.stop()
         }
+    }
+
+    private func roundedWorkingWidth(_ value: Double) -> Double {
+        (value / Self.workingWidthStep).rounded() * Self.workingWidthStep
+    }
+
+    private func syncWorkingWidthText() {
+        workingWidthText = String(format: "%.2f", workingWidthM)
+    }
+
+    private func applyWorkingWidthText() {
+        let normalized = workingWidthText.replacingOccurrences(of: ",", with: ".")
+        guard let parsed = Double(normalized) else {
+            syncWorkingWidthText()
+            return
+        }
+        let clamped = min(max(parsed, Self.workingWidthRange.lowerBound), Self.workingWidthRange.upperBound)
+        workingWidthM = roundedWorkingWidth(clamped)
+        syncWorkingWidthText()
     }
 }
 
