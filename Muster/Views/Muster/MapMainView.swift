@@ -1356,23 +1356,6 @@ struct MapMainView: View {
                     .zIndex(30)
                 }
 
-                if let zoomDistancePopupText {
-                    Text(zoomDistancePopupText)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
-                        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .strokeBorder(.white.opacity(0.35), lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.28), radius: 12, y: 5)
-                        .transition(.scale(scale: 0.92).combined(with: .opacity))
-                        .zIndex(36)
-                        .allowsHitTesting(false)
-                }
-
                 if let cruiseSpeedPopupText {
                     Text(cruiseSpeedPopupText)
                         .font(.system(size: 26, weight: .bold, design: .rounded))
@@ -1408,6 +1391,21 @@ struct MapMainView: View {
                     .padding(.top, 2)
 
                     Spacer()
+                }
+
+                if let zoomDistancePopupText {
+                    VStack {
+                        HStack {
+                            topLeftZoomPill(zoomDistancePopupText: zoomDistancePopupText)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.top, topPillHeight + 14)
+
+                        Spacer()
+                    }
+                    .zIndex(36)
+                    .allowsHitTesting(false)
                 }
 
                 if showFenceApproachWarning {
@@ -2338,6 +2336,33 @@ struct MapMainView: View {
             }
             .frame(width: 108)
         }
+    }
+
+    private func topLeftZoomPill(zoomDistancePopupText: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(chromePrimaryText)
+
+            Text(zoomDistancePopupText)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.horizontal, 14)
+        .frame(width: 108, height: topPillHeight)
+        .background(
+            Capsule(style: .continuous)
+                .fill(chromeFill)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(chromeStroke, lineWidth: 2)
+        )
+        .shadow(color: chromeShadow, radius: 8, y: 3)
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
     }
 
     private func topSidePill(metric: TopSidePillMetric, side: TopSidePillPosition) -> some View {
@@ -4822,7 +4847,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         zoomDistanceHideWorkItem?.cancel()
 
         withAnimation(.easeInOut(duration: 0.2)) {
-            zoomDistancePopupText = "Zoom Level - \(normalizedMeters)m"
+            zoomDistancePopupText = "\(normalizedMeters)m"
         }
 
         let hideWorkItem = DispatchWorkItem {
