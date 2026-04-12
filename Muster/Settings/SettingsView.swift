@@ -344,7 +344,7 @@ private struct CellularTrackingSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Invite by text") {
+            Section {
                 TextField("Name", text: $inviteName)
                     .textInputAutocapitalization(.words)
                 TextField("Phone number", text: $invitePhoneNumber)
@@ -354,20 +354,24 @@ private struct CellularTrackingSettingsView: View {
                     sendInvite()
                 }
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } header: {
+                Text("Invite by text")
             }
 
-            Section("Your location") {
+            Section {
                 TextField("My phone number", text: $myPhoneNumber)
                     .keyboardType(.phonePad)
                 Button(isSharingMyLocation ? "Sharing location..." : "Share my location") {
                     startSharingMyLocation()
                 }
                 .disabled(myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } header: {
+                Text("Your location")
             } footer: {
                 Text("Cellular updates are used first. If they are stale, XRS Radio location is used as a fallback until cellular updates resume.")
             }
 
-            Section("Shared members") {
+            Section {
                 if app.cellularTracking.members.isEmpty {
                     Text("No invited members yet.")
                         .foregroundStyle(.secondary)
@@ -387,6 +391,8 @@ private struct CellularTrackingSettingsView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Shared members")
             }
         }
         .navigationTitle("Cellular")
