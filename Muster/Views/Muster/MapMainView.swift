@@ -229,6 +229,8 @@ struct MapMainView: View {
     @State private var showImportFilterSheet = false
     @State private var showImportFlow = false
     @State private var showMapSetsSheet = false
+    @State private var zoomDistancePopupText: String?
+    @State private var zoomDistanceHideWorkItem: DispatchWorkItem?
     @State private var mapStyleBeforeAutosteerLock: String = "standard"
     @State private var startMapSetCreationFlowOnOpen = false
     @State private var showMissingMapSetPrompt = false
@@ -1358,6 +1360,23 @@ struct MapMainView: View {
                     .zIndex(30)
                 }
 
+                if let zoomDistancePopupText {
+                    Text(zoomDistancePopupText)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(.white.opacity(0.35), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.28), radius: 12, y: 5)
+                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                        .zIndex(36)
+                        .allowsHitTesting(false)
+                }
+
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         ZStack(alignment: .top) {
@@ -1799,6 +1818,11 @@ struct MapMainView: View {
                         createdAt: createdAt
                     )
                     showLongPressedTrackDialog = true
+                }
+            },
+            onZoomDistanceChange: { distance in
+                DispatchQueue.main.async {
+                    showZoomDistancePopup(distanceMeters: distance)
                 }
             }
         )
@@ -4639,11 +4663,33 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         sheepScrubStartY = nil
         sheepLastHapticIndex = nil
         showSheepCountPopover = false
+        zoomDistanceHideWorkItem?.cancel()
+        zoomDistanceHideWorkItem = nil
+        zoomDistancePopupText = nil
 
         Task {
             await GoToLiveActivityManager.shared.stop()
         }
     }
+
+    private func showZoomDistancePopup(distanceMeters: CLLocationDistance) {
+        let normalizedMeters = max(80, Int(distanceMeters.rounded()))
+        zoomDistanceHideWorkItem?.cancel()
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoomDistancePopupText = "Zoom Level - \(normalizedMeters)m"
+        }
+
+        let hideWorkItem = DispatchWorkItem {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                zoomDistancePopupText = nil
+            }
+        }
+        zoomDistanceHideWorkItem = hideWorkItem
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: hideWorkItem)
+    }
+
     private var leftSideFloatingPills: some View {
         VStack(spacing: 10) {
             if mediaButtonEnabled {

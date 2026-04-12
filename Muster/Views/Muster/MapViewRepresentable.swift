@@ -65,6 +65,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let onLongPressMapMarker: (MapMarker) -> Void
     let onLongPressPreviousTrack: (UUID) -> Void
     let onLongPressImportedTrack: (UUID, String) -> Void
+    let onZoomDistanceChange: (CLLocationDistance) -> Void
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView(frame: .zero)
@@ -368,6 +369,8 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         private var lastKnownCameraDistance: CLLocationDistance = kDefaultMapZoomDistanceMeters
         private var lastKnownMapHeightPoints: CGFloat = 0
+        private var hasRegisteredInitialZoomDistance = false
+        private var lastReportedZoomDistance: CLLocationDistance?
 
         private var isAnimatingCameraTransition = false
         private var cameraAnimationDeadline: CFTimeInterval = 0
@@ -2710,6 +2713,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             } else {
                 lastKnownCameraDistance = renderedDistance
             }
+            reportZoomDistanceIfNeeded(lastKnownCameraDistance)
             lastKnownMapHeightPoints = mapView.bounds.height
 
             if parent.orientationRaw == "headsUp" && !isAnimatingCameraTransition {
@@ -2729,6 +2733,26 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
 
             keepUserLocationViewOnTop(in: mapView)
+        }
+
+        private func reportZoomDistanceIfNeeded(_ distance: CLLocationDistance) {
+            let normalizedDistance = clampedDistance(distance)
+
+            if !hasRegisteredInitialZoomDistance {
+                hasRegisteredInitialZoomDistance = true
+                lastReportedZoomDistance = normalizedDistance
+                return
+            }
+
+            if let previousDistance = lastReportedZoomDistance,
+               abs(previousDistance - normalizedDistance) < 1 {
+                return
+            }
+
+            lastReportedZoomDistance = normalizedDistance
+            DispatchQueue.main.async { [parent] in
+                parent.onZoomDistanceChange(normalizedDistance)
+            }
         }
 
         private func refreshSessionMarkerAppearance(map: MKMapView) {
