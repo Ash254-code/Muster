@@ -1475,9 +1475,11 @@ struct MapMainView: View {
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
-                    autosteerTrackSetupOverlay
-                        .padding(.top, 76)
-                        .padding(.horizontal, 12)
+                    autosteerTrackSetupOverlay(
+                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
+                    )
+                    .padding(.top, 76)
+                    .padding(.horizontal, 12)
                 }
             }
             .overlay(alignment: .center) {
@@ -2366,8 +2368,29 @@ struct MapMainView: View {
         }
     }
 
-    private var autosteerTrackSetupOverlay: some View {
+    private var autosteerCurrentTrackHeading: String {
+        let farm = selectedAutosteerFarmDisplay
+        let paddock = selectedAutosteerPaddockDisplay
+
+        if farm != "Select Farm", paddock != "Select Paddock" {
+            return "Current Track - \(farm) > \(paddock)"
+        }
+        if farm != "Select Farm" {
+            return "Current Track - \(farm)"
+        }
+        if paddock != "Select Paddock" {
+            return "Current Track - \(paddock)"
+        }
+        return "Current Track"
+    }
+
+    private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
         VStack(spacing: 10) {
+            Text(autosteerCurrentTrackHeading)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromeSecondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             HStack(spacing: 8) {
                 Button(action: handleAutosteerSetupPrimaryAction) {
                     HStack(spacing: 8) {
@@ -2419,7 +2442,8 @@ struct MapMainView: View {
             }
         }
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: maxWidth)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
