@@ -205,6 +205,15 @@ struct MapMainView: View {
         }
     }
 
+    private enum AutosteerReadinessStep: Int, CaseIterable, Identifiable {
+        case autosteerEnabled
+        case gpsSignalValid
+        case guidanceTrackSelected
+        case goButtonPressed
+
+        var id: Int { rawValue }
+    }
+
 
     @EnvironmentObject private var app: AppState
     @StateObject private var location = LocationService()
@@ -312,13 +321,10 @@ struct MapMainView: View {
     @AppStorage(kAutosteerFarmNameKey) private var autosteerFarmName: String = ""
     @AppStorage(kAutosteerPaddockNameKey) private var autosteerPaddockName: String = ""
     @AppStorage(kAutosteerTrackNameKey) private var autosteerTrackName: String = ""
-    @AppStorage(kAutosteerAggressivenessKey) private var autosteerAggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
-    @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
-    @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
 
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
@@ -344,7 +350,7 @@ struct MapMainView: View {
     @State private var curvePulse = false
     @State private var curveRecordedCenters: [CLLocationCoordinate2D] = []
     @State private var showAutosteerTrackSaveSheet = false
-    @State private var showAutosteerReadinessAlert = false
+    @State private var showAutosteerReadinessSheet = false
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
@@ -419,13 +425,6 @@ struct MapMainView: View {
         location.lastLocation != nil && location.lastError == nil
     }
 
-    private var autosteerConditionsReady: Bool {
-        let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
-        let tuneReady = autosteerLookAheadM > 0 && autosteerAggressiveness >= 0
-        let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
-        return widthReady && tuneReady && cruiseReady && activeSession?.isActive == true
-    }
-
     private var autosteerTrackReady: Bool {
         let selectedTrackHasPreview = (selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0) >= 2
         let setupTrackHasPreview = previewCoordinatesForPendingSetup().count >= 2
@@ -439,8 +438,11 @@ struct MapMainView: View {
     private var autosteerGoReady: Bool {
         autosteerEnabled &&
         gpsConnectedForAutosteer &&
-        autosteerConditionsReady &&
         autosteerTrackReady
+    }
+
+    private var autosteerPrerequisitesReady: Bool {
+        autosteerEnabled && gpsConnectedForAutosteer && autosteerTrackReady
     }
 
     private var shouldShowGuidanceOnlyViewport: Bool {
@@ -476,55 +478,22 @@ struct MapMainView: View {
     }
 
     private var autosteerReadinessCount: Int {
-        [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerTrackReady].filter { $0 }.count
+        [autosteerEnabled, gpsConnectedForAutosteer, autosteerTrackReady, autosteerActive].filter { $0 }.count
     }
 
-    private var autosteerReadinessMessage: String {
-        let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
-        let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
-        let sessionReady = activeSession?.isActive == true
-
-        let sessionSettingsDetail = [
-            "• Active session: \(sessionReady ? "✅" : "❌")",
-            "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
-            "• Look-ahead > 0 (current \(UnitFormatting.formattedDistance(autosteerLookAheadM, decimalsIfLarge: 1))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
-            "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
-            "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
-        ].joined(separator: "\n")
-
-        return [
-            "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
-            "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
-            "Session/settings valid: \(autosteerConditionsReady ? "✅" : "❌")",
-            "Track guidance available: \(autosteerTrackReady ? "✅" : "❌")",
-            "",
-            "Session/settings details:",
-            sessionSettingsDetail
-        ].joined(separator: "\n")
+    private var autosteerReadinessSteps: [(step: AutosteerReadinessStep, title: String, isComplete: Bool)] {
+        [
+            (.autosteerEnabled, "Part 1 of 4 · Autosteer enabled", autosteerEnabled),
+            (.gpsSignalValid, "Part 2 of 4 · GPS/Satellite signal valid", gpsConnectedForAutosteer),
+            (.guidanceTrackSelected, "Part 3 of 4 · Valid guidance track selected", autosteerTrackReady),
+            (.goButtonPressed, "Part 4 of 4 · Auto steer button pressed", autosteerActive)
+        ]
     }
 
     private var autosteerReadinessAccessibilityHint: String {
-        let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
-        let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
-        let sessionReady = activeSession?.isActive == true
-
-        let sessionSettingsDetail = [
-            "• Active session: \(sessionReady ? "✅" : "❌")",
-            "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
-            "• Look-ahead > 0 (current \(UnitFormatting.formattedDistance(autosteerLookAheadM, decimalsIfLarge: 1))): \(autosteerLookAheadM > 0 ? "✅" : "❌")",
-            "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
-            "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
-        ].joined(separator: "\n")
-
-        return [
-            "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
-            "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
-            "Session/settings valid: \(autosteerConditionsReady ? "✅" : "❌")",
-            "Track guidance available: \(autosteerTrackReady ? "✅" : "❌")",
-            "",
-            "Session/settings details:",
-            sessionSettingsDetail
-        ].joined(separator: "\n")
+        autosteerReadinessSteps
+            .map { "\($0.title): \($0.isComplete ? "ready" : "not ready")" }
+            .joined(separator: ", ")
     }
 
     private var isAutosteerTrackSetupActive: Bool {
@@ -2467,7 +2436,7 @@ struct MapMainView: View {
                 generator.notificationOccurred(autosteerActive ? .success : .warning)
             } else {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                showAutosteerReadinessAlert = true
+                showAutosteerReadinessSheet = true
             }
         } label: {
             ZStack {
@@ -2516,10 +2485,39 @@ struct MapMainView: View {
                     showAutosteerQuickActions = true
                 }
         )
-        .alert("Autosteer not ready", isPresented: $showAutosteerReadinessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(autosteerReadinessMessage)
+        .sheet(isPresented: $showAutosteerReadinessSheet) {
+            NavigationStack {
+                List {
+                    Section {
+                        ForEach(autosteerReadinessSteps, id: \.step.id) { item in
+                            Button {
+                                handleAutosteerReadinessStepTap(item.step)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: item.isComplete ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundStyle(item.isComplete ? .green : .red)
+                                        .font(.system(size: 19, weight: .semibold))
+                                    Text(item.title)
+                                        .foregroundStyle(.primary)
+                                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption.weight(.semibold))
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } header: {
+                        Text("Autosteer checklist")
+                    } footer: {
+                        Text("Tap a part to jump straight to the relevant place to view or fix it.")
+                    }
+                }
+                .navigationTitle("Autosteer not ready")
+                .navigationBarTitleDisplayMode(.inline)
+            }
         }
     }
 
@@ -2541,6 +2539,21 @@ struct MapMainView: View {
             .frame(minHeight: 40)
             .background(Capsule().fill(fillColor))
             .buttonStyle(.plain)
+    }
+
+    private func handleAutosteerReadinessStepTap(_ step: AutosteerReadinessStep) {
+        showAutosteerReadinessSheet = false
+
+        switch step {
+        case .autosteerEnabled, .gpsSignalValid:
+            showAutosteerSettings = true
+        case .guidanceTrackSelected:
+            showAutosteerTrackSelector = true
+        case .goButtonPressed:
+            guard autosteerPrerequisitesReady else { return }
+            autosteerActive = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
     }
 
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
