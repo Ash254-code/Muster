@@ -2386,17 +2386,35 @@ struct MapMainView: View {
         VStack(spacing: 10) {
             if autosteerSetupModeRaw == "A+B line", autosteerPointB != nil {
                 HStack(spacing: 8) {
-                    autosteerSetupActionButton(title: "Re-mark point A") {
+                    Button("Re-mark A") {
                         remarkAutosteerPointA()
                     }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(chromePrimaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(chromeFill))
+                    .buttonStyle(.plain)
 
-                    autosteerSetupActionButton(title: "Re-mark point B") {
+                    Button("Re-mark B") {
                         remarkAutosteerPointB()
                     }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(chromePrimaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(chromeFill))
+                    .buttonStyle(.plain)
 
-                    autosteerSetupActionButton(title: "Save Track", foreground: .black, background: .white.opacity(0.88)) {
+                    Button("Save Track") {
                         completeAutosteerSetupAndPromptForSave()
                     }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(.white.opacity(0.88)))
+                    .buttonStyle(.plain)
                 }
             } else {
                 HStack(spacing: 8) {
@@ -2707,21 +2725,6 @@ struct MapMainView: View {
         default:
             return "Start"
         }
-    }
-
-    @ViewBuilder
-    private func autosteerSetupActionButton(title: String, foreground: Color? = nil, background: Color? = nil, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .font(.system(size: 14, weight: .semibold))
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .minimumScaleFactor(0.9)
-            .foregroundStyle(foreground ?? chromePrimaryText)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 10)
-            .background(Capsule().fill(background ?? chromeFill))
-            .buttonStyle(.plain)
     }
 
     private func handleAutosteerSetupPrimaryAction() {
