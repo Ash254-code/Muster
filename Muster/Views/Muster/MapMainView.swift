@@ -1815,6 +1815,11 @@ struct MapMainView: View {
     private var ringsSettingsSheet: some View {
         NavigationStack {
             RingsSettingsView()
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SheetCloseButton()
+                    }
+                }
         }
         .presentationDetents([.large])
     }
@@ -4434,7 +4439,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .presentationDetents([.medium, .large])
     }
     private var tpmsDashboardSheet: some View {
-        TPMSDashboardHostView()
+        NavigationStack {
+            TPMSDashboardHostView()
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SheetCloseButton()
+                    }
+                }
+        }
     }
 
     private var expandedPanelContent: some View {
@@ -5635,6 +5647,22 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private enum MapBottomPanelDetent {
         case collapsed
         case large
+    }
+}
+
+private struct SheetCloseButton: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .accessibilityLabel("Close")
     }
 }
 
