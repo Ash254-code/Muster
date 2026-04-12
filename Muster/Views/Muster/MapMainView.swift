@@ -4514,7 +4514,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 panelRow(
-                    title: "Km For Day",
+                    title: "Distance For Day",
                     value: km,
                     systemImage: "road.lanes"
                 )
@@ -5247,7 +5247,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
     private func quickZoomLabel(_ meters: Double) -> String {
         let normalized = normalizedQuickZoomValue(meters)
-        return UnitFormatting.formattedDistanceCompact(normalized, decimalsIfLarge: 1)
+        return UnitFormatting.formattedDistanceCompact(normalized, decimalsIfLarge: 0)
     }
 
     private func postQuickZoomRequest(_ meters: Double) {
