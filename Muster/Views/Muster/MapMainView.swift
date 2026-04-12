@@ -1541,6 +1541,7 @@ struct MapMainView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "road.lanes")
+                        .foregroundStyle(.blue)
                     Text(selectedAutosteerNameDisplay)
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
@@ -1552,24 +1553,36 @@ struct MapMainView: View {
                     beginAutosteerSetup(mode: "A+B line")
                 }
             } label: {
-                Text("A + B Track")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                        .foregroundStyle(.blue)
+                    Text("A + B Track")
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
                     beginAutosteerSetup(mode: "A+Heading")
                 }
             } label: {
-                Text("A + Heading Track")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    Image(systemName: "point.topleft.down.to.point.bottomright.filled.curvepath")
+                        .foregroundStyle(.blue)
+                    Text("A + Heading Track")
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
                     beginAutosteerSetup(mode: "Curve Track")
                 }
             } label: {
-                Text("Curve Track")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    Image(systemName: "point.bottomleft.forward.to.point.topright.scurvepath.fill")
+                        .foregroundStyle(.blue)
+                    Text("Curve Track")
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
 
             autosteerSectionHeading("Settings")
@@ -1578,8 +1591,12 @@ struct MapMainView: View {
                     showAutosteerSettings = true
                 }
             } label: {
-                Text("Settings")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(.blue)
+                    Text("Settings")
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             .padding(.bottom, 2)
         }
