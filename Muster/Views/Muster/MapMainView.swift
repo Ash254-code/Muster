@@ -3473,7 +3473,9 @@ struct MapMainView: View {
     private func autosteerGuidanceBar(_ guidance: AutosteerGuidanceStatus) -> some View {
         let maxLights = 5
         let guidanceStepCentimeters = max(autosteerLightbarStepCM, 1)
-        let activeRedLights = min(maxLights, max(0, Int(ceil(guidance.offsetCentimeters / guidanceStepCentimeters))))
+        let activeOffsetCentimeters = max(0, guidance.offsetCentimeters)
+        let activeRedLights = min(maxLights, Int(activeOffsetCentimeters / guidanceStepCentimeters))
+        let centerLightIsActive = activeOffsetCentimeters < guidanceStepCentimeters
 
         return VStack(spacing: 6) {
             GeometryReader { proxy in
@@ -3493,7 +3495,7 @@ struct MapMainView: View {
                     }
 
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(.green)
+                        .fill(centerLightIsActive ? .green : chromeStroke)
                         .frame(width: centerWidth, height: 8)
 
                     ForEach(0..<maxLights, id: \.self) { index in
