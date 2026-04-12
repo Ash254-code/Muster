@@ -1544,7 +1544,7 @@ struct MapMainView: View {
                 .foregroundStyle(.white.opacity(0.9))
                 .padding(.top, 6)
 
-            autosteerSectionHeading("Current Track")
+            autosteerSectionHeading("Current Track - \(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
                     refreshKnownFarms()
