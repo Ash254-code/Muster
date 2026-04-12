@@ -409,6 +409,10 @@ struct MapMainView: View {
         }
     }
 
+    private var prioritizedGroupTrackingContacts: [XRSRadioContact] {
+        app.cellularTracking.mappedContactsWithRadioFallback(xrsContacts)
+    }
+
     private var shouldShowXRSTrailsOnMap: Bool {
         xrsRadioTrailsEnabled && activeSession?.isActive == true
     }
@@ -1641,7 +1645,7 @@ struct MapMainView: View {
             previousSessions: visiblePreviousTrackSessions,
             markers: sessionMarkers,
             mapMarkers: currentMapMarkers,
-            xrsContacts: xrsContacts,
+            xrsContacts: prioritizedGroupTrackingContacts,
             xrsTrailGroups: xrsTrailGroups,
             xrsTrailColorRaw: xrsRadioTrailColorRaw,
             importedBoundaries: importedBoundaries,
