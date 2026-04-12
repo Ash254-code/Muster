@@ -1126,7 +1126,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
-            if parent.guidanceNoMapEnabled {
+            if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
                 if guidanceBackgroundOverlay == nil {
                     let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
@@ -3734,8 +3734,40 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     private static let tileData: Data = {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
         let image = renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: 256, height: 256)
             UIColor(red: 0.10, green: 0.10, blue: 0.11, alpha: 1.0).setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+            context.fill(rect)
+
+            let cg = context.cgContext
+            cg.setShouldAntialias(false)
+
+            cg.setStrokeColor(UIColor.white.withAlphaComponent(0.045).cgColor)
+            cg.setLineWidth(1)
+            stride(from: 0, through: 256, by: 32).forEach { value in
+                let x = CGFloat(value) + 0.5
+                cg.move(to: CGPoint(x: x, y: 0))
+                cg.addLine(to: CGPoint(x: x, y: 256))
+            }
+            stride(from: 0, through: 256, by: 32).forEach { value in
+                let y = CGFloat(value) + 0.5
+                cg.move(to: CGPoint(x: 0, y: y))
+                cg.addLine(to: CGPoint(x: 256, y: y))
+            }
+            cg.strokePath()
+
+            let gradientColors = [
+                UIColor.white.withAlphaComponent(0.06).cgColor,
+                UIColor.clear.cgColor,
+                UIColor.black.withAlphaComponent(0.22).cgColor
+            ] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: gradientColors, locations: [0.0, 0.55, 1.0]) {
+                cg.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: 128, y: 0),
+                    end: CGPoint(x: 128, y: 256),
+                    options: []
+                )
+            }
         }
         return image.pngData() ?? Data()
     }()
