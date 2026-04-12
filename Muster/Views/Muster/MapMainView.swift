@@ -1138,33 +1138,6 @@ struct MapMainView: View {
                 actions: longPressedTrackDialogActions,
                 message: longPressedTrackDialogMessage
             )
-            .confirmationDialog(
-                "Autosteer",
-                isPresented: $showAutosteerQuickActions,
-                titleVisibility: .visible,
-                actions: {
-                    Button("🛣️ \(selectedAutosteerNameDisplay)") {
-                        refreshKnownFarms()
-                        showAutosteerTrackSelector = true
-                    }
-                    Button("Add New\nA + B Track") {
-                        beginAutosteerSetup(mode: "A+B line")
-                    }
-                    Button("Add New\nA + Heading Track") {
-                        beginAutosteerSetup(mode: "A+Heading")
-                    }
-                    Button("Add New\nCurve Track") {
-                        beginAutosteerSetup(mode: "Curve Track")
-                    }
-                    Button("Settings") {
-                        showAutosteerSettings = true
-                    }
-                    Button("Cancel", role: .cancel) {}
-                },
-                message: {
-                    EmptyView()
-                }
-            )
             .alert(
                 "Confirm Delete",
                 isPresented: $showTrackDeleteConfirmationAlert,
@@ -1418,6 +1391,21 @@ struct MapMainView: View {
                     .zIndex(20)
                 }
 
+                if showAutosteerQuickActions {
+                    Color.black.opacity(0.28)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            dismissAutosteerQuickActions()
+                        }
+                        .zIndex(24)
+
+                    autosteerQuickActionsSheet
+                        .padding(.horizontal, 18)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .zIndex(25)
+                }
+
                 VStack(spacing: 0) {
                     Spacer()
 
@@ -1491,6 +1479,116 @@ struct MapMainView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
+    }
+
+    private var autosteerQuickActionsSheet: some View {
+        VStack(spacing: 12) {
+            Text("Autosteer")
+                .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.top, 6)
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    refreshKnownFarms()
+                    showAutosteerTrackSelector = true
+                }
+            } label: {
+                Text("🛣️ \(selectedAutosteerNameDisplay)")
+                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+            }
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "A+B line")
+                }
+            } label: {
+                autosteerNewTrackPillLabel("A + B Track")
+            }
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "A+Heading")
+                }
+            } label: {
+                autosteerNewTrackPillLabel("A + Heading Track")
+            }
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "Curve Track")
+                }
+            } label: {
+                autosteerNewTrackPillLabel("Curve Track")
+            }
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    showAutosteerSettings = true
+                }
+            } label: {
+                Text("Settings")
+                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+            }
+            .padding(.bottom, 2)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: 460)
+        .background(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(.ultraThinMaterial.opacity(0.98))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
+    }
+
+    private func autosteerQuickActionPill<Label: View>(
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        Button(action: action) {
+            label()
+                .foregroundStyle(.white.opacity(0.93))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 56)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.16))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func autosteerNewTrackPillLabel(_ trackType: String) -> some View {
+        VStack(spacing: 2) {
+            Text("Add New")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.75))
+            Text(trackType)
+                .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+        }
+        .multilineTextAlignment(.center)
+    }
+
+    private func dismissAutosteerQuickActions() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            showAutosteerQuickActions = false
+        }
+    }
+
+    private func handleAutosteerQuickAction(_ action: @escaping () -> Void) {
+        dismissAutosteerQuickActions()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            action()
+        }
     }
 
     private func mapLayer(totalHeight: CGFloat) -> some View {
