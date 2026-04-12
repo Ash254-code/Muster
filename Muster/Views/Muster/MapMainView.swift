@@ -327,6 +327,8 @@ struct MapMainView: View {
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
+    @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
+    @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
 
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
 
@@ -355,6 +357,7 @@ struct MapMainView: View {
     @State private var curveRecordedCenters: [CLLocationCoordinate2D] = []
     @State private var showAutosteerTrackSaveSheet = false
     @State private var showAutosteerReadinessSheet = false
+    @State private var showCruiseControlSheet = false
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
@@ -606,6 +609,36 @@ struct MapMainView: View {
     private var speedUnitText: String {
         let (_, unit) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: 0)
         return unit
+    }
+
+    private var clampedCruiseControlSpeedKPH: Double {
+        max(2, min(100, cruiseControlSpeedKPH))
+    }
+
+    private var cruiseControlDisplaySpeedText: String {
+        String(format: "%.0f", clampedCruiseControlSpeedKPH)
+    }
+
+    private var cruiseControlDisplayUnitText: String {
+        "km/h"
+    }
+
+    private var cruiseControlIsActive: Bool {
+        cruiseControlEnabled && autosteerActive
+    }
+
+    private var speedPillRingColor: Color {
+        if cruiseControlIsActive { return .green }
+        if cruiseControlEnabled { return .orange }
+        return .clear
+    }
+
+    private var hasSpeedPillRing: Bool {
+        cruiseControlEnabled
+    }
+
+    private var shouldHighlightBottomPanelForSession: Bool {
+        activeSession?.isActive == true || activeSession != nil
     }
 
     private var elevationText: String {
@@ -1520,9 +1553,23 @@ struct MapMainView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
+        .onAppear {
+            cruiseControlSpeedKPH = clampedCruiseControlSpeedKPH
+        }
+        .onChange(of: cruiseControlSpeedKPH) { _, _ in
+            let clamped = clampedCruiseControlSpeedKPH
+            if abs(cruiseControlSpeedKPH - clamped) > 0.001 {
+                cruiseControlSpeedKPH = clamped
+            }
+        }
         .sheet(isPresented: $showAutosteerLightbarStepEditor) {
             autosteerLightbarStepEditorSheet
                 .presentationDetents([.height(250)])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showCruiseControlSheet) {
+            cruiseControlSheet
+                .presentationDetents([.height(320)])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -1562,6 +1609,40 @@ struct MapMainView: View {
             .padding(16)
             .navigationTitle("Autosteer")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var cruiseControlSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                Toggle("Enable Cruise Control", isOn: $cruiseControlEnabled)
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Cruise Speed")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                    Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
+                    Text("Adjust between 2 and 100 km/h.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+            .navigationTitle("Cruise Control")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        showCruiseControlSheet = false
+                    }
+                }
+            }
         }
     }
 
@@ -2370,6 +2451,18 @@ struct MapMainView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
+            if cruiseControlEnabled {
+                HStack(spacing: 4) {
+                    Text(cruiseControlDisplaySpeedText)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(chromePrimaryText.opacity(0.9))
+                        .monospacedDigit()
+                    Text(cruiseControlDisplayUnitText)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromeSecondaryText)
+                }
+            }
+
             Text(speedUnitText)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromeSecondaryText)
@@ -2384,15 +2477,18 @@ struct MapMainView: View {
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(
-                    activeSession?.isActive == true ? .red : .clear,
+                    speedPillRingColor,
                     lineWidth: 4
                 )
         )
         .shadow(
-            color: activeSession?.isActive == true ? .red.opacity(0.25) : .black.opacity(0.16),
+            color: hasSpeedPillRing ? speedPillRingColor.opacity(0.25) : .black.opacity(0.16),
             radius: 10,
             y: 4
         )
+        .onLongPressGesture(minimumDuration: 0.45) {
+            showCruiseControlSheet = true
+        }
     }
 
     private var moveBanner: some View {
@@ -2544,6 +2640,9 @@ struct MapMainView: View {
         return Button {
             if autosteerGoReady {
                 autosteerActive.toggle()
+                if cruiseControlEnabled, autosteerActive {
+                    cruiseControlSpeedKPH = clampedCruiseControlSpeedKPH
+                }
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(autosteerActive ? .success : .warning)
             } else {
@@ -4146,6 +4245,10 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .strokeBorder(chromeStroke, lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .strokeBorder(shouldHighlightBottomPanelForSession ? .red : .clear, lineWidth: 4)
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
