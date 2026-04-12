@@ -262,7 +262,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled || mapStyleRaw == "blank" {
-            map.mapType = .standard
+            map.mapType = .satellite
             map.isPitchEnabled = false
             map.showsBuildings = false
             return
@@ -3691,7 +3691,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
         super.init(urlTemplate: URLTemplate)
         canReplaceMapContent = true
         minimumZ = 0
-        maximumZ = 22
+        maximumZ = 30
     }
 
     override init(urlTemplate URLTemplate: String?) {
@@ -3699,7 +3699,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
         super.init(urlTemplate: URLTemplate)
         canReplaceMapContent = true
         minimumZ = 0
-        maximumZ = 22
+        maximumZ = 30
     }
 
     convenience init() {
