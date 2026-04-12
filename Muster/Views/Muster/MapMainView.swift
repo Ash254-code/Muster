@@ -1021,6 +1021,11 @@ struct MapMainView: View {
                                                 autosteerTrackModeRaw = track.mode
                                                 showAutosteerTrackSelector = false
                                             } label: {
+                                                let isSelectedTrack = isCurrentlySelectedAutosteerTrack(
+                                                    farmName: farm.name,
+                                                    paddockName: paddock.name,
+                                                    trackName: track.name
+                                                )
                                                 HStack {
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(track.name)
@@ -1033,9 +1038,7 @@ struct MapMainView: View {
                                                     
                                                     Spacer()
                                                     
-                                                    if autosteerFarmName.caseInsensitiveCompare(farm.name) == .orderedSame &&
-                                                        autosteerPaddockName.caseInsensitiveCompare(paddock.name) == .orderedSame &&
-                                                        autosteerTrackName.caseInsensitiveCompare(track.name) == .orderedSame {
+                                                    if isSelectedTrack {
                                                         Image(systemName: "checkmark.circle.fill")
                                                             .foregroundStyle(.green)
                                                     }
@@ -2700,6 +2703,12 @@ struct MapMainView: View {
             break
         }
         return []
+    }
+
+    private func isCurrentlySelectedAutosteerTrack(farmName: String, paddockName: String, trackName: String) -> Bool {
+        autosteerFarmName.caseInsensitiveCompare(farmName) == .orderedSame &&
+        autosteerPaddockName.caseInsensitiveCompare(paddockName) == .orderedSame &&
+        autosteerTrackName.caseInsensitiveCompare(trackName) == .orderedSame
     }
 
     // MARK: - Right side controls
