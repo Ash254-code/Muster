@@ -849,6 +849,17 @@ struct AutosteerSettingsView: View {
         }
         .navigationTitle("Autosteer")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .accessibilityLabel("Close")
+            }
+        }
         .onAppear {
             syncWorkingWidthText()
         }
