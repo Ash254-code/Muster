@@ -608,6 +608,11 @@ struct MapMainView: View {
         return unit
     }
 
+    private var speedPillActualSpeedKPH: Double? {
+        guard let speedMPS = location.lastLocation?.speed, speedMPS >= 0 else { return nil }
+        return speedMPS * 3.6
+    }
+
     private var clampedCruiseControlSpeedKPH: Double {
         max(2, min(100, cruiseControlSpeedKPH))
     }
@@ -622,6 +627,13 @@ struct MapMainView: View {
 
     private var cruiseControlIsActive: Bool {
         cruiseControlEnabled && autosteerActive
+    }
+
+    private var speedPillShouldHighlightMatch: Bool {
+        guard cruiseControlIsActive,
+              let actualSpeedKPH = speedPillActualSpeedKPH else { return false }
+
+        return abs(actualSpeedKPH - clampedCruiseControlSpeedKPH) <= 1
     }
 
     private var speedPillRingColor: Color {
@@ -2457,7 +2469,7 @@ struct MapMainView: View {
         VStack(spacing: 0) {
             Text(speedNumberText)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(chromePrimaryText)
+                .foregroundStyle(speedPillShouldHighlightMatch ? Color.green : chromePrimaryText)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
