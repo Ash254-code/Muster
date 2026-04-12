@@ -1570,8 +1570,11 @@ struct MapMainView: View {
                     showAutosteerTrackSelector = true
                 }
             } label: {
-                Text("🛣️ \(selectedAutosteerNameDisplay)")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    Image(systemName: "road.lanes")
+                    Text(selectedAutosteerNameDisplay)
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
 
             autosteerSectionHeading("Create New Tracks")
