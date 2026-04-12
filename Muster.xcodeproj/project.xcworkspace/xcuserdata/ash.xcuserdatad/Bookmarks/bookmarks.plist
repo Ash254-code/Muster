@@ -200,13 +200,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>3436</string>
+					<string>3442</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3435</string>
+					<string>3441</string>
 					<key>Timestamp</key>
-					<string>797654958.265528</string>
+					<string>797661621.815111</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>
+				<string>            let interItemSpacing: CGFloat = 10
 </string>
 				<key>leading</key>
-				<string>            }
-            .frame(height: 8)
+				<string>        GeometryReader { proxy in
+            let outerPadding: CGFloat = 18
 </string>
 				<key>trailing</key>
-				<string>            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(UnitFormatting.formattedCentimeters(guidance.offsetCentimeters))")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromePrimaryText)
+				<string>            let columns = 3
+            let availableWidth = proxy.size.width - (outerPadding * 2) - (interItemSpacing * CGFloat(columns - 1))
+            let cardWidth = floor(availableWidth / CGFloat(columns))
 </string>
 			</dict>
 			<key>type</key>

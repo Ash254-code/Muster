@@ -2512,18 +2512,21 @@ struct MapMainView: View {
 
     private func autosteerTrackPillButton(
         _ title: String,
-        foreground: Color = chromePrimaryText,
-        fill: Color = chromeFill,
+        foreground: Color? = nil,
+        fill: Color? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(title, action: action)
+        let foregroundColor = foreground ?? chromePrimaryText
+        let fillColor = fill ?? chromeFill
+
+        return Button(title, action: action)
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(foreground)
+            .foregroundStyle(foregroundColor)
             .lineLimit(1)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(minHeight: 40)
-            .background(Capsule().fill(fill))
+            .background(Capsule().fill(fillColor))
             .buttonStyle(.plain)
     }
 
