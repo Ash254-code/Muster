@@ -49,24 +49,24 @@ private let kCruiseControlSpeedKPHKey = "cruise_control_speed_kph" // Double
 
 struct MapMainView: View {
     @Environment(\.colorScheme) private var colorScheme
-    
+
     private struct ManualGoToTarget {
         let coordinate: CLLocationCoordinate2D
         let title: String
         let subtitle: String
     }
-    
+
     private enum LongPressedTrackTarget {
         case previousSession(sessionID: UUID, name: String, createdAt: Date)
         case imported(trackID: UUID, name: String, createdAt: Date)
-        
+
         var name: String {
             switch self {
             case .previousSession(_, let name, _), .imported(_, let name, _):
                 return name
             }
         }
-        
+
         var createdAt: Date {
             switch self {
             case .previousSession(_, _, let createdAt), .imported(_, _, let createdAt):
@@ -74,7 +74,7 @@ struct MapMainView: View {
             }
         }
     }
-    
+
     private enum TopSidePillMetric: String, CaseIterable, Identifiable {
         case weather
         case wind
@@ -83,9 +83,9 @@ struct MapMainView: View {
         case etaAtTarget
         case headingBearing
         case tripDistance
-        
+
         var id: String { rawValue }
-        
+
         var menuTitle: String {
             switch self {
             case .weather: return "Weather"
@@ -98,12 +98,12 @@ struct MapMainView: View {
             }
         }
     }
-    
+
     private enum TopSidePillPosition {
         case left
         case right
     }
-    
+
     private struct TopSidePillContent {
         let valueText: String
         let labelText: String
@@ -111,34 +111,33 @@ struct MapMainView: View {
         let imageRotationDegrees: Double
         let animateRotation: Bool
     }
-    
+
     private struct AutosteerGuidanceStatus {
         let signedOffsetToNearestLineM: Double
         let nearestLineIndex: Int
-        
+
         var offsetCentimeters: Double {
             abs(signedOffsetToNearestLineM) * 100
         }
-        
+
         var lineIsLeft: Bool {
             signedOffsetToNearestLineM < 0
         }
     }
-    
+
     private struct RawAutosteerGuidanceSample {
         let signedDistanceToBaseLineM: Double
         let nearestLineIndex: Int
     }
-    
+
     private enum MapModeOption: String, CaseIterable, Identifiable {
         case explore
         case driving
         case hybrid
         case satellite
-        case blank
-        
+
         var id: String { rawValue }
-        
+
         var title: String {
             switch self {
             case .explore: return "Explore"
@@ -148,7 +147,7 @@ struct MapMainView: View {
             case .blank: return "Blank"
             }
         }
-        
+
         var subtitle: String {
             switch self {
             case .explore: return "General map"
@@ -158,7 +157,7 @@ struct MapMainView: View {
             case .blank: return "No base map"
             }
         }
-        
+
         var storedValue: String {
             switch self {
             case .explore: return "standard"
@@ -168,7 +167,7 @@ struct MapMainView: View {
             case .blank: return "blank"
             }
         }
-        
+
         var systemImage: String {
             switch self {
             case .explore: return "map.fill"
@@ -178,7 +177,7 @@ struct MapMainView: View {
             case .blank: return "square.slash"
             }
         }
-        
+
         var tint: Color {
             switch self {
             case .explore: return .blue
@@ -188,7 +187,7 @@ struct MapMainView: View {
             case .blank: return .gray
             }
         }
-        
+
         var isDarkPreview: Bool {
             switch self {
             case .explore, .driving, .hybrid:
@@ -200,18 +199,18 @@ struct MapMainView: View {
             }
         }
     }
-    
-    
+
+
     @EnvironmentObject private var app: AppState
     @StateObject private var location = LocationService()
     @StateObject private var weatherStore = WeatherPillStore()
     @StateObject private var smartETA = SmartETAEstimator()
-    
+
     @State private var followUser = true
     @State private var showSettings = false
     @State private var showRingsSettings = false
     @State private var gotoTarget: MusterMarker? = nil
-    
+
     @State private var showMarkerSheet = false
     @State private var showPreviousMusters = false
     @State private var showCurrentTrack = false
@@ -231,7 +230,7 @@ struct MapMainView: View {
     @State private var pendingTrackName = ""
     @State private var showNewTrackNamePrompt = false
     @State private var displayedActiveTrackPoints: [TrackPoint] = []
-    
+
     // Long-press marker actions
     @State private var longPressedSessionMarker: MusterMarker? = nil
     @State private var longPressedMapMarker: MapMarker? = nil
@@ -241,26 +240,26 @@ struct MapMainView: View {
     @State private var showLongPressedTrackDialog = false
     @State private var pendingTrackDeleteConfirmation: LongPressedTrackTarget? = nil
     @State private var showTrackDeleteConfirmationAlert = false
-    
+
     // Editing / moving session marker
     @State private var editingSessionMarker: MusterMarker? = nil
     @State private var editingSessionMarkerName: String = ""
     @State private var movingSessionMarker: MusterMarker? = nil
-    
+
     // Editing / moving permanent map marker
     @State private var editingMapMarker: MapMarker? = nil
     @State private var editingMapMarkerName: String = ""
     @State private var movingMapMarker: MapMarker? = nil
-    
+
     @State private var showEditSessionMarkerAlert = false
     @State private var showEditMapMarkerAlert = false
-    
+
     @State private var topPillPickerSide: TopSidePillPosition? = nil
-    
+
     // Generic Go To target for any non-sheep marker
     @State private var manualGoToTarget: ManualGoToTarget? = nil
     @State private var activeRadioGoToContactID: UUID? = nil
-    
+
     // Sheep quick-drop scrub UI
     @State private var showSheepCountPopover = false
     @State private var sheepCountSelectionIndex = 0
@@ -268,13 +267,13 @@ struct MapMainView: View {
     @State private var isSheepScrubbing = false
     @State private var sheepScrubStartY: CGFloat? = nil
     @State private var sheepLastHapticIndex: Int? = nil
-    
+
     @State private var showFenceApproachWarning = false
     @State private var activeFenceWarningBoundaryID: UUID? = nil
     @State private var lastFenceWarningAt: Date = .distantPast
     @State private var fenceWarningDistanceMeters: Double? = nil
     @State private var fenceWarningPlayer: AVAudioPlayer?
-    
+
     @AppStorage(kRingCountKey) private var ringCount: Int = 4
     @AppStorage(kRingSpacingKey) private var ringSpacingM: Double = 100
     @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
@@ -288,16 +287,17 @@ struct MapMainView: View {
     @AppStorage(kSheepPinIconKey) private var sheepPinIconRaw: String = "sheep"
     @AppStorage(kTopLeftPillMetricKey) private var topLeftPillMetricRaw: String = TopSidePillMetric.weather.rawValue
     @AppStorage(kTopRightPillMetricKey) private var topRightPillMetricRaw: String = TopSidePillMetric.wind.rawValue
+
     @AppStorage(kQuickZoom1MetersKey) private var quickZoom1M: Double = 1000
     @AppStorage(kQuickZoom2MetersKey) private var quickZoom2M: Double = 5000
     @AppStorage(kQuickZoom3MetersKey) private var quickZoom3M: Double = 12000
-    
+
     // Admin tuning
     @AppStorage(kAdminBottomSheetSnapThresholdKey) private var bottomSheetSnapThreshold: Double = 80
     @AppStorage(kAdminBottomSheetSpringResponseKey) private var bottomSheetSpringResponse: Double = 0.34
     @AppStorage(kAdminBottomSheetSpringDampingKey) private var bottomSheetSpringDamping: Double = 0.88
     @AppStorage(kAdminRightControlsBottomGapKey) private var rightControlsBottomGap: Double = 96
-    
+
     @AppStorage(kMediaButtonEnabledKey) private var mediaButtonEnabled: Bool = true
     @AppStorage(kXRSRadioTrailsEnabledKey) private var xrsRadioTrailsEnabled: Bool = true
     @AppStorage(kXRSRadioTrailColorKey) private var xrsRadioTrailColorRaw: String = "blue"
@@ -314,9 +314,9 @@ struct MapMainView: View {
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
     @AppStorage(kCruiseControlSpeedKPHKey) private var cruiseControlSpeedKPH: Double = 8
-    
+
     private var isHeadsUp: Bool { orientationRaw == "headsUp" }
-    
+
     @State private var recenterNonce: Int = 0
     @State private var metersPerPoint: Double = 1.0
     @State private var activeTrackAppearanceRaw: String = "altitude"
@@ -351,31 +351,35 @@ struct MapMainView: View {
     @State private var selectedFarmOption: String = "__new__"
     @State private var selectedPaddockOption: String = "__new__"
     @State private var selectedTrackQuickPick: String? = nil
-    
+    @State private var showAddFarmPrompt = false
+    @State private var showAddPaddockPrompt = false
+    @State private var newFarmNameInput = ""
+    @State private var newPaddockNameInput = ""
+
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let activeTrackDisplayRefreshTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
-    
+
     private let topPillHeight: CGFloat = 42
     private let topSidePillMinWidth: CGFloat = 104
     private let topSpeedPillMinWidth: CGFloat = 160
-    
+
     private let sheepCountOptions: [Int] = [1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100]
-    
+
     private let fenceWarningSpeedThresholdMPS: CLLocationSpeed = 10.0 / 3.6
     private let fenceWarningShowDistanceMeters: CLLocationDistance = 75
     private let fenceWarningHideDistanceMeters: CLLocationDistance = 95
     private let fenceWarningHeadingToleranceDegrees: Double = 55
     private let fenceWarningCooldownSeconds: TimeInterval = 8
-    
+
     private var activeSession: MusterSession? { app.muster.activeSession }
     private var mapMarkers: [MapMarker] { app.muster.visibleMapMarkers }
     private var activeSheepTarget: MusterMarker? { app.muster.activeSheepTarget }
-    
+
     private var isSheepPinReady: Bool {
         location.lastLocation != nil
     }
-    
+
     private var sheepPinButtonIcon: String {
         switch sheepPinIconRaw {
         case "cattle": return "🐄"
@@ -386,50 +390,50 @@ struct MapMainView: View {
         default: return "🐑"
         }
     }
-    
+
     private var xrsContacts: [XRSRadioContact] {
         app.xrs.allContacts.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
-    
+
     private var shouldShowXRSTrailsOnMap: Bool {
         xrsRadioTrailsEnabled && activeSession?.isActive == true
     }
-    
+
     private var gpsConnectedForAutosteer: Bool {
         location.lastLocation != nil && location.lastError == nil
     }
-    
+
     private var autosteerConditionsReady: Bool {
         let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
         let tuneReady = autosteerLookAheadM > 0 && autosteerAggressiveness >= 0
         let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
         return widthReady && tuneReady && cruiseReady && activeSession?.isActive == true
     }
-    
+
     private var autosteerTrackReady: Bool {
         let selectedTrackHasPreview = (selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0) >= 2
         let setupTrackHasPreview = previewCoordinatesForPendingSetup().count >= 2
         return selectedTrackHasPreview || setupTrackHasPreview
     }
-    
+
     private var autosteerGoReady: Bool {
         autosteerEnabled &&
         gpsConnectedForAutosteer &&
         autosteerConditionsReady &&
         autosteerTrackReady
     }
-    
+
     private var shouldShowGuidanceOnlyViewport: Bool {
         autosteerEnabled
     }
-    
+
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
         if markerSheetPointA != nil || markerSheetPointB != nil {
             return markerSheetPointA
         }
-        
+
         guard isAutosteerTrackSetupActive else { return nil }
         switch autosteerSetupModeRaw {
         case "A+B line", "A+Heading":
@@ -438,12 +442,12 @@ struct MapMainView: View {
             return nil
         }
     }
-    
+
     private var temporaryPreviewPointB: CLLocationCoordinate2D? {
         if markerSheetPointA != nil || markerSheetPointB != nil {
             return markerSheetPointB
         }
-        
+
         guard isAutosteerTrackSetupActive else { return nil }
         switch autosteerSetupModeRaw {
         case "A+B line":
@@ -452,16 +456,16 @@ struct MapMainView: View {
             return nil
         }
     }
-    
+
     private var autosteerReadinessCount: Int {
         [autosteerEnabled, gpsConnectedForAutosteer, autosteerConditionsReady, autosteerTrackReady].filter { $0 }.count
     }
-    
+
     private var autosteerReadinessMessage: String {
         let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
         let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
         let sessionReady = activeSession?.isActive == true
-        
+
         let sessionSettingsDetail = [
             "• Active session: \(sessionReady ? "✅" : "❌")",
             "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
@@ -469,7 +473,7 @@ struct MapMainView: View {
             "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
             "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
         ].joined(separator: "\n")
-        
+
         return [
             "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
             "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
@@ -480,12 +484,12 @@ struct MapMainView: View {
             sessionSettingsDetail
         ].joined(separator: "\n")
     }
-    
+
     private var autosteerReadinessAccessibilityHint: String {
         let widthReady = (1...1000).contains(Int(autosteerWorkingWidthM))
         let cruiseReady = cruiseControlEnabled ? cruiseControlSpeedKPH > 0 : true
         let sessionReady = activeSession?.isActive == true
-        
+
         let sessionSettingsDetail = [
             "• Active session: \(sessionReady ? "✅" : "❌")",
             "• Width 1–1000 m (current \(UnitFormatting.formattedDistance(autosteerWorkingWidthM, decimalsIfLarge: 1))): \(widthReady ? "✅" : "❌")",
@@ -493,7 +497,7 @@ struct MapMainView: View {
             "• Aggressiveness ≥ 0 (current \(String(format: "%.2f", autosteerAggressiveness))): \(autosteerAggressiveness >= 0 ? "✅" : "❌")",
             "• Cruise speed > 0 when cruise enabled: \(cruiseReady ? "✅" : "❌")"
         ].joined(separator: "\n")
-        
+
         return [
             "Autosteer enabled: \(autosteerEnabled ? "✅" : "❌")",
             "GPS connected: \(gpsConnectedForAutosteer ? "✅" : "❌")",
@@ -504,11 +508,11 @@ struct MapMainView: View {
             sessionSettingsDetail
         ].joined(separator: "\n")
     }
-    
+
     private var isAutosteerTrackSetupActive: Bool {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
     }
-    
+
     private var existingPaddocksForSelectedFarm: [String] {
         let farmName = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let farm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(farmName) == .orderedSame }) else {
@@ -518,45 +522,51 @@ struct MapMainView: View {
     }
 
     private let trackQuickPickOptions: [String] = ["North", "East", "South", "West"]
-    
+
+    private var isAutosteerSaveFormComplete: Bool {
+        autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+        autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+        autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
     private var selectedAutosteerFarmDisplay: String {
         let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
         return farm.isEmpty ? "—" : farm
     }
-    
+
     private var selectedAutosteerPaddockDisplay: String {
         let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
         return paddock.isEmpty ? "—" : paddock
     }
-    
+
     private var selectedAutosteerNameDisplay: String {
         let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
         return track.isEmpty ? "—" : track
     }
-    
+
     private var selectedAutosteerTrackRecord: AutosteerTrackRecord? {
         let farm = autosteerFarmName.trimmingCharacters(in: .whitespacesAndNewlines)
         let paddock = autosteerPaddockName.trimmingCharacters(in: .whitespacesAndNewlines)
         let track = autosteerTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard farm.isEmpty == false, paddock.isEmpty == false, track.isEmpty == false else { return nil }
-        
+
         func findTrack(in farms: [AutosteerFarmRecord]) -> AutosteerTrackRecord? {
             farms
                 .first(where: { $0.name.caseInsensitiveCompare(farm) == .orderedSame })?
                 .paddocks.first(where: { $0.name.caseInsensitiveCompare(paddock) == .orderedSame })?
                 .tracks.first(where: { $0.name.caseInsensitiveCompare(track) == .orderedSame })
         }
-        
+
         if let match = findTrack(in: knownFarms) {
             return match
         }
-        
+
         return findTrack(in: AutosteerLibraryStore.load())
     }
-    
+
     private var xrsTrailGroups: [[CLLocationCoordinate2D]] {
         guard shouldShowXRSTrailsOnMap else { return [] }
-        
+
         return xrsContacts.compactMap { contact in
             let trail = app.xrs.trailPoints(for: contact.name)
             let coords = trail.map(\.coordinate)
@@ -566,16 +576,16 @@ struct MapMainView: View {
     private var leftPillMetric: TopSidePillMetric {
         TopSidePillMetric(rawValue: topLeftPillMetricRaw) ?? .weather
     }
-    
+
     private var rightPillMetric: TopSidePillMetric {
         TopSidePillMetric(rawValue: topRightPillMetricRaw) ?? .wind
     }
-    
+
     private var speedText: String {
         guard let s = location.lastLocation?.speed, s >= 0 else { return "—" }
         return UnitFormatting.formattedSpeed(fromMetersPerSecond: s, decimals: 0)
     }
-    
+
     private var speedNumberText: String {
         guard let s = location.lastLocation?.speed, s >= 0 else { return "—" }
         let (value, _) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: s)
@@ -586,109 +596,109 @@ struct MapMainView: View {
         let (_, unit) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: 0)
         return unit
     }
-    
+
     private var elevationText: String {
         guard let altitude = location.lastLocation?.altitude else { return "--" }
         return UnitFormatting.formattedDistance(altitude, decimalsIfLarge: 0)
     }
-    
+
     private var kilometresForDayText: String {
         app.muster.kilometresForDayText
     }
-    
+
     private var markerCount: Int {
         activeSession?.markers.count ?? 0
     }
-    
+
     private var permanentMarkerCount: Int {
         mapMarkers.count
     }
-    
+
     private var xrsRadioCount: Int {
         xrsContacts.count
     }
-    
+
     private var hasActiveRadioConnection: Bool {
         app.xrs.isConnected
     }
-    
+
     private var previousMusterCount: Int {
         app.muster.previousSessions.count
     }
-    
+
     private var trackPointCount: Int {
         activeSession?.points.count ?? 0
     }
-    
+
     private var visibleImportCategoryCount: Int {
         ImportCategory.allCases.filter { app.muster.isImportCategoryVisible($0) }.count
     }
-    
+
     private var importFilterSummaryText: String {
         "\(visibleImportCategoryCount)/\(ImportCategory.allCases.count)"
     }
-    
+
     private var effectiveTargetCoordinate: CLLocationCoordinate2D? {
         if let manualGoToTarget { return manualGoToTarget.coordinate }
         return activeSheepTarget?.coordinate
     }
-    
+
     private var destinationDistanceMeters: CLLocationDistance? {
         guard let user = location.lastLocation,
               let target = effectiveTargetCoordinate else { return nil }
-        
+
         let targetLoc = CLLocation(latitude: target.latitude, longitude: target.longitude)
         return user.distance(from: targetLoc)
     }
-    
+
     private var destinationDistanceText: String {
         guard let dist = destinationDistanceMeters else { return "—" }
         if dist < 30 { return "Here" }
         return UnitFormatting.formattedDistanceCompact(dist, decimalsIfLarge: 1)
     }
-    
+
     private var destinationETASeconds: TimeInterval? {
         smartETA.etaSeconds
     }
-    
+
     private var destinationETAText: String {
         guard let eta = smartETA.etaSeconds else { return "—" }
         if smartETA.isArriving { return "Arriving" }
-        
+
         let arrivalDate = Date().addingTimeInterval(eta)
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
         return formatter.string(from: arrivalDate)
     }
-    
+
     private var destinationSubtitleText: String {
         if let manualGoToTarget {
             return manualGoToTarget.subtitle
         }
-        
+
         guard let target = activeSheepTarget else { return "" }
         let trimmed = target.note?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         if let trimmed, !trimmed.isEmpty { return trimmed }
         return "Mob"
     }
-    
+
     private var targetArrowRotationDegrees: Double {
         guard let user = location.lastLocation,
               let target = effectiveTargetCoordinate else { return 0 }
-        
+
         let bearingToTarget = bearingDegrees(
             from: user.coordinate,
             to: target
         )
-        
+
         let facing = currentFacingDegrees(from: user)
         return shortestSignedDegrees(from: facing, to: bearingToTarget)
     }
-    
+
     private var headingBearingValueText: String {
         let degrees: Double
-        
+
         if let user = location.lastLocation, let target = effectiveTargetCoordinate {
             degrees = bearingDegrees(from: user.coordinate, to: target)
         } else if let user = location.lastLocation {
@@ -696,48 +706,60 @@ struct MapMainView: View {
         } else {
             return "—"
         }
-        
+
         return "\(Int(degrees.rounded()))°"
     }
-    
+
     private var headingBearingLabelText: String {
         effectiveTargetCoordinate != nil ? "Bearing" : "Heading"
     }
-    
+
     private var headingBearingRotationDegrees: Double {
         if let user = location.lastLocation, let target = effectiveTargetCoordinate {
             return bearingDegrees(from: user.coordinate, to: target)
         }
-        
+
         guard let user = location.lastLocation else { return 0 }
         return currentFacingDegrees(from: user)
     }
-    
+
     private var tripDistanceMeters: CLLocationDistance {
         guard activeTrackPoints.count >= 2 else { return 0 }
-        
+
         var total: CLLocationDistance = 0
-        
+
         for index in 1..<activeTrackPoints.count {
             let previous = activeTrackPoints[index - 1].coordinate
             let current = activeTrackPoints[index].coordinate
-            
+
             let previousLocation = CLLocation(latitude: previous.latitude, longitude: previous.longitude)
             let currentLocation = CLLocation(latitude: current.latitude, longitude: current.longitude)
             total += currentLocation.distance(from: previousLocation)
         }
-        
+
         return total
     }
-    
+
     private var tripDistanceText: String {
-        UnitFormatting.formattedDistanceCompact(tripDistanceMeters, decimalsIfLarge: 1)
+        let meters = tripDistanceMeters
+
+        if meters >= 1000 {
+            return String(format: "%.1fkm", meters / 1000.0)
+        }
+
+        return "\(Int(meters.rounded()))m"
     }
-    
+
     private var totalDistanceTextForCurrentTrack: String {
-        UnitFormatting.formattedDistance(tripDistanceMeters, decimalsIfLarge: 2)
+        let meters = tripDistanceMeters
+
+        if meters >= 1000 {
+            return String(format: "%.2f km", meters / 1000.0)
+        }
+
+        return "\(Int(meters.rounded())) m"
     }
-    
+
     private var normalizedQuickZooms: [Double] {
         [
             normalizedQuickZoomValue(quickZoom1M),
@@ -745,64 +767,64 @@ struct MapMainView: View {
             normalizedQuickZoomValue(quickZoom3M)
         ]
     }
-    
+
     private var activeTrackPoints: [TrackPoint] {
         activeSession?.points ?? []
     }
-    
+
     private var visiblePreviousTrackSessions: [MusterSession] {
         app.muster.visiblePreviousSessions
     }
-    
+
     private var sessionMarkers: [MusterMarker] {
         activeSession?.markers ?? []
     }
-    
+
     private var currentMapMarkers: [MapMarker] {
         mapMarkers
     }
-    
+
     private var importedBoundaries: [ImportedBoundary] {
         app.muster.visibleImportedBoundaries
     }
-    
+
     private var importedTracks: [ImportedTrack] {
         app.muster.visibleImportedTracks
     }
-    
+
     private var importedMarkers: [ImportedMarker] {
         app.muster.visibleImportedMarkers
     }
-    
+
     private var activeDestinationMarkerID: UUID? {
         gotoTarget?.id
     }
-    
+
     private var weatherRefreshKey: String {
         guard let loc = location.lastLocation else { return "none" }
         let lat = (loc.coordinate.latitude * 1000).rounded() / 1000
         let lon = (loc.coordinate.longitude * 1000).rounded() / 1000
         return "\(lat),\(lon)"
     }
-    
+
     private var normalizedHeadsUpPitchDegrees: Double {
         let allowed: [Double] = [0, 45, 80]
         if allowed.contains(headsUpPitchDegrees) { return headsUpPitchDegrees }
         return allowed.min(by: { abs($0 - headsUpPitchDegrees) < abs($1 - headsUpPitchDegrees) }) ?? 45
     }
-    
+
     private var normalizedHeadsUpUserVerticalOffset: Double {
         min(max(headsUpUserVerticalOffset.rounded(), 0), 10)
     }
-    
+
     private var effectiveMapPitchDegrees: Double {
         if autosteerEnabled { return 80 }
         return isHeadsUp ? normalizedHeadsUpPitchDegrees : 0
     }
-    
+
     private var headsUpPitchLabel: String {
         let displayValue = effectiveMapPitchDegrees
-        
+
         switch Int(displayValue.rounded()) {
         case 0:
             return "0°"
@@ -814,14 +836,14 @@ struct MapMainView: View {
             return "\(Int(displayValue.rounded()))°"
         }
     }
-    
+
     private var topPillPickerPresented: Binding<Bool> {
         Binding(
             get: { topPillPickerSide != nil },
             set: { if !$0 { topPillPickerSide = nil } }
         )
     }
-    
+
     private var topPillPickerTitle: String {
         switch topPillPickerSide {
         case .left:
@@ -832,20 +854,20 @@ struct MapMainView: View {
             return "Choose Pill"
         }
     }
-    
+
     private var selectedSheepCountValue: Int {
         sheepCountOptions[sheepCountSelectionIndex]
     }
-    
+
     private var selectedSheepCountDisplayText: String {
         sheepCountDisplayText(for: selectedSheepCountValue)
     }
-    
+
     private var mapCenterChangeToken: String {
         guard let center = mapCenterCoordinate else { return "nil" }
         return "\(center.latitude),\(center.longitude)"
     }
-    
+
     private var sheepCountPopoverLabelText: String {
         switch sheepPinIconRaw {
         case "cattle":
@@ -862,7 +884,7 @@ struct MapMainView: View {
             return "SHEEP"
         }
     }
-    
+
     private var selectedMapModeOption: MapModeOption {
         switch mapStyleRaw {
         case "plain":
@@ -880,7 +902,7 @@ struct MapMainView: View {
     var body: some View {
         observedMainContent
     }
-    
+
     private var sheetHostedMainContent: some View {
         mainContent
             .sheet(isPresented: $showSettings) {
@@ -1035,9 +1057,9 @@ struct MapMainView: View {
                                                             .foregroundStyle(.secondary)
                                                             .lineLimit(2)
                                                     }
-                                                    
+
                                                     Spacer()
-                                                    
+
                                                     if isSelectedTrack {
                                                         Image(systemName: "checkmark.circle.fill")
                                                             .foregroundStyle(.green)
@@ -1069,7 +1091,7 @@ struct MapMainView: View {
                 currentTrackCover
             }
     }
-    
+
     private var dialogHostedMainContent: some View {
         sheetHostedMainContent
             .confirmationDialog(
@@ -1133,7 +1155,7 @@ struct MapMainView: View {
                 Text("Delete \(track.name)? This cannot be undone.")
             }
     }
-    
+
     private var presentedMainContent: some View {
         dialogHostedMainContent
             .confirmationDialog(
@@ -1146,7 +1168,7 @@ struct MapMainView: View {
                         applyTopPillMetric(metric)
                     }
                 }
-                
+
                 Button("Cancel", role: .cancel) {
                     topPillPickerSide = nil
                 }
@@ -1164,7 +1186,7 @@ struct MapMainView: View {
                 Text("Update the marker name.")
             }
     }
-    
+
     private var lifecycleMainContent: some View {
         presentedMainContent
             .onAppear(perform: handleMainViewAppear)
@@ -1183,15 +1205,15 @@ struct MapMainView: View {
             .onChange(of: xrsContacts) { _, contacts in
                 guard let activeRadioGoToContactID else { return }
                 guard let updated = contacts.first(where: { $0.id == activeRadioGoToContactID }) else { return }
-                
+
                 let trimmedStatus = updated.status?.trimmingCharacters(in: .whitespacesAndNewlines)
-                
+
                 manualGoToTarget = ManualGoToTarget(
                     coordinate: updated.coordinate,
                     title: updated.name,
                     subtitle: trimmedStatus?.isEmpty == false ? (trimmedStatus ?? "Radio") : "Radio"
                 )
-                
+
                 GoToLiveActivityManager.shared.start(
                     markerName: updated.name,
                     coordinate: updated.coordinate
@@ -1211,25 +1233,25 @@ struct MapMainView: View {
                 syncDisplayedActiveTrackPoints()
             }
     }
-    
+
     private var observedMainContent: some View {
         lifecycleMainContent
             .onChange(of: location.lastLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
-                
+
                 updateAutosteerGuidanceFilter(using: loc)
                 evaluateFenceApproachWarning(using: loc)
-                
+
                 smartETA.update(distance: destinationDistanceMeters)
-                
+
                 if activeSession?.isActive == true {
                     app.muster.considerRecording(location: loc)
                 }
-                
+
                 Task {
                     await refreshWeatherIfNeeded()
                 }
-                
+
                 if let distance = destinationDistanceMeters,
                    effectiveTargetCoordinate != nil {
                     Task {
@@ -1257,39 +1279,39 @@ struct MapMainView: View {
                 await refreshWeatherIfNeeded()
             }
     }
-    
+
     // MARK: - Main content
-    
+
     private var mainContent: some View {
         GeometryReader { geo in
             ZStack {
                 mapLayer(totalHeight: geo.size.height)
                     .ignoresSafeArea()
-                
+
                 if showArrivedBanner {
                     VStack {
                         GlassPill {
                             HStack(spacing: 8) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
-                                
+
                                 Text("Arrived at Target")
                                     .font(.headline)
                             }
                         }
                         .padding(.top, 56)
-                        
+
                         Spacer()
                     }
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(30)
                 }
-                
+
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         ZStack(alignment: .top) {
                             topPillRow
-                            
+
                             if effectiveTargetCoordinate != nil {
                                 VStack {
                                     sheepCompassWidget
@@ -1300,29 +1322,29 @@ struct MapMainView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.top, 2)
-                    
+
                     Spacer()
                 }
-                
+
                 if showFenceApproachWarning {
                     Color.black.opacity(0.22)
                         .ignoresSafeArea()
                         .transition(.opacity)
                         .zIndex(39)
-                    
+
                     VStack {
                         Spacer()
-                        
+
                         VStack(spacing: 10) {
                             Text("WARNING")
                                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
-                            
+
                             Text("Fence approaching")
                                 .font(.system(size: 30, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.center)
-                            
+
                             if let dist = fenceWarningDistanceMeters {
                                 Text(UnitFormatting.formattedDistance(dist, decimalsIfLarge: 0))
                                     .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -1341,13 +1363,13 @@ struct MapMainView: View {
                                 .strokeBorder(.white.opacity(0.35), lineWidth: 2)
                         )
                         .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
-                        
+
                         Spacer()
                     }
                     .transition(.scale(scale: 0.92).combined(with: .opacity))
                     .zIndex(40)
                 }
-                
+
                 if showMapLayerSheet {
                     Color.black.opacity(0.28)
                         .ignoresSafeArea()
@@ -1358,11 +1380,11 @@ struct MapMainView: View {
                             }
                         }
                 }
-                
+
                 if showMapLayerSheet {
                     VStack(spacing: 0) {
                         Spacer()
-                        
+
                         mapLayerSheet
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.horizontal, 10)
@@ -1372,16 +1394,16 @@ struct MapMainView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(20)
                 }
-                
+
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     if movingSessionMarker != nil || movingMapMarker != nil {
                         moveBanner
                             .padding(.horizontal, 12)
                             .padding(.bottom, 8)
                     }
-                    
+
                     appleMapsStyleBottomPanel(
                         totalHeight: geo.size.height,
                         safeAreaBottom: geo.safeAreaInsets.bottom
@@ -1395,7 +1417,7 @@ struct MapMainView: View {
                         if !followUser {
                             centerMapButton
                         }
-                        
+
                         rightSideControlPill
                     }
                     .padding(.trailing, 12)
@@ -1447,7 +1469,7 @@ struct MapMainView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
     }
-    
+
     private func mapLayer(totalHeight: CGFloat) -> some View {
         MapViewRepresentable(
             followUser: $followUser,
@@ -2429,7 +2451,11 @@ struct MapMainView: View {
                             }
                         }
 
-                        TextField("Farm", text: $autosteerSaveFarm)
+                        Button("Add New") {
+                            newFarmNameInput = ""
+                            showAddFarmPrompt = true
+                        }
+                        .buttonStyle(.bordered)
                     }
 
                     Section("Paddock") {
@@ -2463,7 +2489,11 @@ struct MapMainView: View {
                             }
                         }
 
-                        TextField("Paddock", text: $autosteerSavePaddock)
+                        Button("Add New") {
+                            newPaddockNameInput = ""
+                            showAddPaddockPrompt = true
+                        }
+                        .buttonStyle(.bordered)
                     }
 
                     Section("Track") {
@@ -2477,7 +2507,7 @@ struct MapMainView: View {
                                 }
                             }
                         }
-                        TextField("Track Name", text: $autosteerSaveTrackName)
+                        TextField("Custom track name", text: $autosteerSaveTrackName)
                             .onChange(of: autosteerSaveTrackName) { _, value in
                                 let match = trackQuickPickOptions.first {
                                     $0.caseInsensitiveCompare(value.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
@@ -2515,12 +2545,43 @@ struct MapMainView: View {
                             resetAutosteerSetupFlow()
                             showAutosteerTrackSaveSheet = false
                         }
-                        .disabled(
-                            autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        )
+                        .disabled(isAutosteerSaveFormComplete == false)
+                        .tint(isAutosteerSaveFormComplete ? .blue : .secondary)
                     }
+                }
+                .alert("Add Farm", isPresented: $showAddFarmPrompt) {
+                    TextField("Farm name", text: $newFarmNameInput)
+                    Button("Cancel", role: .cancel) {
+                        newFarmNameInput = ""
+                    }
+                    Button("Save") {
+                        let trimmed = newFarmNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.isEmpty == false else { return }
+                        autosteerSaveFarm = trimmed
+                        selectedFarmOption = trimmed
+                        autosteerSavePaddock = ""
+                        selectedPaddockOption = "__new__"
+                        newFarmNameInput = ""
+                    }
+                    .disabled(newFarmNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } message: {
+                    Text("Enter a farm name.")
+                }
+                .alert("Add Paddock", isPresented: $showAddPaddockPrompt) {
+                    TextField("Paddock name", text: $newPaddockNameInput)
+                    Button("Cancel", role: .cancel) {
+                        newPaddockNameInput = ""
+                    }
+                    Button("Save") {
+                        let trimmed = newPaddockNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.isEmpty == false else { return }
+                        autosteerSavePaddock = trimmed
+                        selectedPaddockOption = trimmed
+                        newPaddockNameInput = ""
+                    }
+                    .disabled(newPaddockNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } message: {
+                    Text("Enter a paddock name.")
                 }
             }
         }
@@ -2662,6 +2723,10 @@ struct MapMainView: View {
         selectedFarmOption = "__new__"
         selectedPaddockOption = "__new__"
         selectedTrackQuickPick = nil
+        newFarmNameInput = ""
+        newPaddockNameInput = ""
+        showAddFarmPrompt = false
+        showAddPaddockPrompt = false
     }
 
     private func beginAutosteerSetup(mode: String) {
@@ -3473,63 +3538,63 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 guard !isSheepScrubbing else { return }
 
                 let drag = value.translation.height
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 let predicted = value.predictedEndTranslation.height
                 let snap = CGFloat(bottomSheetSnapThreshold)
 
@@ -3906,8 +3971,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .fill(.ultraThinMaterial)
         )
     }
-    
-    
+
+
     private var radioListSheet: some View {
         NavigationStack {
             List {
@@ -3961,7 +4026,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private var tpmsDashboardSheet: some View {
         TPMSDashboardHostView()
     }
-    
+
     private var expandedPanelContent: some View {
         let km = kilometresForDayText
         let filter = importFilterSummaryText
@@ -4303,7 +4368,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .frame(maxWidth: .infinity)
         .frame(height: 72)
     }
-    
+
     private func quickStatButton(
         title: String,
         value: String,
@@ -4469,7 +4534,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         let trimmedNote = marker.note?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedMarkerType = marker.markerType?.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackSubtitle = (trimmedMarkerType?.isEmpty == false) ? (trimmedMarkerType ?? marker.category.title) : marker.category.title
-        
+
         manualGoToTarget = ManualGoToTarget(
             coordinate: marker.coordinate,
             title: marker.displayTitle,
