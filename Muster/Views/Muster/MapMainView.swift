@@ -130,6 +130,12 @@ struct MapMainView: View {
         let nearestLineIndex: Int
     }
 
+    private struct PendingAutosteerTrackSaveRequest {
+        let farmName: String
+        let paddockName: String
+        let trackName: String
+    }
+
     private enum MapModeOption: String, CaseIterable, Identifiable {
         case explore
         case driving
