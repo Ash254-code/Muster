@@ -1144,14 +1144,12 @@ struct MapMainView: View {
                 titleVisibility: .visible,
                 actions: {
                     Button("Current Track") {}
-                        .disabled(true)
                     Button("🛣️ \(selectedAutosteerNameDisplay)") {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
                     }
 
                     Button("Create New Tracks") {}
-                        .disabled(true)
                     Button("A + B Track") {
                         beginAutosteerSetup(mode: "A+B line")
                     }
@@ -1163,7 +1161,6 @@ struct MapMainView: View {
                     }
 
                     Button("Settings") {}
-                        .disabled(true)
                     Button("Settings") {
                         showAutosteerSettings = true
                     }
