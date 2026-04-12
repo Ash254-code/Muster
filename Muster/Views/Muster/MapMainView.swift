@@ -1747,9 +1747,22 @@ struct MapMainView: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "steeringwheel")
                         .foregroundStyle(.blue)
                     Text("Settings")
+                }
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    showCruiseControlSheet = true
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "figure.walk")
+                        .foregroundStyle(.blue)
+                    Text("Cruise Control")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
