@@ -1749,7 +1749,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "steeringwheel")
                         .foregroundStyle(.blue)
-                    Text("Settings")
+                    Text("Autosteer")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
