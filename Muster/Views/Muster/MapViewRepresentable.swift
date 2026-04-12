@@ -263,8 +263,12 @@ struct MapViewRepresentable: UIViewRepresentable {
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled || mapStyleRaw == "blank" {
             map.mapType = .standard
+            map.isPitchEnabled = false
+            map.showsBuildings = false
             return
         }
+
+        map.isPitchEnabled = true
 
         switch mapStyleRaw {
         case "satellite":
@@ -1092,7 +1096,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 if guidanceBackgroundOverlay == nil {
                     let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
-                    map.addOverlay(overlay, level: .aboveRoads)
+                    map.addOverlay(overlay, level: .aboveLabels)
                 }
             } else if let guidanceBackgroundOverlay {
                 map.removeOverlay(guidanceBackgroundOverlay)
@@ -1128,18 +1132,19 @@ struct MapViewRepresentable: UIViewRepresentable {
             pitch: CGFloat
         ) -> MKMapCamera {
             let camera = MKMapCamera()
+            let isBlankGuidanceMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
 
             if parent.orientationRaw == "headsUp" {
                 let styled = styledCameraValues(
                     logicalCenter: center,
                     logicalDistance: distance,
                     heading: heading,
-                    pitch: pitch
+                    pitch: isBlankGuidanceMode ? 0 : pitch
                 )
                 camera.centerCoordinate = styled.center
                 camera.centerCoordinateDistance = styled.distance
                 camera.heading = heading
-                camera.pitch = pitch
+                camera.pitch = isBlankGuidanceMode ? 0 : pitch
             } else {
                 camera.centerCoordinate = center
                 camera.centerCoordinateDistance = clampedDistance(distance)
