@@ -1089,9 +1089,14 @@ struct MapMainView: View {
                                                         .foregroundStyle(.primary)
                                                     Spacer()
                                                     if paddockContainsSelectedTrack {
-                                                        Circle()
-                                                            .fill(.green)
-                                                            .frame(width: 14, height: 14)
+                                                        ZStack {
+                                                            Circle()
+                                                                .fill(.green)
+                                                                .frame(width: 30, height: 30)
+                                                            Text("\(paddock.tracks.count)")
+                                                                .font(.caption.weight(.semibold))
+                                                                .foregroundStyle(.white)
+                                                        }
                                                     } else {
                                                         Text("\(paddock.tracks.count)")
                                                             .font(.caption.weight(.semibold))
