@@ -1501,9 +1501,11 @@ struct MapMainView: View {
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
-                    autosteerTrackSetupOverlay
-                        .padding(.top, 76)
-                        .padding(.horizontal, 12)
+                    autosteerTrackSetupOverlay(
+                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
+                    )
+                    .padding(.top, 76)
+                    .padding(.horizontal, 12)
                 }
             }
             .overlay(alignment: .center) {
@@ -2505,12 +2507,42 @@ struct MapMainView: View {
         }
     }
 
-    private var autosteerTrackSetupOverlay: some View {
+    private var autosteerCurrentTrackHeading: String {
+        let farm = selectedAutosteerFarmDisplay
+        let paddock = selectedAutosteerPaddockDisplay
+
+        if farm != "Select Farm", paddock != "Select Paddock" {
+            return "Current Track - \(farm) > \(paddock)"
+        }
+        if farm != "Select Farm" {
+            return "Current Track - \(farm)"
+        }
+        if paddock != "Select Paddock" {
+            return "Current Track - \(paddock)"
+        }
+        return "Current Track"
+    }
+
+    private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
         VStack(spacing: 10) {
-            if autosteerSetupModeRaw == "A+B line", autosteerPointB != nil {
-                HStack(spacing: 8) {
-                    Button("Re-mark A") {
-                        remarkAutosteerPointA()
+            Text(autosteerCurrentTrackHeading)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromeSecondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 8) {
+                Button(action: handleAutosteerSetupPrimaryAction) {
+                    HStack(spacing: 8) {
+                        if autosteerSetupModeRaw == "Curve Track" && curveTrackRecording {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 10, height: 10)
+                                .scaleEffect(curvePulse ? 1.25 : 0.8)
+                                .opacity(curvePulse ? 0.4 : 1.0)
+                                .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true), value: curvePulse)
+                        }
+                        Text(autosteerSetupPrimaryButtonTitle)
+                            .font(.system(size: 15, weight: .semibold))
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(chromePrimaryText)
@@ -2570,7 +2602,8 @@ struct MapMainView: View {
             }
         }
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: maxWidth)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
