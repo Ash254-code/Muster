@@ -198,15 +198,15 @@
 				<key>location-parameters</key>
 				<dict>
 					<key>EndingColumnNumber</key>
-					<string>16</string>
+					<string>0</string>
 					<key>EndingLineNumber</key>
 					<string>3436</string>
 					<key>StartingColumnNumber</key>
-					<string>9</string>
+					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>3436</string>
+					<string>3435</string>
 					<key>Timestamp</key>
-					<string>797604159.260394</string>
+					<string>797654958.265528</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -222,15 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>   Circ</string>
+				<string>
+</string>
 				<key>leading</key>
-				<string>                .rotationEffect(.degrees(26))
-
-         </string>
+				<string>            }
+            .frame(height: 8)
+</string>
 				<key>trailing</key>
-				<string>le()
-                .fill(.orange)
-                .frame(width: 8, height: 8)
+				<string>            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(UnitFormatting.formattedCentimeters(guidance.offsetCentimeters))")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
 </string>
 			</dict>
 			<key>type</key>

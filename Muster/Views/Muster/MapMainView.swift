@@ -130,6 +130,12 @@ struct MapMainView: View {
         let nearestLineIndex: Int
     }
 
+    private struct PendingAutosteerTrackSaveRequest {
+        let farmName: String
+        let paddockName: String
+        let trackName: String
+    }
+
     private enum MapModeOption: String, CaseIterable, Identifiable {
         case explore
         case driving
@@ -195,8 +201,6 @@ struct MapMainView: View {
                 return true
             case .satellite:
                 return false
-            case .blank:
-                return true
             }
         }
     }
@@ -351,13 +355,16 @@ struct MapMainView: View {
     @State private var autosteerGuidanceSeeded = false
     @State private var mapCenterCoordinate: CLLocationCoordinate2D? = nil
     @State private var knownFarms: [AutosteerFarmRecord] = []
+    @State private var expandedAutosteerPaddockIDs: Set<UUID> = []
     @State private var selectedFarmOption: String = "__new__"
     @State private var selectedPaddockOption: String = "__new__"
     @State private var selectedTrackQuickPick: String? = nil
     @State private var showAddFarmPrompt = false
     @State private var showAddPaddockPrompt = false
+    @State private var showDuplicateTrackWarning = false
     @State private var newFarmNameInput = ""
     @State private var newPaddockNameInput = ""
+    @State private var pendingTrackSaveRequest: PendingAutosteerTrackSaveRequest? = nil
 
     private let sheepPinTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let xrsCleanupTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -419,6 +426,10 @@ struct MapMainView: View {
         let selectedTrackHasPreview = (selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0) >= 2
         let setupTrackHasPreview = previewCoordinatesForPendingSetup().count >= 2
         return selectedTrackHasPreview || setupTrackHasPreview
+    }
+
+    private var curveTrackHasRecordedPoints: Bool {
+        curveRecordedCenters.count >= 2
     }
 
     private var autosteerGoReady: Bool {
@@ -1058,38 +1069,67 @@ struct MapMainView: View {
                             ForEach(knownFarms) { farm in
                                 Section(farm.name) {
                                     ForEach(farm.paddocks) { paddock in
-                                        ForEach(paddock.tracks) { track in
+                                        VStack(alignment: .leading, spacing: 10) {
                                             Button {
-                                                autosteerFarmName = farm.name
-                                                autosteerPaddockName = paddock.name
-                                                autosteerTrackName = track.name
-                                                autosteerTrackModeRaw = track.mode
-                                                showAutosteerTrackSelector = false
+                                                toggleAutosteerPaddockExpansion(paddockID: paddock.id)
                                             } label: {
-                                                let isSelectedTrack = isCurrentlySelectedAutosteerTrack(
+                                                let paddockContainsSelectedTrack = isCurrentlySelectedAutosteerPaddock(
                                                     farmName: farm.name,
-                                                    paddockName: paddock.name,
-                                                    trackName: track.name
+                                                    paddockName: paddock.name
                                                 )
-                                                HStack {
-                                                    VStack(alignment: .leading, spacing: 4) {
-                                                        Text(track.name)
-                                                            .foregroundStyle(.primary)
-                                                        Text("\(farm.name) > \(paddock.name) > \(track.name)")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.secondary)
-                                                            .lineLimit(2)
-                                                    }
-
+                                                HStack(spacing: 10) {
+                                                    Image(systemName: expandedAutosteerPaddockIDs.contains(paddock.id) ? "chevron.down" : "chevron.right")
+                                                        .font(.caption.weight(.semibold))
+                                                        .foregroundStyle(.secondary)
+                                                    Text(paddock.name)
+                                                        .foregroundStyle(.primary)
                                                     Spacer()
-
-                                                    if isSelectedTrack {
-                                                        Image(systemName: "checkmark.circle.fill")
-                                                            .foregroundStyle(.green)
-                                                    }
+                                                    Text("\(paddock.tracks.count)")
+                                                        .font(.caption.weight(.semibold))
+                                                        .foregroundStyle(paddockContainsSelectedTrack ? .green : .secondary)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(Capsule().fill(Color.secondary.opacity(0.18)))
                                                 }
                                             }
                                             .buttonStyle(.plain)
+
+                                            if expandedAutosteerPaddockIDs.contains(paddock.id) {
+                                                ForEach(paddock.tracks) { track in
+                                                    Button {
+                                                        autosteerFarmName = farm.name
+                                                        autosteerPaddockName = paddock.name
+                                                        autosteerTrackName = track.name
+                                                        autosteerTrackModeRaw = track.mode
+                                                        showAutosteerTrackSelector = false
+                                                    } label: {
+                                                        let isSelectedTrack = isCurrentlySelectedAutosteerTrack(
+                                                            farmName: farm.name,
+                                                            paddockName: paddock.name,
+                                                            trackName: track.name
+                                                        )
+                                                        HStack {
+                                                            VStack(alignment: .leading, spacing: 4) {
+                                                                Text(track.name)
+                                                                    .foregroundStyle(.primary)
+                                                                Text("\(farm.name) > \(paddock.name) > \(track.name)")
+                                                                    .font(.caption)
+                                                                    .foregroundStyle(.secondary)
+                                                                    .lineLimit(2)
+                                                            }
+
+                                                            Spacer()
+
+                                                            if isSelectedTrack {
+                                                                Image(systemName: "checkmark.circle.fill")
+                                                                    .foregroundStyle(.green)
+                                                            }
+                                                        }
+                                                        .padding(.leading, 24)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1137,33 +1177,6 @@ struct MapMainView: View {
                 titleVisibility: .visible,
                 actions: longPressedTrackDialogActions,
                 message: longPressedTrackDialogMessage
-            )
-            .confirmationDialog(
-                "Autosteer",
-                isPresented: $showAutosteerQuickActions,
-                titleVisibility: .visible,
-                actions: {
-                    Button("🛣️ \(selectedAutosteerNameDisplay)") {
-                        refreshKnownFarms()
-                        showAutosteerTrackSelector = true
-                    }
-                    Button("New A + B Track") {
-                        beginAutosteerSetup(mode: "A+B line")
-                    }
-                    Button("New A + Heading") {
-                        beginAutosteerSetup(mode: "A+Heading")
-                    }
-                    Button("New Curve Track") {
-                        beginAutosteerSetup(mode: "Curve Track")
-                    }
-                    Button("Settings") {
-                        showAutosteerSettings = true
-                    }
-                    Button("Cancel", role: .cancel) {}
-                },
-                message: {
-                    EmptyView()
-                }
             )
             .alert(
                 "Confirm Delete",
@@ -1418,6 +1431,21 @@ struct MapMainView: View {
                     .zIndex(20)
                 }
 
+                if showAutosteerQuickActions {
+                    Color.black.opacity(0.28)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            dismissAutosteerQuickActions()
+                        }
+                        .zIndex(24)
+
+                    autosteerQuickActionsSheet
+                        .padding(.horizontal, 18)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .zIndex(25)
+                }
+
                 VStack(spacing: 0) {
                     Spacer()
 
@@ -1475,9 +1503,11 @@ struct MapMainView: View {
             }
             .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
-                    autosteerTrackSetupOverlay
-                        .padding(.top, 76)
-                        .padding(.horizontal, 12)
+                    autosteerTrackSetupOverlay(
+                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
+                    )
+                    .padding(.top, 76)
+                    .padding(.horizontal, 12)
                 }
             }
             .overlay(alignment: .center) {
@@ -1491,6 +1521,119 @@ struct MapMainView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
+    }
+
+    private var autosteerQuickActionsSheet: some View {
+        VStack(spacing: 8) {
+            Text("Autosteer")
+                .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.top, 6)
+
+            autosteerSectionHeading("Current Track")
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    refreshKnownFarms()
+                    showAutosteerTrackSelector = true
+                }
+            } label: {
+                Text("🛣️ \(selectedAutosteerNameDisplay)")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+
+            autosteerSectionHeading("Create New Tracks")
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "A+B line")
+                }
+            } label: {
+                Text("A + B Track")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "A+Heading")
+                }
+            } label: {
+                Text("A + Heading Track")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "Curve Track")
+                }
+            } label: {
+                Text("Curve Track")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+
+            autosteerSectionHeading("Settings")
+            autosteerQuickActionPill {
+                handleAutosteerQuickAction {
+                    showAutosteerSettings = true
+                }
+            } label: {
+                Text("Settings")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+            .padding(.bottom, 2)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: 460)
+        .background(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(.ultraThinMaterial.opacity(0.98))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
+    }
+
+    private func autosteerSectionHeading(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.72))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 2)
+    }
+
+    private func autosteerQuickActionPill<Label: View>(
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        Button(action: action) {
+            label()
+                .foregroundStyle(.white.opacity(0.93))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 46)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 1)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.16))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func dismissAutosteerQuickActions() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            showAutosteerQuickActions = false
+        }
+    }
+
+    private func handleAutosteerQuickAction(_ action: @escaping () -> Void) {
+        dismissAutosteerQuickActions()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            action()
+        }
     }
 
     private func mapLayer(totalHeight: CGFloat) -> some View {
@@ -2366,8 +2509,29 @@ struct MapMainView: View {
         }
     }
 
-    private var autosteerTrackSetupOverlay: some View {
-        VStack(spacing: 10) {
+    private var autosteerCurrentTrackHeading: String {
+        let farm = selectedAutosteerFarmDisplay
+        let paddock = selectedAutosteerPaddockDisplay
+
+        if farm != "Select Farm", paddock != "Select Paddock" {
+            return "Current Track - \(farm) > \(paddock)"
+        }
+        if farm != "Select Farm" {
+            return "Current Track - \(farm)"
+        }
+        if paddock != "Select Paddock" {
+            return "Current Track - \(paddock)"
+        }
+        return "Current Track"
+    }
+
+    private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(autosteerCurrentTrackHeading)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromeSecondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             HStack(spacing: 8) {
                 if autosteerSetupModeRaw == "A+B line" {
                     Button("X") {
@@ -2435,6 +2599,7 @@ struct MapMainView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
                 Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
@@ -2443,15 +2608,17 @@ struct MapMainView: View {
             }
         }
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: maxWidth, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
         )
+    
         .alert("Enter Heading", isPresented: $showAutosteerHeadingPrompt) {
             TextField("Heading (e.g. 123.4567)", text: $autosteerHeadingInput)
                 .keyboardType(.decimalPad)
@@ -2560,27 +2727,41 @@ struct MapMainView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Save") {
-                            let trimmedFarm = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let trimmedPaddock = autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let trimmedTrack = autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                            AutosteerLibraryStore.upsertTrack(
-                                farmName: trimmedFarm,
-                                paddockName: trimmedPaddock,
-                                trackName: trimmedTrack,
-                                mode: autosteerSetupModeRaw,
-                                previewCoordinates: previewCoordinatesForPendingSetup()
-                            )
-                            autosteerFarmName = trimmedFarm
-                            autosteerPaddockName = trimmedPaddock
-                            autosteerTrackName = trimmedTrack
-                            autosteerTrackModeRaw = autosteerSetupModeRaw
-                            refreshKnownFarms()
-                            resetAutosteerSetupFlow()
-                            showAutosteerTrackSaveSheet = false
+                            handleAutosteerTrackSaveTapped()
                         }
                         .disabled(isAutosteerSaveFormComplete == false)
                         .tint(isAutosteerSaveFormComplete ? .blue : .secondary)
+                    }
+                }
+                .alert("Duplicate Track", isPresented: $showDuplicateTrackWarning) {
+                    Button("Overwrite Existing", role: .destructive) {
+                        if let request = pendingTrackSaveRequest {
+                            persistAutosteerTrackSave(
+                                farmName: request.farmName,
+                                paddockName: request.paddockName,
+                                trackName: request.trackName
+                            )
+                        }
+                    }
+                    Button("Keep Both") {
+                        guard let request = pendingTrackSaveRequest else { return }
+                        let uniqueTrackName = AutosteerLibraryStore.nextUniqueTrackName(
+                            farmName: request.farmName,
+                            paddockName: request.paddockName,
+                            baseTrackName: request.trackName
+                        )
+                        persistAutosteerTrackSave(
+                            farmName: request.farmName,
+                            paddockName: request.paddockName,
+                            trackName: uniqueTrackName
+                        )
+                    }
+                    Button("Cancel", role: .cancel) {
+                        pendingTrackSaveRequest = nil
+                    }
+                } message: {
+                    if let request = pendingTrackSaveRequest {
+                        Text("A track named \(request.farmName) > \(request.paddockName) > \(request.trackName) already exists.")
                     }
                 }
                 .alert("Add Farm", isPresented: $showAddFarmPrompt) {
@@ -2734,6 +2915,16 @@ struct MapMainView: View {
         }
     }
 
+    private func remarkAutosteerPointA() {
+        guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
+        autosteerPointA = coordinate
+    }
+
+    private func remarkAutosteerPointB() {
+        guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
+        autosteerPointB = coordinate
+    }
+
     private func completeAutosteerSetupAndPromptForSave() {
         refreshKnownFarms()
         selectedFarmOption = "__new__"
@@ -2761,6 +2952,59 @@ struct MapMainView: View {
         newPaddockNameInput = ""
         showAddFarmPrompt = false
         showAddPaddockPrompt = false
+        showDuplicateTrackWarning = false
+        pendingTrackSaveRequest = nil
+    }
+
+    private func handleAutosteerTrackSaveTapped() {
+        let request = PendingAutosteerTrackSaveRequest(
+            farmName: autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines),
+            paddockName: autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines),
+            trackName: autosteerSaveTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        guard request.farmName.isEmpty == false, request.paddockName.isEmpty == false, request.trackName.isEmpty == false else {
+            return
+        }
+
+        if AutosteerLibraryStore.trackExists(
+            farmName: request.farmName,
+            paddockName: request.paddockName,
+            trackName: request.trackName
+        ) {
+            pendingTrackSaveRequest = request
+            showDuplicateTrackWarning = true
+            return
+        }
+
+        persistAutosteerTrackSave(
+            farmName: request.farmName,
+            paddockName: request.paddockName,
+            trackName: request.trackName
+        )
+    }
+
+    private func persistAutosteerTrackSave(
+        farmName: String,
+        paddockName: String,
+        trackName: String
+    ) {
+        AutosteerLibraryStore.upsertTrack(
+            farmName: farmName,
+            paddockName: paddockName,
+            trackName: trackName,
+            mode: autosteerSetupModeRaw,
+            previewCoordinates: previewCoordinatesForPendingSetup()
+        )
+        autosteerFarmName = farmName
+        autosteerPaddockName = paddockName
+        autosteerTrackName = trackName
+        autosteerSaveTrackName = trackName
+        autosteerTrackModeRaw = autosteerSetupModeRaw
+        pendingTrackSaveRequest = nil
+        refreshKnownFarms()
+        resetAutosteerSetupFlow()
+        showAutosteerTrackSaveSheet = false
     }
 
     private func beginAutosteerSetup(mode: String) {
@@ -2772,6 +3016,26 @@ struct MapMainView: View {
 
     private func refreshKnownFarms() {
         knownFarms = AutosteerLibraryStore.load()
+        syncAutosteerSelectorExpansionState()
+    }
+
+    private func toggleAutosteerPaddockExpansion(paddockID: UUID) {
+        if expandedAutosteerPaddockIDs.contains(paddockID) {
+            expandedAutosteerPaddockIDs.remove(paddockID)
+        } else {
+            expandedAutosteerPaddockIDs.insert(paddockID)
+        }
+    }
+
+    private func syncAutosteerSelectorExpansionState() {
+        let validPaddockIDs = Set(knownFarms.flatMap(\.paddocks).map(\.id))
+        expandedAutosteerPaddockIDs = expandedAutosteerPaddockIDs.intersection(validPaddockIDs)
+
+        if let selectedFarm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(autosteerFarmName) == .orderedSame }) {
+            if let selectedPaddock = selectedFarm.paddocks.first(where: { $0.name.caseInsensitiveCompare(autosteerPaddockName) == .orderedSame }) {
+                expandedAutosteerPaddockIDs.insert(selectedPaddock.id)
+            }
+        }
     }
 
     private func previewCoordinatesForPendingSetup() -> [[Double]] {
@@ -2828,6 +3092,11 @@ struct MapMainView: View {
         autosteerFarmName.caseInsensitiveCompare(farmName) == .orderedSame &&
         autosteerPaddockName.caseInsensitiveCompare(paddockName) == .orderedSame &&
         autosteerTrackName.caseInsensitiveCompare(trackName) == .orderedSame
+    }
+
+    private func isCurrentlySelectedAutosteerPaddock(farmName: String, paddockName: String) -> Bool {
+        autosteerFarmName.caseInsensitiveCompare(farmName) == .orderedSame &&
+        autosteerPaddockName.caseInsensitiveCompare(paddockName) == .orderedSame
     }
 
     // MARK: - Right side controls
