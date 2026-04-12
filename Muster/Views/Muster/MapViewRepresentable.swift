@@ -295,6 +295,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         map.isPitchEnabled = true
+        map.showsBuildings = true
         map.isRotateEnabled = true
         map.isZoomEnabled = true
         map.isScrollEnabled = true
@@ -1125,7 +1126,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
 
         func updateGuidanceBackgroundOverlayIfNeeded(on map: MKMapView) {
-            if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
+            if parent.guidanceNoMapEnabled {
                 if guidanceBackgroundOverlay == nil {
                     let overlay = GuidanceBackgroundTileOverlay(style: .plain)
                     guidanceBackgroundOverlay = overlay
