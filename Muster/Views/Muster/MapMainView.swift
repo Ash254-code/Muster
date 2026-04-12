@@ -4514,7 +4514,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 panelRow(
-                    title: "Km For Day",
+                    title: "Distance For Day",
                     value: km,
                     systemImage: "road.lanes"
                 )
