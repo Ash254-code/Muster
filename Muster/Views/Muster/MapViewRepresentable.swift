@@ -1115,7 +1115,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
 
         private func maximumAllowedDistance() -> CLLocationDistance {
-            (parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank") ? 2_000 : 20_000_000
+            parent.guidanceNoMapEnabled ? 2_000 : 20_000_000
         }
 
         private func clampedDistance(_ distance: CLLocationDistance) -> CLLocationDistance {
@@ -1163,7 +1163,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             pitch: CGFloat
         ) -> MKMapCamera {
             let camera = MKMapCamera()
-            let isBlankGuidanceMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
+            let isBlankGuidanceMode = parent.guidanceNoMapEnabled
 
             if parent.orientationRaw == "headsUp" {
                 let styled = styledCameraValues(
@@ -1191,7 +1191,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             let storedDistance = clampedDistance(lastKnownCameraDistance)
             let blankDefaultDistance: CLLocationDistance = 120
 
-            if parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank" {
+            if parent.guidanceNoMapEnabled {
                 return min(blankDefaultDistance, storedDistance, mapDistance)
             }
 
