@@ -707,6 +707,8 @@ struct AutosteerSettingsView: View {
     @AppStorage(kAutosteerEnabledKey) private var autosteerEnabled: Bool = false
     @AppStorage(kAutosteerWorkingWidthKey) private var workingWidthM: Double = 36
     @State private var workingWidthText: String = ""
+    @State private var showWorkingWidthEditor: Bool = false
+    @FocusState private var workingWidthFieldFocused: Bool
     @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
@@ -757,24 +759,25 @@ struct AutosteerSettingsView: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
-                    HStack(spacing: 12) {
-                        TextField("1.00", text: $workingWidthText)
-                            .keyboardType(.decimalPad)
-                            .textFieldStyle(.roundedBorder)
-                            .multilineTextAlignment(.trailing)
-                            .onSubmit(applyWorkingWidthText)
-
-                        Text("m")
-                            .foregroundStyle(.secondary)
-
-                        Stepper(
-                            "",
-                            value: $workingWidthM,
-                            in: Self.workingWidthRange,
-                            step: Self.workingWidthStep
-                        )
-                        .labelsHidden()
+                    Button {
+                        startWorkingWidthEditing()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text("\(workingWidthM, specifier: "%.2f")")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("m")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Image(systemName: "keyboard")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("Implement Setup")
@@ -865,6 +868,60 @@ struct AutosteerSettingsView: View {
         .onDisappear {
             location.stop()
         }
+        .sheet(isPresented: $showWorkingWidthEditor) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Enter working width")
+                        .font(.headline)
+                    Text("Set a value from 1.00 m to 1000.00 m.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextField("1.00", text: $workingWidthText)
+                        .keyboardType(.decimalPad)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .focused($workingWidthFieldFocused)
+                        .font(.title3.monospacedDigit())
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("Working Width")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            cancelWorkingWidthEditing()
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Save") {
+                            saveWorkingWidthEditing()
+                        }
+                        .fontWeight(.semibold)
+                    }
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Button("Cancel") {
+                            cancelWorkingWidthEditing()
+                        }
+                        Spacer()
+                        Button("Save") {
+                            saveWorkingWidthEditing()
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        workingWidthFieldFocused = true
+                    }
+                }
+            }
+            .presentationDetents([.height(280)])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private func roundedWorkingWidth(_ value: Double) -> Double {
@@ -884,6 +941,23 @@ struct AutosteerSettingsView: View {
         let clamped = min(max(parsed, Self.workingWidthRange.lowerBound), Self.workingWidthRange.upperBound)
         workingWidthM = roundedWorkingWidth(clamped)
         syncWorkingWidthText()
+    }
+
+    private func startWorkingWidthEditing() {
+        syncWorkingWidthText()
+        showWorkingWidthEditor = true
+    }
+
+    private func cancelWorkingWidthEditing() {
+        workingWidthFieldFocused = false
+        showWorkingWidthEditor = false
+        syncWorkingWidthText()
+    }
+
+    private func saveWorkingWidthEditing() {
+        applyWorkingWidthText()
+        workingWidthFieldFocused = false
+        showWorkingWidthEditor = false
     }
 }
 
