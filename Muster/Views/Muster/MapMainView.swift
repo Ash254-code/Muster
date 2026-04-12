@@ -1573,10 +1573,28 @@ struct MapMainView: View {
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
         VStack(spacing: 8) {
+            HStack {
+                Button {
+                    dismissAutosteerQuickActions()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(.white.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+            }
+
             Text("Autosteer")
                 .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
-                .padding(.top, 6)
+                .padding(.top, 2)
 
             autosteerSectionHeading("Current Track - \(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
             autosteerQuickActionPill {
