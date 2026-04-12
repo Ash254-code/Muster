@@ -201,8 +201,6 @@ struct MapMainView: View {
                 return true
             case .satellite:
                 return false
-            case .blank:
-                return true
             }
         }
     }
@@ -428,6 +426,10 @@ struct MapMainView: View {
         let selectedTrackHasPreview = (selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0) >= 2
         let setupTrackHasPreview = previewCoordinatesForPendingSetup().count >= 2
         return selectedTrackHasPreview || setupTrackHasPreview
+    }
+
+    private var curveTrackHasRecordedPoints: Bool {
+        curveRecordedCenters.count >= 2
     }
 
     private var autosteerGoReady: Bool {
