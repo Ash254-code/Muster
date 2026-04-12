@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>                .strokeBorder(chromeStroke, lineWidth: 1)
+				<string>
 </string>
 				<key>leading</key>
-				<string>        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+				<string>            }
+            .frame(height: 8)
 </string>
 				<key>trailing</key>
-				<string>        )
-        .shadow(color: chromeShadow, radius: 10, y: 4)
-    }
+				<string>            Text("\(guidance.lineIsLeft ? "Left" : "Right") \(UnitFormatting.formattedCentimeters(guidance.offsetCentimeters))")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
 </string>
 			</dict>
 			<key>type</key>
