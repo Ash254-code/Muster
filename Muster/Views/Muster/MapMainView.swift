@@ -1380,11 +1380,6 @@ struct MapMainView: View {
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         ZStack(alignment: .top) {
-                            if activeSession?.isActive == true {
-                                dynamicIslandRecordingDot
-                                    .padding(.top, -2)
-                            }
-
                             topPillRow
 
                             if effectiveTargetCoordinate != nil {
@@ -2311,14 +2306,6 @@ struct MapMainView: View {
             }
             .frame(width: 108)
         }
-    }
-
-    private var dynamicIslandRecordingDot: some View {
-        Circle()
-            .fill(.red)
-            .frame(width: 10, height: 10)
-            .shadow(color: .red.opacity(0.35), radius: 6, y: 1)
-            .accessibilityHidden(true)
     }
 
     private func topSidePill(metric: TopSidePillMetric, side: TopSidePillPosition) -> some View {
