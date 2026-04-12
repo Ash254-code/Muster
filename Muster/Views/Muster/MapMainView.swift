@@ -524,6 +524,26 @@ struct MapMainView: View {
         return farm.paddocks.map(\.name)
     }
 
+    private var farmOptionsForSaveSheet: [String] {
+        var options = knownFarms.map(\.name)
+        let pendingFarm = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
+        if pendingFarm.isEmpty == false,
+           options.contains(where: { $0.caseInsensitiveCompare(pendingFarm) == .orderedSame }) == false {
+            options.insert(pendingFarm, at: 0)
+        }
+        return options
+    }
+
+    private var paddockOptionsForSaveSheet: [String] {
+        var options = existingPaddocksForSelectedFarm
+        let pendingPaddock = autosteerSavePaddock.trimmingCharacters(in: .whitespacesAndNewlines)
+        if pendingPaddock.isEmpty == false,
+           options.contains(where: { $0.caseInsensitiveCompare(pendingPaddock) == .orderedSame }) == false {
+            options.insert(pendingPaddock, at: 0)
+        }
+        return options
+    }
+
     private let trackQuickPickOptions: [String] = ["North", "East", "South", "West"]
 
     private var isAutosteerSaveFormComplete: Bool {
@@ -2429,30 +2449,20 @@ struct MapMainView: View {
             NavigationStack {
                 Form {
                     Section("Farm") {
-                        HStack {
-                            Text("Existing Farms")
-                            Spacer()
-                            Button("Add New") {
-                                selectedFarmOption = "__new__"
-                                autosteerSaveFarm = ""
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        if knownFarms.isEmpty {
+                        if farmOptionsForSaveSheet.isEmpty {
                             Text("No farms yet.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(knownFarms, id: \.id) { farm in
+                                    ForEach(farmOptionsForSaveSheet, id: \.self) { farmName in
                                         selectablePillButton(
-                                            title: farm.name,
-                                            isSelected: selectedFarmOption.caseInsensitiveCompare(farm.name) == .orderedSame
+                                            title: farmName,
+                                            isSelected: selectedFarmOption.caseInsensitiveCompare(farmName) == .orderedSame
                                         ) {
-                                            selectedFarmOption = farm.name
-                                            autosteerSaveFarm = farm.name
+                                            selectedFarmOption = farmName
+                                            autosteerSaveFarm = farmName
                                             selectedPaddockOption = "__new__"
                                             autosteerSavePaddock = ""
                                         }
@@ -2469,24 +2479,14 @@ struct MapMainView: View {
                     }
 
                     Section("Paddock") {
-                        HStack {
-                            Text("Existing Paddocks")
-                            Spacer()
-                            Button("Add New") {
-                                selectedPaddockOption = "__new__"
-                                autosteerSavePaddock = ""
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        if existingPaddocksForSelectedFarm.isEmpty {
+                        if paddockOptionsForSaveSheet.isEmpty {
                             Text("No paddocks for selected farm.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(existingPaddocksForSelectedFarm, id: \.self) { paddock in
+                                    ForEach(paddockOptionsForSaveSheet, id: \.self) { paddock in
                                         selectablePillButton(
                                             title: paddock,
                                             isSelected: selectedPaddockOption.caseInsensitiveCompare(paddock) == .orderedSame
