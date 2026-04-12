@@ -1711,7 +1711,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
                         .foregroundStyle(.blue)
-                    Text("A + B Track")
+                    Text("A + B")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1723,7 +1723,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.filled.curvepath")
                         .foregroundStyle(.blue)
-                    Text("A + Heading Track")
+                    Text("A + Heading")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1735,7 +1735,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "point.bottomleft.forward.to.point.topright.scurvepath.fill")
                         .foregroundStyle(.blue)
-                    Text("Curve Track")
+                    Text("Curve")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1760,7 +1760,7 @@ struct MapMainView: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "figure.walk")
+                    Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
                         .foregroundStyle(.blue)
                     Text("Cruise Control")
                 }
