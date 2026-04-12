@@ -368,6 +368,10 @@ private struct CellularTrackingSettingsView: View {
     var body: some View {
         Form {
             Section {
+                Toggle("Share My Location via cellular", isOn: $isSharingMyLocation)
+            }
+
+            Section {
                 if contactSearch.authorizationStatus == .notDetermined {
                     Button("Allow Contacts Access") {
                         contactSearch.requestAccess()
@@ -422,10 +426,6 @@ private struct CellularTrackingSettingsView: View {
                         Text(option.rawValue).tag(option)
                     }
                 }
-                Button(isSharingMyLocation ? "Sharing location..." : "Share my location") {
-                    startSharingMyLocation()
-                }
-                .disabled(myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 if let sharingEndsAt, isSharingMyLocation {
                     Text("Auto-off: \(sharingEndsAt.formatted(date: .abbreviated, time: .shortened))")
@@ -496,8 +496,13 @@ private struct CellularTrackingSettingsView: View {
             app.cellularTracking.expireSharesIfNeeded()
             guard isSharingMyLocation, let sharingEndsAt, sharingEndsAt <= Date() else { return }
             isSharingMyLocation = false
-            self.sharingEndsAt = nil
-            locationService.stop()
+        }
+        .onChange(of: isSharingMyLocation) { _, shouldShare in
+            if shouldShare {
+                startSharingMyLocation()
+            } else {
+                stopSharingMyLocation()
+            }
         }
         .onChange(of: locationService.lastLocation) { _, location in
             guard isSharingMyLocation, let location else { return }
@@ -525,7 +530,11 @@ private struct CellularTrackingSettingsView: View {
     }
 
     private func startSharingMyLocation() {
-        isSharingMyLocation = true
+        guard !myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            isSharingMyLocation = false
+            return
+        }
+
         sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
         app.cellularTracking.sendInvitation(name: "Me", phoneNumber: myPhoneNumber)
         if let meID = app.cellularTracking.members.first(where: { $0.name == "Me" && $0.phoneNumber == myPhoneNumber })?.id {
@@ -538,6 +547,11 @@ private struct CellularTrackingSettingsView: View {
         locationService.requestPermission()
         locationService.start()
         locationService.forceRefreshNow()
+    }
+
+    private func stopSharingMyLocation() {
+        sharingEndsAt = nil
+        locationService.stop()
     }
 
     private func statusText(for member: CellularTrackingMember) -> String {
