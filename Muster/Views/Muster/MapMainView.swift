@@ -1531,7 +1531,7 @@ struct MapMainView: View {
     }
 
     private var autosteerQuickActionsSheet: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Text("Autosteer")
                 .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
@@ -1545,7 +1545,7 @@ struct MapMainView: View {
                 }
             } label: {
                 Text("🛣️ \(selectedAutosteerNameDisplay)")
-                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
 
             autosteerSectionHeading("Create New Tracks")
@@ -1555,7 +1555,7 @@ struct MapMainView: View {
                 }
             } label: {
                 Text("A + B Track")
-                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
@@ -1563,7 +1563,7 @@ struct MapMainView: View {
                 }
             } label: {
                 Text("A + Heading Track")
-                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
@@ -1571,7 +1571,7 @@ struct MapMainView: View {
                 }
             } label: {
                 Text("Curve Track")
-                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
 
             autosteerSectionHeading("Settings")
@@ -1581,7 +1581,7 @@ struct MapMainView: View {
                 }
             } label: {
                 Text("Settings")
-                    .font(.system(size: 25 / 2, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             .padding(.bottom, 2)
         }
@@ -1618,10 +1618,10 @@ struct MapMainView: View {
             label()
                 .foregroundStyle(.white.opacity(0.93))
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 56)
+                .frame(minHeight: 46)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 1)
                 .background(
                     Capsule(style: .continuous)
                         .fill(Color.white.opacity(0.16))
