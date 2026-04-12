@@ -1400,7 +1400,7 @@ struct MapMainView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 12)
-                        .padding(.top, topPillHeight + 14)
+                        .padding(.top, topPillHeight + 22)
 
                         Spacer()
                     }
