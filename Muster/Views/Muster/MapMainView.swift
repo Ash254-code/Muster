@@ -829,8 +829,7 @@ struct MapMainView: View {
     }
 
     private var effectiveMapPitchDegrees: Double {
-        if autosteerEnabled { return 80 }
-        return isHeadsUp ? normalizedHeadsUpPitchDegrees : 0
+        isHeadsUp ? normalizedHeadsUpPitchDegrees : 0
     }
 
     private var headsUpPitchLabel: String {
@@ -3686,7 +3685,7 @@ struct MapMainView: View {
                             Text("Autosteer lock active")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundStyle(chromePrimaryText)
-                            Text("Map layer is locked to Blank with 80° camera for guidance.")
+                            Text("Map layer is locked to Blank. Camera angle defaults to 80° for guidance but remains adjustable.")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(chromeSecondaryText)
                         }
@@ -4797,7 +4796,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private var leftSideZoomPill: some View {
         VStack(spacing: 0) {
             Button {
-                stepMapZoom(by: -1000)
+                stepMapZoom(by: -zoomStepIncrementMeters)
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
@@ -4810,7 +4809,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .frame(width: 24, height: 1)
 
             Button {
-                stepMapZoom(by: 1000)
+                stepMapZoom(by: zoomStepIncrementMeters)
             } label: {
                 Image(systemName: "minus")
                     .font(.system(size: 18, weight: .semibold))
@@ -5380,7 +5379,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         mapStyleRaw = "blank"
         orientationRaw = "headsUp"
         headsUpPitchDegrees = 80
-        postExactZoomRequest(120)
+        postExactZoomRequest(200)
+    }
+
+    private var zoomStepIncrementMeters: Double {
+        autosteerEnabled ? 100 : 1000
     }
 
     private func stepMapZoom(by deltaMeters: Double) {
