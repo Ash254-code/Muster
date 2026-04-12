@@ -450,7 +450,7 @@ struct MapMainView: View {
     }
 
     private var shouldShowGuidanceOnlyViewport: Bool {
-        autosteerEnabled
+        false
     }
 
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
@@ -3365,7 +3365,7 @@ struct MapMainView: View {
 
         let now = location.timestamp
         let speedMPS = max(location.speed, 0)
-        let highResponsivenessMode = shouldShowGuidanceOnlyViewport
+        let highResponsivenessMode = autosteerEnabled
         let lookAheadSeconds: Double
         if highResponsivenessMode {
             lookAheadSeconds = 0
