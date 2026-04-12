@@ -122,7 +122,8 @@ struct SessionDetailView: View {
                 showMapMarkerActions = true
             },
             onLongPressPreviousTrack: { _ in },
-            onLongPressImportedTrack: { _, _ in }
+            onLongPressImportedTrack: { _, _ in },
+            onZoomDistanceChange: { _ in }
         )
         .ignoresSafeArea()
     }
