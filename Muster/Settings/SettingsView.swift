@@ -316,11 +316,16 @@ private struct GroupTrackingSettingsView: View {
     var body: some View {
         Form {
             Section {
-                NavigationLink("Radio") {
+                NavigationLink {
                     RadioSettingsView()
+                } label: {
+                    Label("Radio", systemImage: "dot.radiowaves.left.and.right")
                 }
-                NavigationLink("Cellular") {
+
+                NavigationLink {
                     CellularTrackingSettingsView()
+                } label: {
+                    Label("Cellular", systemImage: "antenna.radiowaves.left.and.right")
                 }
             } footer: {
                 Text("Configure group tracking via XRS radio and cellular sharing.")
