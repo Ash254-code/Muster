@@ -136,6 +136,7 @@ struct MapMainView: View {
         case driving
         case hybrid
         case satellite
+        case blank
 
         var id: String { rawValue }
 
@@ -145,6 +146,7 @@ struct MapMainView: View {
             case .driving: return "Driving"
             case .hybrid: return "Hybrid"
             case .satellite: return "Satellite"
+            case .blank: return "Blank"
             }
         }
 
@@ -154,6 +156,7 @@ struct MapMainView: View {
             case .driving: return "Road focus"
             case .hybrid: return "Roads + imagery"
             case .satellite: return "Aerial imagery"
+            case .blank: return "No base map"
             }
         }
 
@@ -163,6 +166,7 @@ struct MapMainView: View {
             case .driving: return "plain"
             case .hybrid: return "hybrid"
             case .satellite: return "satellite"
+            case .blank: return "blank"
             }
         }
 
@@ -172,6 +176,7 @@ struct MapMainView: View {
             case .driving: return "car.fill"
             case .hybrid: return "square.3.layers.3d.top.filled"
             case .satellite: return "globe.americas.fill"
+            case .blank: return "square.slash"
             }
         }
 
@@ -181,12 +186,13 @@ struct MapMainView: View {
             case .driving: return .green
             case .hybrid: return .orange
             case .satellite: return .purple
+            case .blank: return .gray
             }
         }
 
         var isDarkPreview: Bool {
             switch self {
-            case .explore, .driving, .hybrid:
+            case .explore, .driving, .hybrid, .blank:
                 return true
             case .satellite:
                 return false
@@ -883,6 +889,8 @@ struct MapMainView: View {
             return .hybrid
         case "satellite":
             return .satellite
+        case "blank":
+            return .blank
         default:
             return .explore
         }
@@ -3361,6 +3369,22 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .fill(Color.white.opacity(0.28))
                 .frame(width: 90, height: 6)
                 .rotationEffect(.degrees(-24))
+        }
+
+    case .blank:
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.11, green: 0.11, blue: 0.12),
+                    Color(red: 0.07, green: 0.07, blue: 0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Image(systemName: "square.slash")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.72))
         }
     }
 }
