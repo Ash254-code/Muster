@@ -2704,17 +2704,17 @@ struct MapMainView: View {
     }
 
     @ViewBuilder
-    private func autosteerSetupActionButton(title: String, foreground: Color = chromePrimaryText, background: Color = chromeFill, action: @escaping () -> Void) -> some View {
+    private func autosteerSetupActionButton(title: String, foreground: Color? = nil, background: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .font(.system(size: 14, weight: .semibold))
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.9)
-            .foregroundStyle(foreground)
+            .foregroundStyle(foreground ?? chromePrimaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
-            .background(Capsule().fill(background))
+            .background(Capsule().fill(background ?? chromeFill))
             .buttonStyle(.plain)
     }
 
