@@ -625,6 +625,10 @@ struct MapMainView: View {
         "km/h"
     }
 
+    private var cruiseControlSetSpeedText: String {
+        "\(cruiseControlDisplaySpeedText) \(cruiseControlDisplayUnitText)"
+    }
+
     private var cruiseControlIsActive: Bool {
         cruiseControlEnabled && autosteerActive
     }
@@ -2674,75 +2678,66 @@ struct MapMainView: View {
 
     private var autosteerReadinessButton: some View {
         let fraction = Double(autosteerReadinessCount) / 4.0
-        return VStack(spacing: 4) {
-            Button {
-                if autosteerGoReady {
-                    let shouldActivateAutosteer = autosteerActive == false
-                    autosteerActive.toggle()
-                    if shouldActivateAutosteer, cruiseControlEnabled {
-                        showCruiseControlSetSpeedPopup()
-                    }
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(autosteerActive ? .success : .warning)
-                } else {
-                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                    showAutosteerReadinessSheet = true
+        return Button {
+            if autosteerGoReady {
+                let shouldActivateAutosteer = autosteerActive == false
+                autosteerActive.toggle()
+                if shouldActivateAutosteer, cruiseControlEnabled {
+                    showCruiseControlSetSpeedPopup()
                 }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(chromeFill)
-                        .frame(width: 64, height: 64)
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(autosteerActive ? .success : .warning)
+            } else {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showAutosteerReadinessSheet = true
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(chromeFill)
+                    .frame(width: 64, height: 64)
 
-                    Circle()
-                        .stroke(chromeStroke.opacity(0.8), lineWidth: 8)
-                        .frame(width: 58, height: 58)
+                Circle()
+                    .stroke(chromeStroke.opacity(0.8), lineWidth: 8)
+                    .frame(width: 58, height: 58)
 
-                    Circle()
-                        .trim(from: 0, to: fraction)
-                        .stroke(
-                            autosteerGoReady ? .green : .orange,
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 66, height: 66)
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(
+                        autosteerGoReady ? .green : .orange,
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 66, height: 66)
 
-                    VStack(spacing: 0) {
-                        if autosteerActive && autosteerGoReady {
-                            Image(systemName: "steeringwheel")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.green)
-                        } else {
-                            Text(autosteerActive ? "ON" : "GO")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
-                        }
-                        Text("\(autosteerReadinessCount)/4")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(chromeSecondaryText)
+                VStack(spacing: 0) {
+                    if autosteerActive && autosteerGoReady {
+                        Image(systemName: "steeringwheel")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(autosteerActive ? "ON" : "GO")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
+                    }
+                    Text("\(autosteerReadinessCount)/4")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromeSecondaryText)
+
+                    if cruiseControlIsActive {
+                        Text(cruiseControlSetSpeedText)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.green)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                 }
-                .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
-                .accessibilityLabel("Autosteer readiness")
-                .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
-                .accessibilityHint(autosteerReadinessAccessibilityHint)
             }
-            .buttonStyle(.plain)
-            .highPriorityGesture(
-                LongPressGesture(minimumDuration: 0.65)
-                    .onEnded { _ in
-                        showAutosteerQuickActions = true
-                    }
-            )
-
-            if cruiseControlIsActive {
-                Text(cruiseControlSetSpeedText)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.green)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+            .accessibilityLabel("Autosteer readiness")
+            .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
+            .accessibilityHint(autosteerReadinessAccessibilityHint)
         }
         .sheet(isPresented: $showAutosteerReadinessSheet) {
             NavigationStack {

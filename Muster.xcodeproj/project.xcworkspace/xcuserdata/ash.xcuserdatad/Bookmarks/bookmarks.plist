@@ -34,16 +34,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            result(Self.tileData, nil)
+				<string>    private func handleTap() {
 </string>
 				<key>leading</key>
-				<string>        switch style {
-        case .plain:
+				<string>
+    @objc
 </string>
 				<key>trailing</key>
-				<string>        }
-    }
-}
+				<string>        guard Date() &gt;= suppressTapUntil else { return }
+        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
+        onTap?(ann.marker)
 </string>
 			</dict>
 			<key>title</key>
@@ -81,16 +81,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            result(Self.tileData, nil)
+				<string>    private func handleTap() {
 </string>
 				<key>leading</key>
-				<string>        switch style {
-        case .plain:
+				<string>
+    @objc
 </string>
 				<key>trailing</key>
-				<string>        }
-    }
-}
+				<string>        guard Date() &gt;= suppressTapUntil else { return }
+        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
+        onTap?(ann.marker)
 </string>
 			</dict>
 			<key>title</key>
@@ -128,16 +128,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            result(Self.tileData, nil)
+				<string>    private func handleTap() {
 </string>
 				<key>leading</key>
-				<string>        switch style {
-        case .plain:
+				<string>
+    @objc
 </string>
 				<key>trailing</key>
-				<string>        }
-    }
-}
+				<string>        guard Date() &gt;= suppressTapUntil else { return }
+        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
+        onTap?(ann.marker)
 </string>
 			</dict>
 			<key>title</key>
@@ -175,16 +175,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            result(Self.tileData, nil)
+				<string>    private func handleTap() {
 </string>
 				<key>leading</key>
-				<string>        switch style {
-        case .plain:
+				<string>
+    @objc
 </string>
 				<key>trailing</key>
-				<string>        }
-    }
-}
+				<string>        guard Date() &gt;= suppressTapUntil else { return }
+        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
+        onTap?(ann.marker)
 </string>
 			</dict>
 			<key>title</key>
@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            let interItemSpacing: CGFloat = 10
+				<string>        .buttonStyle(.plain)
 </string>
 				<key>leading</key>
-				<string>        GeometryReader { proxy in
-            let outerPadding: CGFloat = 18
+				<string>                .shadow(color: chromeShadow, radius: 10, y: 4)
+        }
 </string>
 				<key>trailing</key>
-				<string>            let columns = 3
-            let availableWidth = proxy.size.width - (outerPadding * 2) - (interItemSpacing * CGFloat(columns - 1))
-            let cardWidth = floor(availableWidth / CGFloat(columns))
+				<string>        .fixedSize()
+    }
+
 </string>
 			</dict>
 			<key>type</key>
