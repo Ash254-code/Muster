@@ -3684,7 +3684,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     init(style: Style, urlTemplate URLTemplate: String? = nil) {
         self.style = style
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = false
+        canReplaceMapContent = true
         minimumZ = 0
         maximumZ = 22
     }
@@ -3692,7 +3692,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     override init(urlTemplate URLTemplate: String?) {
         self.style = .plain
         super.init(urlTemplate: URLTemplate)
-        canReplaceMapContent = false
+        canReplaceMapContent = true
         minimumZ = 0
         maximumZ = 22
     }
