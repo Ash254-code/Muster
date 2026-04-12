@@ -365,10 +365,11 @@ private struct CellularTrackingSettingsView: View {
     @State private var inviteName = ""
     @State private var invitePhoneNumber = ""
     @State private var contactQuery = ""
-    @State private var myPhoneNumber = ""
     @State private var isSharingMyLocation = false
     @State private var selectedShareDuration: ShareDurationOption = .twoDays
     @State private var sharingEndsAt: Date?
+    private let selfMemberName = "Me"
+    private let selfMemberPhoneNumber = "THIS_DEVICE"
 
     private var contactSuggestions: [ContactSuggestion] {
         Array(contactSearch.filteredContacts(matching: contactQuery).prefix(5))
@@ -378,9 +379,29 @@ private struct CellularTrackingSettingsView: View {
         Form {
             Section {
                 Toggle("Share My Location via cellular", isOn: $isSharingMyLocation)
+
+                Picker("Sharing duration", selection: $selectedShareDuration) {
+                    ForEach(ShareDurationOption.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
+
+                if let sharingEndsAt, isSharingMyLocation {
+                    Text("Auto-off: \(sharingEndsAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("My Location")
+            } footer: {
+                Text("Cellular updates are used first. If they are stale, XRS Radio location is used as a fallback until cellular updates resume.")
             }
 
             Section {
+                Text("Invite from contacts or enter a name and phone number manually.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 if contactSearch.authorizationStatus == .notDetermined {
                     Button("Allow Contacts Access") {
                         contactSearch.requestAccess()
@@ -415,26 +436,6 @@ private struct CellularTrackingSettingsView: View {
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
                 Text("Invite others")
-            }
-
-            Section {
-                TextField("My phone number", text: $myPhoneNumber)
-                    .keyboardType(.phonePad)
-                Picker("Sharing duration", selection: $selectedShareDuration) {
-                    ForEach(ShareDurationOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-
-                if let sharingEndsAt, isSharingMyLocation {
-                    Text("Auto-off: \(sharingEndsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Your location")
-            } footer: {
-                Text("Cellular updates are used first. If they are stale, XRS Radio location is used as a fallback until cellular updates resume.")
             }
 
             Section {
@@ -506,7 +507,7 @@ private struct CellularTrackingSettingsView: View {
         .onChange(of: locationService.lastLocation) { _, location in
             guard isSharingMyLocation, let location else { return }
             app.cellularTracking.updateCellularLocation(
-                for: myPhoneNumber,
+                for: selfMemberPhoneNumber,
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude
             )
@@ -529,14 +530,9 @@ private struct CellularTrackingSettingsView: View {
     }
 
     private func startSharingMyLocation() {
-        guard !myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            isSharingMyLocation = false
-            return
-        }
-
         sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
-        app.cellularTracking.sendInvitation(name: "Me", phoneNumber: myPhoneNumber)
-        if let meID = app.cellularTracking.members.first(where: { $0.name == "Me" && $0.phoneNumber == myPhoneNumber })?.id {
+        app.cellularTracking.sendInvitation(name: selfMemberName, phoneNumber: selfMemberPhoneNumber)
+        if let meID = app.cellularTracking.members.first(where: { $0.phoneNumber == selfMemberPhoneNumber })?.id {
             app.cellularTracking.respondToInvitation(
                 for: meID,
                 accepted: true,
