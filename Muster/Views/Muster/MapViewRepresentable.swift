@@ -3791,19 +3791,6 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
                 color: UIColor.white.withAlphaComponent(0.08).cgColor
             )
 
-            let gradientColors = [
-                UIColor.white.withAlphaComponent(0.06).cgColor,
-                UIColor.clear.cgColor,
-                UIColor.black.withAlphaComponent(0.22).cgColor
-            ] as CFArray
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: gradientColors, locations: [0.0, 0.55, 1.0]) {
-                cg.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: tileSizePixels / 2, y: 0),
-                    end: CGPoint(x: tileSizePixels / 2, y: tileSizePixels),
-                    options: []
-                )
-            }
         }
         return image.pngData() ?? Data()
     }
