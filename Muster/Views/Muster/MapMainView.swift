@@ -4701,10 +4701,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 }
 
                 bottomActionButton(
-                    title: "New Track",
-                    systemImage: "plus.circle.fill"
+                    title: "Autosteer",
+                    systemImage: "steeringwheel",
+                    iconColor: autosteerEnabled ? .green : chromePrimaryText
                 ) {
-                    startNewTrackFlow()
+                    autosteerEnabled.toggle()
+                } onLongPress: {
+                    panelDetent = .collapsed
+                    showAutosteerSettings = true
                 }
 
                 bottomActionButton(
@@ -5109,12 +5113,15 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func bottomActionButton(
         title: String,
         systemImage: String,
-        action: @escaping () -> Void
+        iconColor: Color? = nil,
+        action: @escaping () -> Void,
+        onLongPress: (() -> Void)? = nil
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: systemImage)
                     .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(iconColor ?? chromePrimaryText)
 
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
@@ -5133,6 +5140,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             )
             .shadow(color: chromeShadow, radius: 10, y: 4)
         }
+        .highPriorityGesture(
+            LongPressGesture(minimumDuration: 0.6)
+                .onEnded { _ in
+                    onLongPress?()
+                }
+        )
         .buttonStyle(.plain)
     }
 
