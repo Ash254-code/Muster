@@ -598,7 +598,7 @@ private struct ContactSuggestionRow: View {
             }
             Spacer()
             Image(systemName: "plus.circle")
-                .foregroundStyle(.accent)
+                .foregroundStyle(.tint)
         }
     }
 }
