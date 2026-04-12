@@ -365,6 +365,10 @@ private struct CellularTrackingSettingsView: View {
     @State private var selectedShareDuration: ShareDurationOption = .twoDays
     @State private var sharingEndsAt: Date?
 
+    private var contactSuggestions: [ContactSuggestion] {
+        Array(contactSearch.filteredContacts(matching: contactQuery).prefix(5))
+    }
+
     var body: some View {
         Form {
             Section {
@@ -384,22 +388,12 @@ private struct CellularTrackingSettingsView: View {
                     TextField("Search contacts", text: $contactQuery)
                         .textInputAutocapitalization(.words)
 
-                    ForEach(contactSearch.filteredContacts(matching: contactQuery).prefix(5)) { contact in
+                    ForEach(contactSuggestions) { contact in
                         Button {
                             inviteName = contact.displayName
                             invitePhoneNumber = contact.phoneNumber
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(contact.displayName)
-                                    Text(contact.phoneNumber)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "plus.circle")
-                                    .foregroundStyle(.accent)
-                            }
+                            ContactSuggestionRow(contact: contact)
                         }
                         .buttonStyle(.plain)
                     }
@@ -591,6 +585,24 @@ private struct ContactSuggestion: Identifiable, Hashable {
     let phoneNumber: String
 }
 
+private struct ContactSuggestionRow: View {
+    let contact: ContactSuggestion
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(contact.displayName)
+                Text(contact.phoneNumber)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "plus.circle")
+                .foregroundStyle(.accent)
+        }
+    }
+}
+
 @MainActor
 private final class ContactSearchStore: ObservableObject {
     @Published var contacts: [ContactSuggestion] = []
@@ -601,9 +613,10 @@ private final class ContactSearchStore: ObservableObject {
 
     func requestAccess() {
         store.requestAccess(for: .contacts) { [weak self] _, _ in
-            Task { @MainActor in
+            let latestStatus = CNContactStore.authorizationStatus(for: .contacts)
+            DispatchQueue.main.async {
                 guard let self else { return }
-                self.authorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
+                self.authorizationStatus = latestStatus
                 self.loadIfNeeded(force: true)
             }
         }
