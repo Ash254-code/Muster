@@ -1450,7 +1450,9 @@ struct MapMainView: View {
                         }
                         .zIndex(24)
 
-                    autosteerQuickActionsSheet
+                    autosteerQuickActionsSheet(
+                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
+                    )
                         .padding(.horizontal, 18)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1530,7 +1532,7 @@ struct MapMainView: View {
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
     }
 
-    private var autosteerQuickActionsSheet: some View {
+    private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
         VStack(spacing: 8) {
             Text("Autosteer")
                 .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
@@ -1587,7 +1589,7 @@ struct MapMainView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .frame(maxWidth: 460)
+        .frame(maxWidth: maxWidth)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(.ultraThinMaterial.opacity(0.98))
