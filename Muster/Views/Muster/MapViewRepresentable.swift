@@ -286,11 +286,11 @@ struct MapViewRepresentable: UIViewRepresentable {
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled {
             map.mapType = .satellite
-            map.isPitchEnabled = false
             map.showsBuildings = false
-            map.isRotateEnabled = false
-            map.isZoomEnabled = false
-            map.isScrollEnabled = false
+            map.isPitchEnabled = true
+            map.isRotateEnabled = true
+            map.isZoomEnabled = true
+            map.isScrollEnabled = true
             return
         }
 
