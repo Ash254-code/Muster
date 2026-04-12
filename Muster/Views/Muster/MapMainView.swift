@@ -1500,13 +1500,6 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .top) {
-                if autosteerActive {
-                    autosteerLightbar(guidance: autosteerGuidanceStatus)
-                        .padding(.top, 18)
-                        .padding(.horizontal, 12)
-                }
-            }
-            .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
                     autosteerTrackSetupOverlay(maxWidth: geo.size.width)
                         .padding(.top, 76)
@@ -2510,13 +2503,6 @@ struct MapMainView: View {
                         .foregroundStyle(chromeSecondaryText)
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(gpsConnectedForAutosteer ? .green : .red)
-                    .frame(width: 10, height: 10)
-                    .overlay(Circle().stroke(.white.opacity(0.6), lineWidth: 1))
-                    .offset(x: -6, y: -6)
-            }
             .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
             .accessibilityLabel("Autosteer readiness")
             .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
@@ -2943,43 +2929,6 @@ struct MapMainView: View {
         }
     }
 
-    private func autosteerLightbar(guidance: AutosteerGuidanceStatus) -> some View {
-        let stepMeters = max(autosteerLightbarStepCM / 100.0, 0.01)
-        let absError = abs(guidance.signedOffsetToNearestLineM)
-        let stepCount = Int(absError / stepMeters)
-
-        return VStack(spacing: 8) {
-            HStack(spacing: 5) {
-                ForEach(-4...4, id: \.self) { index in
-                    Capsule(style: .continuous)
-                        .fill(lightbarColor(for: index, errorMeters: guidance.signedOffsetToNearestLineM, stepMeters: stepMeters))
-                        .frame(width: index == 0 ? 18 : 14, height: 8)
-                }
-            }
-
-            Text(
-                "\(guidance.lineIsLeft ? "Left" : "Right") " +
-                "\(UnitFormatting.formattedDistance(absError, decimalsIfLarge: 2)) • " +
-                "\(UnitFormatting.formattedCentimeters(autosteerLightbarStepCM))/step"
-            )
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromePrimaryText)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(chromeFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 1)
-        )
-        .accessibilityLabel("Autosteer lightbar")
-        .accessibilityValue("Off guidance by \(stepCount) steps")
-    }
-
     @ViewBuilder
     private func selectablePillButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -2994,21 +2943,6 @@ struct MapMainView: View {
                 )
         }
         .buttonStyle(.plain)
-    }
-
-    private func lightbarColor(for index: Int, errorMeters: Double, stepMeters: Double) -> Color {
-        let absError = abs(errorMeters)
-        if index == 0 {
-            return absError < stepMeters ? .green : chromeStroke
-        }
-
-        let side = index > 0 ? 1.0 : -1.0
-        let isErrorOnThisSide = (errorMeters.sign == .plus && side > 0) || (errorMeters.sign == .minus && side < 0)
-        let threshold = stepMeters * Double(abs(index))
-        if isErrorOnThisSide && absError >= threshold {
-            return .red
-        }
-        return chromeStroke
     }
 
     private var autosteerSetupPrimaryButtonTitle: String {
