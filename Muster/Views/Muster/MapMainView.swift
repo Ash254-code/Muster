@@ -341,6 +341,8 @@ struct MapMainView: View {
     @State private var showAutosteerSettings = false
     @State private var showAutosteerQuickActions = false
     @State private var showAutosteerTrackSelector = false
+    @State private var showAutosteerLightbarStepEditor = false
+    @State private var autosteerLightbarStepDraftCM: Double = 2
     @State private var autosteerActive = false
     @State private var autosteerPointA: CLLocationCoordinate2D? = nil
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
@@ -1496,6 +1498,9 @@ struct MapMainView: View {
                     autosteerGuidanceBar(autosteerGuidanceStatus)
                         .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
+                        .onLongPressGesture(minimumDuration: 0.45) {
+                            presentAutosteerLightbarStepEditor()
+                        }
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
@@ -1516,6 +1521,54 @@ struct MapMainView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArrivedBanner)
+        .sheet(isPresented: $showAutosteerLightbarStepEditor) {
+            autosteerLightbarStepEditorSheet
+                .presentationDetents([.height(250)])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var autosteerLightbarStepEditorSheet: some View {
+        NavigationStack {
+            VStack(spacing: 18) {
+                VStack(spacing: 6) {
+                    Text("Lightbar Step Size")
+                        .font(.headline)
+                    Text("Current: \(UnitFormatting.formattedCentimeters(autosteerLightbarStepCM))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(UnitFormatting.formattedCentimeters(autosteerLightbarStepDraftCM))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+
+                Slider(value: $autosteerLightbarStepDraftCM, in: 1...50, step: 1)
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 10) {
+                    Button("Cancel") {
+                        showAutosteerLightbarStepEditor = false
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Save") {
+                        autosteerLightbarStepCM = autosteerLightbarStepDraftCM
+                        showAutosteerLightbarStepEditor = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+            .navigationTitle("Autosteer")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func presentAutosteerLightbarStepEditor() {
+        autosteerLightbarStepDraftCM = max(1, min(50, autosteerLightbarStepCM.rounded()))
+        showAutosteerLightbarStepEditor = true
     }
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
