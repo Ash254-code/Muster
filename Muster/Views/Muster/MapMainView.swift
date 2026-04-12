@@ -1010,12 +1010,12 @@ struct MapMainView: View {
                 }
             }
             .onChange(of: mapStyleRaw) { _, newStyle in
-                if autosteerEnabled, newStyle != "blank" {
+                if autosteerEnabled, autosteerSetupActive == false, newStyle != "blank" {
                     mapStyleRaw = "blank"
                 }
             }
             .onChange(of: orientationRaw) { _, newOrientation in
-                if autosteerEnabled, newOrientation != "headsUp" {
+                if autosteerEnabled, autosteerSetupActive == false, newOrientation != "headsUp" {
                     orientationRaw = "headsUp"
                 }
             }
@@ -2052,6 +2052,8 @@ struct MapMainView: View {
     private func handleAutosteerSetupActiveChanged(_ isActive: Bool) {
         if isActive {
             followUser = false
+        } else if autosteerEnabled {
+            applyAutosteerMapLockIfNeeded()
         }
     }
 
@@ -3248,6 +3250,9 @@ struct MapMainView: View {
         autosteerSetupActive = true
         followUser = false
         curveRecordedCenters = []
+        if mode == "A+B line" || mode == "A+Heading" {
+            applyAutosteerTrackCreationMapView()
+        }
     }
 
     private func refreshKnownFarms() {
@@ -5488,6 +5493,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         orientationRaw = "headsUp"
         headsUpPitchDegrees = 80
         postExactZoomRequest(200)
+    }
+
+    private func applyAutosteerTrackCreationMapView() {
+        mapStyleRaw = "satellite"
+        orientationRaw = "northUp"
+        postExactZoomRequest(3000)
     }
 
     private var zoomStepIncrementMeters: Double {
