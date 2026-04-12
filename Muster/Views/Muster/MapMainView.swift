@@ -351,7 +351,6 @@ struct MapMainView: View {
     @State private var autosteerGuidanceSeeded = false
     @State private var mapCenterCoordinate: CLLocationCoordinate2D? = nil
     @State private var knownFarms: [AutosteerFarmRecord] = []
-    @State private var expandedAutosteerFarmIDs: Set<UUID> = []
     @State private var expandedAutosteerPaddockIDs: Set<UUID> = []
     @State private var selectedFarmOption: String = "__new__"
     @State private var selectedPaddockOption: String = "__new__"
@@ -1058,81 +1057,71 @@ struct MapMainView: View {
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(knownFarms) { farm in
-                                Section {
-                                    if expandedAutosteerFarmIDs.contains(farm.id) {
-                                        ForEach(farm.paddocks) { paddock in
-                                            VStack(alignment: .leading, spacing: 10) {
-                                                Button {
-                                                    toggleAutosteerPaddockExpansion(paddockID: paddock.id)
-                                                } label: {
-                                                    HStack(spacing: 10) {
-                                                        Image(systemName: expandedAutosteerPaddockIDs.contains(paddock.id) ? "chevron.down" : "chevron.right")
-                                                            .font(.caption.weight(.semibold))
-                                                            .foregroundStyle(.secondary)
-                                                        Text(paddock.name)
-                                                            .foregroundStyle(.primary)
-                                                        Spacer()
-                                                        Text("\(paddock.tracks.count)")
-                                                            .font(.caption.weight(.semibold))
-                                                            .foregroundStyle(.secondary)
-                                                            .padding(.horizontal, 8)
-                                                            .padding(.vertical, 4)
-                                                            .background(Capsule().fill(Color.secondary.opacity(0.18)))
-                                                    }
+                                Section(farm.name) {
+                                    ForEach(farm.paddocks) { paddock in
+                                        VStack(alignment: .leading, spacing: 10) {
+                                            Button {
+                                                toggleAutosteerPaddockExpansion(paddockID: paddock.id)
+                                            } label: {
+                                                let paddockContainsSelectedTrack = isCurrentlySelectedAutosteerPaddock(
+                                                    farmName: farm.name,
+                                                    paddockName: paddock.name
+                                                )
+                                                HStack(spacing: 10) {
+                                                    Image(systemName: expandedAutosteerPaddockIDs.contains(paddock.id) ? "chevron.down" : "chevron.right")
+                                                        .font(.caption.weight(.semibold))
+                                                        .foregroundStyle(.secondary)
+                                                    Text(paddock.name)
+                                                        .foregroundStyle(.primary)
+                                                    Spacer()
+                                                    Text("\(paddock.tracks.count)")
+                                                        .font(.caption.weight(.semibold))
+                                                        .foregroundStyle(paddockContainsSelectedTrack ? .green : .secondary)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(Capsule().fill(Color.secondary.opacity(0.18)))
                                                 }
-                                                .buttonStyle(.plain)
+                                            }
+                                            .buttonStyle(.plain)
 
-                                                if expandedAutosteerPaddockIDs.contains(paddock.id) {
-                                                    ForEach(paddock.tracks) { track in
-                                                        Button {
-                                                            autosteerFarmName = farm.name
-                                                            autosteerPaddockName = paddock.name
-                                                            autosteerTrackName = track.name
-                                                            autosteerTrackModeRaw = track.mode
-                                                            showAutosteerTrackSelector = false
-                                                        } label: {
-                                                            let isSelectedTrack = isCurrentlySelectedAutosteerTrack(
-                                                                farmName: farm.name,
-                                                                paddockName: paddock.name,
-                                                                trackName: track.name
-                                                            )
-                                                            HStack {
-                                                                VStack(alignment: .leading, spacing: 4) {
-                                                                    Text(track.name)
-                                                                        .foregroundStyle(.primary)
-                                                                    Text("\(farm.name) > \(paddock.name) > \(track.name)")
-                                                                        .font(.caption)
-                                                                        .foregroundStyle(.secondary)
-                                                                        .lineLimit(2)
-                                                                }
-
-                                                                Spacer()
-
-                                                                if isSelectedTrack {
-                                                                    Image(systemName: "checkmark.circle.fill")
-                                                                        .foregroundStyle(.green)
-                                                                }
+                                            if expandedAutosteerPaddockIDs.contains(paddock.id) {
+                                                ForEach(paddock.tracks) { track in
+                                                    Button {
+                                                        autosteerFarmName = farm.name
+                                                        autosteerPaddockName = paddock.name
+                                                        autosteerTrackName = track.name
+                                                        autosteerTrackModeRaw = track.mode
+                                                        showAutosteerTrackSelector = false
+                                                    } label: {
+                                                        let isSelectedTrack = isCurrentlySelectedAutosteerTrack(
+                                                            farmName: farm.name,
+                                                            paddockName: paddock.name,
+                                                            trackName: track.name
+                                                        )
+                                                        HStack {
+                                                            VStack(alignment: .leading, spacing: 4) {
+                                                                Text(track.name)
+                                                                    .foregroundStyle(.primary)
+                                                                Text("\(farm.name) > \(paddock.name) > \(track.name)")
+                                                                    .font(.caption)
+                                                                    .foregroundStyle(.secondary)
+                                                                    .lineLimit(2)
                                                             }
-                                                            .padding(.leading, 24)
+
+                                                            Spacer()
+
+                                                            if isSelectedTrack {
+                                                                Image(systemName: "checkmark.circle.fill")
+                                                                    .foregroundStyle(.green)
+                                                            }
                                                         }
-                                                        .buttonStyle(.plain)
+                                                        .padding(.leading, 24)
                                                     }
+                                                    .buttonStyle(.plain)
                                                 }
                                             }
                                         }
                                     }
-                                } header: {
-                                    Button {
-                                        toggleAutosteerFarmExpansion(farmID: farm.id)
-                                    } label: {
-                                        HStack(spacing: 10) {
-                                            Image(systemName: expandedAutosteerFarmIDs.contains(farm.id) ? "chevron.down" : "chevron.right")
-                                                .font(.caption.weight(.semibold))
-                                                .foregroundStyle(.secondary)
-                                            Text(farm.name)
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -2792,16 +2781,6 @@ struct MapMainView: View {
         syncAutosteerSelectorExpansionState()
     }
 
-    private func toggleAutosteerFarmExpansion(farmID: UUID) {
-        if expandedAutosteerFarmIDs.contains(farmID) {
-            expandedAutosteerFarmIDs.remove(farmID)
-            let paddockIDs = Set(knownFarms.first(where: { $0.id == farmID })?.paddocks.map(\.id) ?? [])
-            expandedAutosteerPaddockIDs.subtract(paddockIDs)
-        } else {
-            expandedAutosteerFarmIDs.insert(farmID)
-        }
-    }
-
     private func toggleAutosteerPaddockExpansion(paddockID: UUID) {
         if expandedAutosteerPaddockIDs.contains(paddockID) {
             expandedAutosteerPaddockIDs.remove(paddockID)
@@ -2811,19 +2790,13 @@ struct MapMainView: View {
     }
 
     private func syncAutosteerSelectorExpansionState() {
-        let validFarmIDs = Set(knownFarms.map(\.id))
-        expandedAutosteerFarmIDs = expandedAutosteerFarmIDs.intersection(validFarmIDs)
-
         let validPaddockIDs = Set(knownFarms.flatMap(\.paddocks).map(\.id))
         expandedAutosteerPaddockIDs = expandedAutosteerPaddockIDs.intersection(validPaddockIDs)
 
         if let selectedFarm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(autosteerFarmName) == .orderedSame }) {
-            expandedAutosteerFarmIDs.insert(selectedFarm.id)
             if let selectedPaddock = selectedFarm.paddocks.first(where: { $0.name.caseInsensitiveCompare(autosteerPaddockName) == .orderedSame }) {
                 expandedAutosteerPaddockIDs.insert(selectedPaddock.id)
             }
-        } else if expandedAutosteerFarmIDs.isEmpty, let firstFarm = knownFarms.first {
-            expandedAutosteerFarmIDs.insert(firstFarm.id)
         }
     }
 
@@ -2881,6 +2854,11 @@ struct MapMainView: View {
         autosteerFarmName.caseInsensitiveCompare(farmName) == .orderedSame &&
         autosteerPaddockName.caseInsensitiveCompare(paddockName) == .orderedSame &&
         autosteerTrackName.caseInsensitiveCompare(trackName) == .orderedSame
+    }
+
+    private func isCurrentlySelectedAutosteerPaddock(farmName: String, paddockName: String) -> Bool {
+        autosteerFarmName.caseInsensitiveCompare(farmName) == .orderedSame &&
+        autosteerPaddockName.caseInsensitiveCompare(paddockName) == .orderedSame
     }
 
     // MARK: - Right side controls
