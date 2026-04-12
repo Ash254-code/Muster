@@ -2696,6 +2696,21 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
         }
 
+        func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+            let gestureDriven = mapView.subviews
+                .compactMap(\.gestureRecognizers)
+                .flatMap { $0 }
+                .contains { recognizer in
+                    recognizer.state == .began || recognizer.state == .changed
+                }
+
+            guard gestureDriven else { return }
+
+            if parent.followUser {
+                parent.followUser = false
+            }
+        }
+
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             parent.mapCenterCoordinate = mapView.centerCoordinate
             let rect = mapView.visibleMapRect
