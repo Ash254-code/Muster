@@ -620,6 +620,10 @@ struct MapMainView: View {
         "km/h"
     }
 
+    private var cruiseControlSetSpeedText: String {
+        "\(cruiseControlDisplaySpeedText) \(cruiseControlDisplayUnitText)"
+    }
+
     private var cruiseControlIsActive: Bool {
         cruiseControlEnabled && autosteerActive
     }
@@ -2667,6 +2671,15 @@ struct MapMainView: View {
                     Text("\(autosteerReadinessCount)/4")
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundStyle(chromeSecondaryText)
+
+                    if cruiseControlIsActive {
+                        Text(cruiseControlSetSpeedText)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.green)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
             }
             .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
