@@ -1088,12 +1088,18 @@ struct MapMainView: View {
                                                     Text(paddock.name)
                                                         .foregroundStyle(.primary)
                                                     Spacer()
-                                                    Text("\(paddock.tracks.count)")
-                                                        .font(.caption.weight(.semibold))
-                                                        .foregroundStyle(paddockContainsSelectedTrack ? .green : .secondary)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 4)
-                                                        .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                                                    if paddockContainsSelectedTrack {
+                                                        Circle()
+                                                            .fill(.green)
+                                                            .frame(width: 14, height: 14)
+                                                    } else {
+                                                        Text("\(paddock.tracks.count)")
+                                                            .font(.caption.weight(.semibold))
+                                                            .foregroundStyle(.secondary)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                                                    }
                                                 }
                                             }
                                             .buttonStyle(.plain)
@@ -1148,7 +1154,7 @@ struct MapMainView: View {
                             }
                         }
                     }
-                    .onAppear(perform: refreshKnownFarms)
+                    .onAppear(perform: prepareAutosteerTrackSelector)
                 }
             }
             .fullScreenCover(isPresented: $showPreviousMusters) {
@@ -3001,6 +3007,11 @@ struct MapMainView: View {
         syncAutosteerSelectorExpansionState()
     }
 
+    private func prepareAutosteerTrackSelector() {
+        refreshKnownFarms()
+        expandedAutosteerPaddockIDs = []
+    }
+
     private func toggleAutosteerPaddockExpansion(paddockID: UUID) {
         if expandedAutosteerPaddockIDs.contains(paddockID) {
             expandedAutosteerPaddockIDs.remove(paddockID)
@@ -3012,12 +3023,6 @@ struct MapMainView: View {
     private func syncAutosteerSelectorExpansionState() {
         let validPaddockIDs = Set(knownFarms.flatMap(\.paddocks).map(\.id))
         expandedAutosteerPaddockIDs = expandedAutosteerPaddockIDs.intersection(validPaddockIDs)
-
-        if let selectedFarm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(autosteerFarmName) == .orderedSame }) {
-            if let selectedPaddock = selectedFarm.paddocks.first(where: { $0.name.caseInsensitiveCompare(autosteerPaddockName) == .orderedSame }) {
-                expandedAutosteerPaddockIDs.insert(selectedPaddock.id)
-            }
-        }
     }
 
     private func previewCoordinatesForPendingSetup() -> [[Double]] {
