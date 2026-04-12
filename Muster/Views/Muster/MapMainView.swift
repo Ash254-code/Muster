@@ -334,6 +334,8 @@ struct MapMainView: View {
     @State private var autosteerPointB: CLLocationCoordinate2D? = nil
     @State private var autosteerHeadingInput: String = ""
     @State private var showAutosteerHeadingPrompt = false
+    @State private var showAutosteerHeadingValidationWarning = false
+    @State private var autosteerHeadingValidationWarningMessage = ""
     @State private var curveTrackRecording = false
     @State private var curvePulse = false
     @State private var curveRecordedCenters: [CLLocationCoordinate2D] = []
@@ -2411,10 +2413,17 @@ struct MapMainView: View {
                 .keyboardType(.decimalPad)
             Button("Cancel", role: .cancel) {}
             Button("Save") {
-                completeAutosteerSetupAndPromptForSave()
+                if validateAutosteerHeadingInput() {
+                    completeAutosteerSetupAndPromptForSave()
+                }
             }
         } message: {
             Text("Enter heading to 4 decimal places.")
+        }
+        .alert("Invalid Heading", isPresented: $showAutosteerHeadingValidationWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(autosteerHeadingValidationWarningMessage)
         }
         .sheet(isPresented: $showAutosteerTrackSaveSheet) {
             NavigationStack {
@@ -2751,7 +2760,7 @@ struct MapMainView: View {
             }
         case "A+Heading":
             if let a = autosteerPointA {
-                let heading = Double(autosteerHeadingInput) ?? 0
+                guard let heading = validatedAutosteerHeadingValue() else { return [] }
                 let distanceMeters: CLLocationDistance = 120
                 let radians = heading * .pi / 180
                 let earth = 6_378_137.0
@@ -2769,6 +2778,26 @@ struct MapMainView: View {
             break
         }
         return []
+    }
+
+    private func validateAutosteerHeadingInput() -> Bool {
+        guard let _ = validatedAutosteerHeadingValue() else {
+            autosteerHeadingValidationWarningMessage = "Heading must be between 0.0000 and 360.0000, with up to 4 decimal places."
+            showAutosteerHeadingValidationWarning = true
+            return false
+        }
+        return true
+    }
+
+    private func validatedAutosteerHeadingValue() -> Double? {
+        let trimmed = autosteerHeadingInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        let parts = trimmed.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 2 else { return nil }
+        if parts.count == 2, parts[1].count > 4 { return nil }
+        guard let value = Double(trimmed), value.isFinite else { return nil }
+        guard (0.0...360.0).contains(value) else { return nil }
+        return value
     }
 
     private func isCurrentlySelectedAutosteerTrack(farmName: String, paddockName: String, trackName: String) -> Bool {
