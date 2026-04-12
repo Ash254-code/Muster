@@ -286,11 +286,11 @@ struct MapViewRepresentable: UIViewRepresentable {
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled {
             map.mapType = .satellite
-            map.isPitchEnabled = false
             map.showsBuildings = false
-            map.isRotateEnabled = false
-            map.isZoomEnabled = false
-            map.isScrollEnabled = false
+            map.isPitchEnabled = true
+            map.isRotateEnabled = true
+            map.isZoomEnabled = true
+            map.isScrollEnabled = true
             return
         }
 
@@ -3730,10 +3730,15 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
         case plain
     }
 
-    private static let tileSizePixels: CGFloat = 256
-    private static let earthCircumferenceMeters: Double = 40_075_016.686
-    private static let primaryGridSpacingMeters: Double = 100
-    private static let majorGridSpacingMeters: Double = 500
+    private static let tileData: Data = {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
+        let image = renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: 256, height: 256)
+            UIColor(red: 0.10, green: 0.10, blue: 0.11, alpha: 1.0).setFill()
+            context.fill(rect)
+        }
+        return image.pngData() ?? Data()
+    }()
     private let style: Style
 
     init(style: Style, urlTemplate URLTemplate: String? = nil) {
@@ -3759,91 +3764,7 @@ private final class GuidanceBackgroundTileOverlay: MKTileOverlay {
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
         switch style {
         case .plain:
-            result(Self.renderTile(path: path), nil)
+            result(Self.tileData, nil)
         }
-    }
-
-    private static func renderTile(path: MKTileOverlayPath) -> Data {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: tileSizePixels, height: tileSizePixels))
-        let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: tileSizePixels, height: tileSizePixels)
-            UIColor(red: 0.10, green: 0.10, blue: 0.11, alpha: 1.0).setFill()
-            context.fill(rect)
-
-            let cg = context.cgContext
-            cg.setShouldAntialias(false)
-
-            let origin = tileOriginMeters(for: path)
-            let metersPerPixel = metersPerPixel(for: path)
-
-            drawGrid(
-                in: cg,
-                tileOrigin: origin,
-                metersPerPixel: metersPerPixel,
-                spacingMeters: primaryGridSpacingMeters,
-                color: UIColor.white.withAlphaComponent(0.045).cgColor
-            )
-            drawGrid(
-                in: cg,
-                tileOrigin: origin,
-                metersPerPixel: metersPerPixel,
-                spacingMeters: majorGridSpacingMeters,
-                color: UIColor.white.withAlphaComponent(0.08).cgColor
-            )
-
-        }
-        return image.pngData() ?? Data()
-    }
-
-    private static func drawGrid(
-        in context: CGContext,
-        tileOrigin: CGPoint,
-        metersPerPixel: Double,
-        spacingMeters: Double,
-        color: CGColor
-    ) {
-        guard spacingMeters > 0 else { return }
-        let tileWidthMeters = Double(tileSizePixels) * metersPerPixel
-        let tileHeightMeters = Double(tileSizePixels) * metersPerPixel
-        let tileMinX = Double(tileOrigin.x)
-        let tileMinY = Double(tileOrigin.y)
-        let tileMaxX = tileMinX + tileWidthMeters
-        let tileMaxY = tileMinY + tileHeightMeters
-
-        context.setStrokeColor(color)
-        context.setLineWidth(1)
-
-        let firstVerticalMeters = ceil(tileMinX / spacingMeters) * spacingMeters
-        var xMeters = firstVerticalMeters
-        while xMeters <= tileMaxX {
-            let x = CGFloat((xMeters - tileMinX) / metersPerPixel) + 0.5
-            context.move(to: CGPoint(x: x, y: 0))
-            context.addLine(to: CGPoint(x: x, y: tileSizePixels))
-            xMeters += spacingMeters
-        }
-
-        let firstHorizontalMeters = ceil(tileMinY / spacingMeters) * spacingMeters
-        var yMeters = firstHorizontalMeters
-        while yMeters <= tileMaxY {
-            let y = CGFloat((yMeters - tileMinY) / metersPerPixel) + 0.5
-            context.move(to: CGPoint(x: 0, y: y))
-            context.addLine(to: CGPoint(x: tileSizePixels, y: y))
-            yMeters += spacingMeters
-        }
-
-        context.strokePath()
-    }
-
-    private static func metersPerPixel(for path: MKTileOverlayPath) -> Double {
-        let zoomScale = pow(2.0, Double(path.z))
-        let worldPixels = Double(tileSizePixels) * zoomScale
-        return earthCircumferenceMeters / worldPixels
-    }
-
-    private static func tileOriginMeters(for path: MKTileOverlayPath) -> CGPoint {
-        let metersPerPixel = metersPerPixel(for: path)
-        let minX = Double(path.x) * Double(tileSizePixels) * metersPerPixel
-        let minY = Double(path.y) * Double(tileSizePixels) * metersPerPixel
-        return CGPoint(x: CGFloat(minX), y: CGFloat(minY))
     }
 }
