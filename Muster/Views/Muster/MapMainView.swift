@@ -1147,20 +1147,14 @@ struct MapMainView: View {
                         refreshKnownFarms()
                         showAutosteerTrackSelector = true
                     }
-                    Button {
+                    Button("Add New\nA + B Track") {
                         beginAutosteerSetup(mode: "A+B line")
-                    } label: {
-                        autosteerNewTrackPillLabel("A + B Track")
                     }
-                    Button {
+                    Button("Add New\nA + Heading Track") {
                         beginAutosteerSetup(mode: "A+Heading")
-                    } label: {
-                        autosteerNewTrackPillLabel("A + Heading Track")
                     }
-                    Button {
+                    Button("Add New\nCurve Track") {
                         beginAutosteerSetup(mode: "Curve Track")
-                    } label: {
-                        autosteerNewTrackPillLabel("Curve Track")
                     }
                     Button("Settings") {
                         showAutosteerSettings = true
@@ -1214,17 +1208,6 @@ struct MapMainView: View {
             } message: {
                 Text("Update the marker name.")
             }
-    }
-
-    @ViewBuilder
-    private func autosteerNewTrackPillLabel(_ trackType: String) -> some View {
-        VStack(spacing: 2) {
-            Text("Add New")
-                .font(.caption.weight(.semibold))
-            Text(trackType)
-                .font(.body.weight(.semibold))
-        }
-        .multilineTextAlignment(.center)
     }
 
     private var lifecycleMainContent: some View {
