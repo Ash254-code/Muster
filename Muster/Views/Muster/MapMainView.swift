@@ -2513,30 +2513,15 @@ struct MapMainView: View {
         }
     }
 
-    private var autosteerCurrentTrackHeading: String {
-        let farm = selectedAutosteerFarmDisplay
-        let paddock = selectedAutosteerPaddockDisplay
-
-        if farm != "Select Farm", paddock != "Select Paddock" {
-            return "Current Track - \(farm) > \(paddock)"
-        }
-        if farm != "Select Farm" {
-            return "Current Track - \(farm)"
-        }
-        if paddock != "Select Paddock" {
-            return "Current Track - \(paddock)"
-        }
-        return "Current Track"
-    }
-
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(autosteerCurrentTrackHeading)
+            Text("Create New Track")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromeSecondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
                 if autosteerSetupModeRaw == "A+B line" {
                     Button("X") {
                         resetAutosteerSetupFlow()
@@ -2603,7 +2588,10 @@ struct MapMainView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 2)
+            }
+            .frame(maxWidth: .infinity)
 
             if autosteerSetupModeRaw == "A+B line", autosteerPointA != nil {
                 Text(autosteerPointB == nil ? "Point A marked" : "Point A and Point B marked")
