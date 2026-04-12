@@ -331,10 +331,19 @@ final class AppState: ObservableObject {
 }
 
 struct CellularTrackingMember: Identifiable, Codable, Hashable {
+    enum InvitationStatus: String, Codable {
+        case pending
+        case accepted
+        case rejected
+        case expired
+    }
+
     var id: UUID
     var name: String
     var phoneNumber: String
     var isSharing: Bool
+    var invitationStatus: InvitationStatus
+    var sharingEndsAt: Date?
     var lastCellularLatitude: Double?
     var lastCellularLongitude: Double?
     var lastCellularUpdate: Date?
@@ -346,6 +355,8 @@ struct CellularTrackingMember: Identifiable, Codable, Hashable {
         case live
         case offline
         case expired
+        case pending
+        case rejected
     }
 
     var lastCellularCoordinate: CLLocationCoordinate2D? {
@@ -359,7 +370,10 @@ struct CellularTrackingMember: Identifiable, Codable, Hashable {
     }
 
     var status: Status {
+        if invitationStatus == .pending { return .pending }
+        if invitationStatus == .rejected { return .rejected }
         guard isSharing else { return .expired }
+        if let sharingEndsAt, sharingEndsAt <= Date() { return .expired }
         guard let lastCellularUpdate else {
             return lastRadioUpdate == nil ? .offline : .expired
         }
@@ -367,6 +381,50 @@ struct CellularTrackingMember: Identifiable, Codable, Hashable {
         if age <= 120 { return .live }
         if age <= 600 { return .offline }
         return .expired
+    }
+
+    init(
+        id: UUID,
+        name: String,
+        phoneNumber: String,
+        isSharing: Bool,
+        invitationStatus: InvitationStatus,
+        sharingEndsAt: Date? = nil,
+        lastCellularLatitude: Double?,
+        lastCellularLongitude: Double?,
+        lastCellularUpdate: Date?,
+        lastRadioLatitude: Double?,
+        lastRadioLongitude: Double?,
+        lastRadioUpdate: Date?
+    ) {
+        self.id = id
+        self.name = name
+        self.phoneNumber = phoneNumber
+        self.isSharing = isSharing
+        self.invitationStatus = invitationStatus
+        self.sharingEndsAt = sharingEndsAt
+        self.lastCellularLatitude = lastCellularLatitude
+        self.lastCellularLongitude = lastCellularLongitude
+        self.lastCellularUpdate = lastCellularUpdate
+        self.lastRadioLatitude = lastRadioLatitude
+        self.lastRadioLongitude = lastRadioLongitude
+        self.lastRadioUpdate = lastRadioUpdate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        phoneNumber = try container.decode(String.self, forKey: .phoneNumber)
+        isSharing = try container.decode(Bool.self, forKey: .isSharing)
+        invitationStatus = try container.decodeIfPresent(InvitationStatus.self, forKey: .invitationStatus) ?? .accepted
+        sharingEndsAt = try container.decodeIfPresent(Date.self, forKey: .sharingEndsAt)
+        lastCellularLatitude = try container.decodeIfPresent(Double.self, forKey: .lastCellularLatitude)
+        lastCellularLongitude = try container.decodeIfPresent(Double.self, forKey: .lastCellularLongitude)
+        lastCellularUpdate = try container.decodeIfPresent(Date.self, forKey: .lastCellularUpdate)
+        lastRadioLatitude = try container.decodeIfPresent(Double.self, forKey: .lastRadioLatitude)
+        lastRadioLongitude = try container.decodeIfPresent(Double.self, forKey: .lastRadioLongitude)
+        lastRadioUpdate = try container.decodeIfPresent(Date.self, forKey: .lastRadioUpdate)
     }
 }
 
@@ -395,7 +453,9 @@ final class CellularGroupTrackingStore: ObservableObject {
         if let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == normalizedPhone(trimmedPhone) }) {
             members[index].name = trimmedName
             members[index].phoneNumber = trimmedPhone
-            members[index].isSharing = true
+            members[index].isSharing = false
+            members[index].invitationStatus = .pending
+            members[index].sharingEndsAt = nil
             return
         }
 
@@ -404,7 +464,9 @@ final class CellularGroupTrackingStore: ObservableObject {
                 id: UUID(),
                 name: trimmedName,
                 phoneNumber: trimmedPhone,
-                isSharing: true,
+                isSharing: false,
+                invitationStatus: .pending,
+                sharingEndsAt: nil,
                 lastCellularLatitude: nil,
                 lastCellularLongitude: nil,
                 lastCellularUpdate: nil,
@@ -421,6 +483,9 @@ final class CellularGroupTrackingStore: ObservableObject {
         members[index].lastCellularLongitude = longitude
         members[index].lastCellularUpdate = date
         members[index].isSharing = true
+        if members[index].invitationStatus == .pending {
+            members[index].invitationStatus = .accepted
+        }
     }
 
     func updateRadioFallbackLocation(for name: String, latitude: Double, longitude: Double, at date: Date = Date()) {
@@ -439,6 +504,26 @@ final class CellularGroupTrackingStore: ObservableObject {
     func setSharing(_ isSharing: Bool, for memberID: UUID) {
         guard let index = members.firstIndex(where: { $0.id == memberID }) else { return }
         members[index].isSharing = isSharing
+        if !isSharing {
+            members[index].invitationStatus = .expired
+        }
+    }
+
+    func respondToInvitation(for memberID: UUID, accepted: Bool, duration: TimeInterval?) {
+        guard let index = members.firstIndex(where: { $0.id == memberID }) else { return }
+        members[index].invitationStatus = accepted ? .accepted : .rejected
+        members[index].isSharing = accepted
+        members[index].sharingEndsAt = accepted ? duration.map { Date().addingTimeInterval($0) } : nil
+    }
+
+    func expireSharesIfNeeded(now: Date = Date()) {
+        for index in members.indices {
+            guard members[index].isSharing, let sharingEndsAt = members[index].sharingEndsAt else { continue }
+            if sharingEndsAt <= now {
+                members[index].isSharing = false
+                members[index].invitationStatus = .expired
+            }
+        }
     }
 
     func mappedContactsWithRadioFallback(_ radioContacts: [XRSRadioContact]) -> [XRSRadioContact] {

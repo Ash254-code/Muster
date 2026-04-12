@@ -3,6 +3,7 @@ import UIKit
 import Combine
 import MapKit
 import CoreLocation
+import Contacts
 
 #if canImport(UIKit)
 import UIKit
@@ -333,18 +334,73 @@ private struct GroupTrackingSettingsView: View {
 }
 
 private struct CellularTrackingSettingsView: View {
+    private enum ShareDurationOption: String, CaseIterable, Identifiable {
+        case twelveHours = "12 hours"
+        case twoDays = "2 days"
+        case oneWeek = "1 week"
+        case oneMonth = "1 month"
+
+        var id: String { rawValue }
+
+        var interval: TimeInterval {
+            switch self {
+            case .twelveHours: return 12 * 60 * 60
+            case .twoDays: return 2 * 24 * 60 * 60
+            case .oneWeek: return 7 * 24 * 60 * 60
+            case .oneMonth: return 30 * 24 * 60 * 60
+            }
+        }
+    }
+
     @EnvironmentObject private var app: AppState
     @Environment(\.openURL) private var openURL
     @StateObject private var locationService = LocationService()
+    @StateObject private var contactSearch = ContactSearchStore()
 
     @State private var inviteName = ""
     @State private var invitePhoneNumber = ""
+    @State private var contactQuery = ""
     @State private var myPhoneNumber = ""
     @State private var isSharingMyLocation = false
+    @State private var selectedShareDuration: ShareDurationOption = .twoDays
+    @State private var sharingEndsAt: Date?
 
     var body: some View {
         Form {
             Section {
+                if contactSearch.authorizationStatus == .notDetermined {
+                    Button("Allow Contacts Access") {
+                        contactSearch.requestAccess()
+                    }
+                } else if contactSearch.authorizationStatus == .denied || contactSearch.authorizationStatus == .restricted {
+                    Text("Contacts access is unavailable. You can still invite manually.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    TextField("Search contacts", text: $contactQuery)
+                        .textInputAutocapitalization(.words)
+
+                    ForEach(contactSearch.filteredContacts(matching: contactQuery).prefix(5)) { contact in
+                        Button {
+                            inviteName = contact.displayName
+                            invitePhoneNumber = contact.phoneNumber
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(contact.displayName)
+                                    Text(contact.phoneNumber)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "plus.circle")
+                                    .foregroundStyle(.accent)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 TextField("Name", text: $inviteName)
                     .textInputAutocapitalization(.words)
                 TextField("Phone number", text: $invitePhoneNumber)
@@ -355,16 +411,27 @@ private struct CellularTrackingSettingsView: View {
                 }
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
-                Text("Invite by text")
+                Text("Invite others")
             }
 
             Section {
                 TextField("My phone number", text: $myPhoneNumber)
                     .keyboardType(.phonePad)
+                Picker("Sharing duration", selection: $selectedShareDuration) {
+                    ForEach(ShareDurationOption.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
                 Button(isSharingMyLocation ? "Sharing location..." : "Share my location") {
                     startSharingMyLocation()
                 }
                 .disabled(myPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if let sharingEndsAt, isSharingMyLocation {
+                    Text("Auto-off: \(sharingEndsAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("Your location")
             } footer: {
@@ -377,17 +444,41 @@ private struct CellularTrackingSettingsView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(app.cellularTracking.members) { member in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(member.name)
-                                Text(member.phoneNumber)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(member.name)
+                                    Text(member.phoneNumber)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(statusText(for: member))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(statusColor(for: member))
                             }
-                            Spacer()
-                            Text(member.status == .live ? "Live" : (member.status == .offline ? "Offline" : "Expired"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(statusColor(for: member))
+
+                            if member.invitationStatus == .pending {
+                                HStack(spacing: 12) {
+                                    Button("Accept") {
+                                        app.cellularTracking.respondToInvitation(
+                                            for: member.id,
+                                            accepted: true,
+                                            duration: selectedShareDuration.interval
+                                        )
+                                    }
+                                    .buttonStyle(.borderedProminent)
+
+                                    Button("Reject") {
+                                        app.cellularTracking.respondToInvitation(
+                                            for: member.id,
+                                            accepted: false,
+                                            duration: nil
+                                        )
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
                         }
                     }
                 }
@@ -397,6 +488,17 @@ private struct CellularTrackingSettingsView: View {
         }
         .navigationTitle("Cellular")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            contactSearch.loadIfNeeded()
+            app.cellularTracking.expireSharesIfNeeded()
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            app.cellularTracking.expireSharesIfNeeded()
+            guard isSharingMyLocation, let sharingEndsAt, sharingEndsAt <= Date() else { return }
+            isSharingMyLocation = false
+            self.sharingEndsAt = nil
+            locationService.stop()
+        }
         .onChange(of: locationService.lastLocation) { _, location in
             guard isSharingMyLocation, let location else { return }
             app.cellularTracking.updateCellularLocation(
@@ -424,10 +526,33 @@ private struct CellularTrackingSettingsView: View {
 
     private func startSharingMyLocation() {
         isSharingMyLocation = true
+        sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
         app.cellularTracking.sendInvitation(name: "Me", phoneNumber: myPhoneNumber)
+        if let meID = app.cellularTracking.members.first(where: { $0.name == "Me" && $0.phoneNumber == myPhoneNumber })?.id {
+            app.cellularTracking.respondToInvitation(
+                for: meID,
+                accepted: true,
+                duration: selectedShareDuration.interval
+            )
+        }
         locationService.requestPermission()
         locationService.start()
         locationService.forceRefreshNow()
+    }
+
+    private func statusText(for member: CellularTrackingMember) -> String {
+        switch member.status {
+        case .live:
+            return "Live"
+        case .offline:
+            return "Offline"
+        case .expired:
+            return "Expired"
+        case .pending:
+            return "Pending"
+        case .rejected:
+            return "Rejected"
+        }
     }
 
     private func statusColor(for member: CellularTrackingMember) -> Color {
@@ -438,6 +563,74 @@ private struct CellularTrackingSettingsView: View {
             return .orange
         case .expired:
             return .red
+        case .pending:
+            return .yellow
+        case .rejected:
+            return .gray
+        }
+    }
+}
+
+private struct ContactSuggestion: Identifiable, Hashable {
+    let id = UUID()
+    let displayName: String
+    let phoneNumber: String
+}
+
+@MainActor
+private final class ContactSearchStore: ObservableObject {
+    @Published var contacts: [ContactSuggestion] = []
+    @Published var authorizationStatus: CNAuthorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
+
+    private let store = CNContactStore()
+    private var didLoad = false
+
+    func requestAccess() {
+        store.requestAccess(for: .contacts) { [weak self] _, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.authorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
+                self.loadIfNeeded(force: true)
+            }
+        }
+    }
+
+    func loadIfNeeded(force: Bool = false) {
+        authorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
+        guard authorizationStatus == .authorized else { return }
+        guard force || !didLoad else { return }
+        didLoad = true
+
+        let keys: [CNKeyDescriptor] = [
+            CNContactGivenNameKey as CNKeyDescriptor,
+            CNContactFamilyNameKey as CNKeyDescriptor,
+            CNContactPhoneNumbersKey as CNKeyDescriptor
+        ]
+
+        var loaded: [ContactSuggestion] = []
+        let request = CNContactFetchRequest(keysToFetch: keys)
+        try? store.enumerateContacts(with: request) { contact, _ in
+            let name = [contact.givenName, contact.familyName]
+                .joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayName = name.isEmpty ? "Unknown" : name
+
+            for phone in contact.phoneNumbers {
+                let value = phone.value.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty else { continue }
+                loaded.append(ContactSuggestion(displayName: displayName, phoneNumber: value))
+            }
+        }
+
+        contacts = loaded
+    }
+
+    func filteredContacts(matching query: String) -> [ContactSuggestion] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return Array(contacts.prefix(5)) }
+        return contacts.filter {
+            $0.displayName.localizedCaseInsensitiveContains(trimmed) ||
+            $0.phoneNumber.localizedCaseInsensitiveContains(trimmed)
         }
     }
 }
