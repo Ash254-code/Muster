@@ -135,6 +135,7 @@ struct MapMainView: View {
         case driving
         case hybrid
         case satellite
+        case blank
 
         var id: String { rawValue }
 
@@ -190,7 +191,7 @@ struct MapMainView: View {
 
         var isDarkPreview: Bool {
             switch self {
-            case .explore, .driving, .hybrid:
+            case .explore, .driving, .hybrid, .blank:
                 return true
             case .satellite:
                 return false
@@ -3470,12 +3471,21 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .frame(width: 90, height: 6)
                 .rotationEffect(.degrees(-24))
         }
+
     case .blank:
         ZStack {
-            Color.white
+            LinearGradient(
+                colors: [
+                    Color(red: 0.11, green: 0.11, blue: 0.12),
+                    Color(red: 0.07, green: 0.07, blue: 0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
             Image(systemName: "square.slash")
                 .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Color.black.opacity(0.35))
+                .foregroundStyle(Color.white.opacity(0.72))
         }
     }
 }

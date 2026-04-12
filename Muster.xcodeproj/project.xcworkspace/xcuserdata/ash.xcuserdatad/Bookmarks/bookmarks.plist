@@ -222,15 +222,15 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>       </string>
+				<string>   Circ</string>
 				<key>leading</key>
-				<string>                        .fill(isSelected ? Color(red: 0.0, green: 0.48, blue: 1.0) : .white.opacity(0.3))
-                )
+				<string>                .rotationEffect(.degrees(26))
+
          </string>
 				<key>trailing</key>
-				<string>.overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(isSelected ? Color(red: 0.35, green: 0.70, blue: 1.0) : .white.opacity(0.3), lineWidth: 1)
+				<string>le()
+                .fill(.orange)
+                .frame(width: 8, height: 8)
 </string>
 			</dict>
 			<key>type</key>
