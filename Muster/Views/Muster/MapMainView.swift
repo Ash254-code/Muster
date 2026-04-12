@@ -637,10 +637,6 @@ struct MapMainView: View {
         cruiseControlEnabled
     }
 
-    private var shouldHighlightBottomPanelForSession: Bool {
-        activeSession?.isActive == true || activeSession != nil
-    }
-
     private var elevationText: String {
         guard let altitude = location.lastLocation?.altitude else { return "--" }
         return UnitFormatting.formattedDistance(altitude, decimalsIfLarge: 0)
@@ -1384,6 +1380,11 @@ struct MapMainView: View {
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         ZStack(alignment: .top) {
+                            if activeSession?.isActive == true {
+                                dynamicIslandRecordingDot
+                                    .padding(.top, -2)
+                            }
+
                             topPillRow
 
                             if effectiveTargetCoordinate != nil {
@@ -2310,6 +2311,14 @@ struct MapMainView: View {
             }
             .frame(width: 108)
         }
+    }
+
+    private var dynamicIslandRecordingDot: some View {
+        Circle()
+            .fill(.red)
+            .frame(width: 10, height: 10)
+            .shadow(color: .red.opacity(0.35), radius: 6, y: 1)
+            .accessibilityHidden(true)
     }
 
     private func topSidePill(metric: TopSidePillMetric, side: TopSidePillPosition) -> some View {
@@ -4228,10 +4237,6 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .strokeBorder(chromeStroke, lineWidth: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .strokeBorder(shouldHighlightBottomPanelForSession ? .red : .clear, lineWidth: 4)
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
