@@ -284,7 +284,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 
     private func applyMapStyle(_ map: MKMapView) {
-        if guidanceNoMapEnabled || mapStyleRaw == "blank" {
+        if guidanceNoMapEnabled {
             map.mapType = .satellite
             map.isPitchEnabled = false
             map.showsBuildings = false
@@ -306,6 +306,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             map.mapType = .hybrid
         case "plain":
             map.mapType = .mutedStandard
+        case "blank":
+            map.mapType = .satellite
         default:
             map.mapType = .standard
         }
