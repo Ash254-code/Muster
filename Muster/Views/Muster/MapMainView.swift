@@ -4278,9 +4278,7 @@ struct MapMainView: View {
             .background(
                 UnevenRoundedRectangle(
                     topLeadingRadius: 30,
-                    topTrailingRadius: 30,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
+                    bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 30,
                     style: .continuous
                 )
                     .fill(chromeFill)
@@ -4288,9 +4286,7 @@ struct MapMainView: View {
             .overlay(
                 UnevenRoundedRectangle(
                     topLeadingRadius: 30,
-                    topTrailingRadius: 30,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
+                    bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 30,
                     style: .continuous
                 )
                     .strokeBorder(chromeStroke, lineWidth: 1)

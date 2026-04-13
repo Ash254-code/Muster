@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            showAutosteerHeadingValidationWarning = true
+				<string>                    Button("Cancel", role: .cancel) {
 </string>
 				<key>leading</key>
-				<string>        guard let _ = validatedAutosteerHeadingValue() else {
-            autosteerHeadingValidationWarningMessage = "Heading must be between 0.0000 and 360.0000, with up to 4 decimal places."
+				<string>                .alert("Add Paddock", isPresented: $showAddPaddockPrompt) {
+                    TextField("Paddock name", text: $newPaddockNameInput)
 </string>
 				<key>trailing</key>
-				<string>            return false
-        }
-        return true
+				<string>                        newPaddockNameInput = ""
+                    }
+                    Button("Save") {
 </string>
 			</dict>
 			<key>type</key>
