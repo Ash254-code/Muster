@@ -2403,50 +2403,52 @@ struct MapMainView: View {
     }
 
     private var cruiseControlStatusPill: some View {
-        Button {
-            showCruiseControlSheet = true
-        } label: {
-            VStack(spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(cruiseControlDisplaySpeedText)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(chromePrimaryText)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+        VStack(spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(cruiseControlDisplaySpeedText)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromePrimaryText)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
 
-                    Text(cruiseControlDisplayUnitText)
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(chromeSecondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                }
-
-                Text("Cruise Control")
-                    .font(.system(size: 9, weight: .semibold))
+                Text(cruiseControlDisplayUnitText)
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(chromeSecondaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity)
-            .frame(height: topPillHeight)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(chromeFill)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(chromeStroke, lineWidth: 2)
-            )
-            .overlay {
-                Capsule(style: .continuous)
-                    .strokeBorder(cruiseControlStatusRingColor, lineWidth: 2.5)
-            }
-            .shadow(color: chromeShadow, radius: 8, y: 3)
-            .contentShape(Capsule(style: .continuous))
+
+            Text("Cruise Control")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(chromeSecondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .frame(height: topPillHeight)
+        .background(
+            Capsule(style: .continuous)
+                .fill(chromeFill)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(chromeStroke, lineWidth: 2)
+        )
+        .overlay {
+            Capsule(style: .continuous)
+                .strokeBorder(cruiseControlStatusRingColor, lineWidth: 2.5)
+        }
+        .shadow(color: chromeShadow, radius: 8, y: 3)
+        .contentShape(Capsule(style: .continuous))
+        .onLongPressGesture(minimumDuration: 0.45) {
+            showCruiseControlQuickPopup = true
+        }
+        .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+            cruiseControlQuickPopup
+                .presentationCompactAdaptation(.popover)
+        }
     }
 
     private func topLeftZoomPill(zoomDistancePopupText: String) -> some View {
