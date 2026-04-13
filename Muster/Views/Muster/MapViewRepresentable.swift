@@ -559,15 +559,16 @@ struct MapViewRepresentable: UIViewRepresentable {
             let guidanceBlankMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
 
             if let existing = userLocationAnnotation {
-                if guidanceBlankMode {
-                    existing.coordinate = blendedGuidanceCoordinate(
-                        from: existing.coordinate,
-                        to: userLocation.coordinate,
-                        smoothingFactor: 0.24
-                    )
-                } else {
-                    existing.coordinate = userLocation.coordinate
-                }
+                let smoothing: (min: Double, max: Double, fullSpeedDistanceMeters: Double) = guidanceBlankMode
+                    ? (0.24, 0.72, 26)
+                    : (0.18, 0.58, 18)
+                existing.coordinate = smoothedCoordinate(
+                    from: existing.coordinate,
+                    to: userLocation.coordinate,
+                    minimumFactor: smoothing.min,
+                    maximumFactor: smoothing.max,
+                    fullSpeedDistanceMeters: smoothing.fullSpeedDistanceMeters
+                )
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
                 existing.useCrosshair = parent.useCrosshairUserMarker
@@ -1082,7 +1083,15 @@ struct MapViewRepresentable: UIViewRepresentable {
             let dt = lastDisplayTickTime == 0 ? (1.0 / 60.0) : min(0.05, now - lastDisplayTickTime)
             lastDisplayTickTime = now
 
-            let positionAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 7.2 : 3.2))
+            let centerDistanceMeters: CLLocationDistance = {
+                let from = CLLocation(latitude: displayedCenter.latitude, longitude: displayedCenter.longitude)
+                let to = CLLocation(latitude: targetCenter.latitude, longitude: targetCenter.longitude)
+                return from.distance(from: to)
+            }()
+
+            let followBaseRate = isAnimatingCameraTransition ? 7.2 : 4.6
+            let followCatchUpBoost = min(7.8, centerDistanceMeters / 8.0)
+            let positionAlpha = min(1.0, dt * (followBaseRate + followCatchUpBoost))
             let headingAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 6.2 : 2.2))
             let distanceAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.0))
             let pitchAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.5))
@@ -2224,23 +2233,19 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
         }
 
-        private func blendedGuidanceCoordinate(
-            from current: CLLocationCoordinate2D,
-            to target: CLLocationCoordinate2D,
-            smoothingFactor: Double
-        ) -> CLLocationCoordinate2D {
-            let alpha = min(max(smoothingFactor, 0), 1)
-            let latitude = current.latitude + (target.latitude - current.latitude) * alpha
-            let longitude = current.longitude + (target.longitude - current.longitude) * alpha
-            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        }
-
         private func smoothedCoordinate(
             from current: CLLocationCoordinate2D,
             to target: CLLocationCoordinate2D,
-            smoothingFactor: Double
+            minimumFactor: Double,
+            maximumFactor: Double,
+            fullSpeedDistanceMeters: Double
         ) -> CLLocationCoordinate2D {
-            let alpha = min(max(smoothingFactor, 0), 1)
+            let currentLocation = CLLocation(latitude: current.latitude, longitude: current.longitude)
+            let targetLocation = CLLocation(latitude: target.latitude, longitude: target.longitude)
+            let distanceMeters = currentLocation.distance(from: targetLocation)
+            let normalizedDistance = min(max(distanceMeters / max(fullSpeedDistanceMeters, 1), 0), 1)
+            let easedDistance = 1 - pow(1 - normalizedDistance, 2)
+            let alpha = minimumFactor + (maximumFactor - minimumFactor) * easedDistance
             let latitude = current.latitude + (target.latitude - current.latitude) * alpha
             let longitude = current.longitude + (target.longitude - current.longitude) * alpha
             return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
