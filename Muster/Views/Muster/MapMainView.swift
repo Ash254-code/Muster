@@ -1725,7 +1725,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "road.lanes")
                         .foregroundStyle(.blue)
-                    VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 0) {
                         Text(selectedAutosteerNameDisplay)
                         Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -1734,7 +1734,6 @@ struct MapMainView: View {
                             .minimumScaleFactor(0.85)
                             .padding(.top, 1)
                     }
-                    Spacer(minLength: 0)
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1766,13 +1765,13 @@ struct MapMainView: View {
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
-                    beginAutosteerSetup(mode: "Curve Track")
+                    startNewTrackImmediatelyFromQuickAction()
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "point.bottomleft.forward.to.point.topright.scurvepath.fill")
+                    Image(systemName: "record.circle")
                         .foregroundStyle(.blue)
-                    Text("Curve")
+                    Text("Track Recording")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1837,9 +1836,9 @@ struct MapMainView: View {
         Button(action: action) {
             label()
                 .foregroundStyle(.white.opacity(0.93))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 .frame(minHeight: 46)
-                .multilineTextAlignment(.leading)
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 1)
                 .background(
