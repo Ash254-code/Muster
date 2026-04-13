@@ -737,18 +737,9 @@ struct AutosteerSettingsView: View {
     @State private var workingWidthText: String = ""
     @State private var showWorkingWidthEditor: Bool = false
     @FocusState private var workingWidthFieldFocused: Bool
-    @AppStorage(kAutosteerTrackModeKey) private var trackModeRaw: String = TrackMode.abLine.rawValue
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
     @AppStorage(kAutosteerLightbarStepCMKey) private var lightbarStepCM: Double = 2
-    @AppStorage(kAutosteerSetupModeKey) private var setupModeRaw: String = "none"
-    @AppStorage(kAutosteerSetupActiveKey) private var setupActive: Bool = false
-    @Environment(\.dismiss) private var dismiss
-
-    private var selectedTrackMode: TrackMode {
-        TrackMode(rawValue: trackModeRaw) ?? .abLine
-    }
-
     private var gpsStatusText: String {
         if location.lastLocation != nil { return "Connected" }
         if location.lastError != nil { return "Unavailable" }
@@ -803,9 +794,6 @@ struct AutosteerSettingsView: View {
                             .foregroundStyle(.blue)
                         Text("Working Width")
                         Spacer()
-                        Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 2))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
                     }
                     Button {
                         startWorkingWidthEditing()
@@ -881,17 +869,6 @@ struct AutosteerSettingsView: View {
         }
         .navigationTitle("Autosteer")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                }
-                .accessibilityLabel("Close")
-            }
-        }
         .onAppear {
             syncWorkingWidthText()
         }
