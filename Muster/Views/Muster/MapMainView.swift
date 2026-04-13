@@ -638,6 +638,10 @@ struct MapMainView: View {
         cruiseControlEnabled && autosteerActive
     }
 
+    private var cruiseControlStatusRingColor: Color {
+        cruiseControlIsActive ? .blue : .orange
+    }
+
     private var speedPillShouldHighlightMatch: Bool {
         guard cruiseControlIsActive,
               let actualSpeedKPH = speedPillActualSpeedKPH else { return false }
@@ -2434,10 +2438,8 @@ struct MapMainView: View {
                     .strokeBorder(chromeStroke, lineWidth: 2)
             )
             .overlay {
-                if speedPillShouldHighlightMatch {
-                    Capsule(style: .continuous)
-                        .strokeBorder(.blue, lineWidth: 2.5)
-                }
+                Capsule(style: .continuous)
+                    .strokeBorder(cruiseControlStatusRingColor, lineWidth: 2.5)
             }
             .shadow(color: chromeShadow, radius: 8, y: 3)
             .contentShape(Capsule(style: .continuous))
@@ -2871,7 +2873,7 @@ struct MapMainView: View {
     private var autosteerReadinessButton: some View {
         let fraction = Double(autosteerReadinessCount) / 4.0
         let isFullyLocked = autosteerActive && autosteerReadinessCount == 4
-        let readinessRingColor: Color = autosteerReadinessCount == 4 ? .blue : .orange
+        let readinessRingColor: Color = autosteerActive ? .blue : .orange
         return Button {
             if didTriggerAutosteerLongPress {
                 didTriggerAutosteerLongPress = false
@@ -2879,9 +2881,12 @@ struct MapMainView: View {
             }
             if autosteerGoReady {
                 let shouldActivateAutosteer = autosteerActive == false
-                autosteerActive.toggle()
-                if shouldActivateAutosteer, cruiseControlEnabled {
+                if shouldActivateAutosteer {
+                    cruiseControlEnabled = true
+                    autosteerActive = true
                     showCruiseControlSetSpeedPopup()
+                } else {
+                    autosteerActive = false
                 }
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(autosteerActive ? .success : .warning)
