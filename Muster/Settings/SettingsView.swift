@@ -374,6 +374,9 @@ private struct CellularTrackingSettingsView: View {
     private var contactSuggestions: [ContactSuggestion] {
         Array(contactSearch.filteredContacts(matching: contactQuery).prefix(5))
     }
+    private var isContactQueryEmpty: Bool {
+        contactQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         Form {
@@ -399,20 +402,44 @@ private struct CellularTrackingSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    TextField("Search contacts", text: $contactQuery)
-                        .textInputAutocapitalization(.words)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search contacts", text: $contactQuery)
+                            .textInputAutocapitalization(.words)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.thinMaterial, in: Capsule())
 
                     ForEach(contactSuggestions) { contact in
                         Button {
                             inviteName = contact.displayName
                             invitePhoneNumber = contact.phoneNumber
+                            contactQuery = contact.displayName
                         } label: {
                             ContactSuggestionRow(contact: contact)
                         }
                         .buttonStyle(.plain)
                     }
-                }
 
+                    if isContactQueryEmpty {
+                        Text("Start typing to find contacts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if contactSuggestions.isEmpty {
+                        Text("No matches yet. Keep typing a name or phone number.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Invite from contacts")
+            } footer: {
+                Text("Search above to quickly find a person, then review/edit details below before sending.")
+            }
+
+            Section {
                 TextField("Name", text: $inviteName)
                     .textInputAutocapitalization(.words)
                 TextField("Phone number", text: $invitePhoneNumber)
@@ -423,109 +450,55 @@ private struct CellularTrackingSettingsView: View {
                 }
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
-                Text("Invite Participants")
+                Text("Send invite")
             }
 
             Section {
-                if app.cellularTracking.pendingInvites.isEmpty {
-                    Text("No pending invites.")
+                if app.cellularTracking.members.isEmpty {
+                    Text("No invited members yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(app.cellularTracking.pendingInvites) { invite in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(invite.inviteeName)
-                            Text("Expires \(invite.expiresAt.formatted(date: .abbreviated, time: .shortened))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Button("Revoke Invite") {
-                                Task { await app.cellularTracking.revokeInvite(invite.id) }
+                    ForEach(app.cellularTracking.members) { member in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(member.name)
+                                    Text(member.phoneNumber)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(statusText(for: member))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(statusColor(for: member))
                             }
-                            .buttonStyle(.bordered)
+
+                            if member.invitationStatus == .pending {
+                                HStack(spacing: 12) {
+                                    Button("Accept") {
+                                        app.cellularTracking.respondToInvitation(
+                                            for: member.id,
+                                            accepted: true,
+                                            duration: selectedShareDuration.interval
+                                        )
+                                    }
+                                    .buttonStyle(.borderedProminent)
+
+                                    Button("Reject") {
+                                        app.cellularTracking.respondToInvitation(
+                                            for: member.id,
+                                            accepted: false,
+                                            duration: nil
+                                        )
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
                         }
                     }
                 }
             } header: {
-                Text("Pending Invites")
-            }
-
-            Section {
-                if app.cellularTracking.activeSessions.isEmpty {
-                    Text("No active cellular sessions.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(app.cellularTracking.activeSessions) { session in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Session \(session.id)")
-                                .font(.subheadline.weight(.semibold))
-                            if let endsAt = session.endsAt {
-                                Text("Ends: \(endsAt.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("Ends: Until stopped")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Button("Stop Sharing Early") {
-                                Task { await app.cellularTracking.stopShareSession(session.id) }
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                }
-            } header: {
-                Text("Active Cellular Sessions")
-            }
-
-            Section {
-                ForEach(app.cellularTracking.members) { member in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(member.name)
-                            Text("Last update: \(lastUpdateText(for: member))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if let ends = member.presence.shareEndsAt {
-                                Text("Share ends: \(ends.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Text(transportBadge(member.presence.effectiveTransport))
-                            .font(.caption.weight(.bold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(.secondarySystemFill), in: Capsule())
-                    }
-                }
-            } header: {
-                Text("Participant Presence")
-            }
-
-            if let invite = app.cellularTracking.inboundInvite {
-                Section {
-                    Text("Inviter: \(invite.inviterName)")
-                    Text("Group: \(invite.groupName)")
-                    TextField("Your name", text: $joinParticipantName)
-                    Picker("Share duration", selection: $selectedShareDuration) {
-                        ForEach(ShareDurationOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
-                        }
-                    }
-                    Button("Join Group Tracking") {
-                        Task {
-                            _ = await app.cellularTracking.acceptInvite(
-                                token: invite.token,
-                                participantName: joinParticipantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Participant" : joinParticipantName,
-                                duration: selectedShareDuration == .untilStop ? nil : selectedShareDuration.interval
-                            )
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                } header: {
-                    Text("Join Group Tracking")
-                }
+                Text("Shared members")
             }
         }
         .navigationTitle("Cellular")
@@ -688,7 +661,7 @@ private final class ContactSearchStore: ObservableObject {
 
     func filteredContacts(matching query: String) -> [ContactSuggestion] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return Array(contacts.prefix(5)) }
+        guard !trimmed.isEmpty else { return [] }
         return contacts.filter {
             $0.displayName.localizedCaseInsensitiveContains(trimmed) ||
             $0.phoneNumber.localizedCaseInsensitiveContains(trimmed)
