@@ -2695,40 +2695,9 @@ struct MapMainView: View {
                     .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
             )
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Set speed")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    Button {
-                        cruiseControlSpeedKPH = max(2, clampedCruiseControlSpeedKPH - 1)
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .frame(minWidth: 120, alignment: .center)
-
-                    Button {
-                        cruiseControlSpeedKPH = min(100, clampedCruiseControlSpeedKPH + 1)
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
-            }
-
             Button {
                 showCruiseControlQuickPopup = false
-                beginAutosteerSetup(mode: "Curve Track")
+                startNewTrackImmediatelyFromQuickAction()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "record.circle.fill")
