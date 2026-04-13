@@ -2898,19 +2898,14 @@ struct MapMainView: View {
             ZStack {
                 Capsule(style: .continuous)
                     .fill(chromeFill)
-                    .frame(height: topPillHeight)
-
                 Capsule(style: .continuous)
-                    .stroke(chromeStroke.opacity(0.8), lineWidth: 2.5)
-                    .frame(height: topPillHeight - 6)
-
+                    .strokeBorder(chromeStroke, lineWidth: 2)
                 Capsule(style: .continuous)
                     .trim(from: 0, to: fraction)
                     .stroke(
                         readinessRingColor,
                         style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                     )
-                    .frame(height: topPillHeight + 1)
 
                 VStack(spacing: 0) {
                     if isFullyLocked {
@@ -2927,7 +2922,11 @@ struct MapMainView: View {
                     }
                 }
             }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: topPillHeight)
             .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
+            .contentShape(Capsule(style: .continuous))
             .accessibilityLabel("Autosteer readiness")
             .accessibilityValue("\(autosteerReadinessCount) of 4 checks ready")
             .accessibilityHint(autosteerReadinessAccessibilityHint)
