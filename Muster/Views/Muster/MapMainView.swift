@@ -916,13 +916,6 @@ struct MapMainView: View {
         }
     }
 
-    private var topPillPickerPresented: Binding<Bool> {
-        Binding(
-            get: { topPillPickerSide != nil },
-            set: { if !$0 { topPillPickerSide = nil } }
-        )
-    }
-
     private var topPillPickerTitle: String {
         switch topPillPickerSide {
         case .left:
@@ -1250,23 +1243,6 @@ struct MapMainView: View {
 
     private var presentedMainContent: some View {
         dialogHostedMainContent
-            .confirmationDialog(
-                topPillPickerTitle,
-                isPresented: topPillPickerPresented,
-                titleVisibility: .visible
-            ) {
-                ForEach(TopSidePillMetric.allCases) { metric in
-                    Button(metric.menuTitle) {
-                        applyTopPillMetric(metric)
-                    }
-                }
-
-                Button("Cancel", role: .cancel) {
-                    topPillPickerSide = nil
-                }
-            } message: {
-                Text("Choose what this pill displays.")
-            }
             .alert("Edit Marker", isPresented: $showEditSessionMarkerAlert) {
                 editSessionMarkerAlertActions
             } message: {
@@ -1535,22 +1511,14 @@ struct MapMainView: View {
                     .zIndex(20)
                 }
 
-                if showAutosteerQuickActions {
+                if isAnyTopQuickCardPresented {
                     Color.black.opacity(0.28)
                         .ignoresSafeArea()
                         .transition(.opacity)
                         .onTapGesture {
-                            dismissAutosteerQuickActions()
+                            dismissTopQuickCards()
                         }
                         .zIndex(24)
-
-                    autosteerQuickActionsSheet(
-                        maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
-                    )
-                        .padding(.horizontal, 18)
-                        .offset(y: -min(160, max(90, geo.size.height * 0.13)))
-                        .transition(.scale(scale: 0.96).combined(with: .opacity))
-                        .zIndex(25)
                 }
 
                 VStack(spacing: 0) {
@@ -1607,6 +1575,19 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .top) {
+                if isAnyTopQuickCardPresented {
+                    VStack(spacing: 0) {
+                        activeTopQuickCard(maxWidth: geo.size.width)
+                            .padding(.horizontal, 18)
+                            .padding(.top, 76)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .zIndex(26)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .top) {
                 if isAutosteerTrackSetupActive {
                     autosteerTrackSetupOverlay(maxWidth: geo.size.width)
                         .padding(.top, 76)
@@ -1635,11 +1616,6 @@ struct MapMainView: View {
         .sheet(isPresented: $showAutosteerLightbarStepEditor) {
             autosteerLightbarStepEditorSheet
                 .presentationDetents([.height(250)])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showCruiseControlSheet) {
-            cruiseControlSheet
-                .presentationDetents([.height(320)])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -1682,38 +1658,56 @@ struct MapMainView: View {
         }
     }
 
-    private var cruiseControlSheet: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                Toggle("Enable Cruise Control", isOn: $cruiseControlEnabled)
-                    .font(.headline)
+    private var cruiseControlQuickCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Enable Cruise Control", isOn: $cruiseControlEnabled)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
+                .padding(.horizontal, 12)
+                .frame(height: 44)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(quickPopupRowFill)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+                )
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Cruise Speed")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                    Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
-                    Text("Adjust between 2 and 100 km/h.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Cruise Speed")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromeSecondaryText)
+                Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(chromePrimaryText)
+                    .monospacedDigit()
+                Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
+                    .tint(.blue)
+                Text("Adjust between 2 and 100 km/h.")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromeSecondaryText)
             }
-            .padding(20)
-            .navigationTitle("Cruise Control")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        showCruiseControlSheet = false
-                    }
-                }
-            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(quickPopupRowFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+            )
         }
+        .padding(14)
+        .frame(width: 300)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(quickPopupFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
+        )
     }
 
     private func presentAutosteerLightbarStepEditor() {
@@ -1722,142 +1716,125 @@ struct MapMainView: View {
     }
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
-        VStack(spacing: 8) {
-            HStack {
-                Button {
-                    dismissAutosteerQuickActions()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Circle()
-                                .fill(.white.opacity(0.12))
-                        )
-                }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 8)
-
-                Text("Autosteer")
-                    .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
-
-                Spacer(minLength: 8)
-
-                Color.clear
-                    .frame(width: 28, height: 28)
-            }
-
-            autosteerSectionHeading("Current Track")
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    refreshKnownFarms()
-                    showAutosteerTrackSelector = true
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "road.lanes")
-                        .foregroundStyle(.blue)
-                    VStack(spacing: 0) {
-                        Text(selectedAutosteerNameDisplay)
-                        Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                            .padding(.top, 1)
-                    }
-                }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-
-            autosteerSectionHeading("Create New Tracks")
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    beginAutosteerSetup(mode: "A+B line")
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
-                        .foregroundStyle(.blue)
-                    Text("A + B")
-                }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    beginAutosteerSetup(mode: "A+Heading")
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "point.topleft.down.to.point.bottomright.filled.curvepath")
-                        .foregroundStyle(.blue)
-                    Text("A + Heading")
-                }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    startNewTrackImmediatelyFromQuickAction()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "record.circle")
-                        .foregroundStyle(.blue)
-                    Text("Track Recording")
-                }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-
-            autosteerSectionHeading("Settings")
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    showAutosteerSettings = true
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "steeringwheel")
-                        .foregroundStyle(.blue)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 8) {
+                HStack {
                     Text("Autosteer")
+                        .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
+                        .foregroundStyle(chromePrimaryText)
+                    Spacer(minLength: 0)
                 }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
 
-            autosteerQuickActionPill {
-                handleAutosteerQuickAction {
-                    showCruiseControlSheet = true
+                autosteerSectionHeading("Current Track")
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        refreshKnownFarms()
+                        showAutosteerTrackSelector = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "road.lanes")
+                            .foregroundStyle(.blue)
+                        VStack(spacing: 0) {
+                            Text(selectedAutosteerNameDisplay)
+                            Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
+                                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                .foregroundStyle(chromeSecondaryText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .padding(.top, 1)
+                        }
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
-                        .foregroundStyle(.blue)
-                    Text("Cruise Control")
+
+                autosteerSectionHeading("Create New Tracks")
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        beginAutosteerSetup(mode: "A+B line")
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                            .foregroundStyle(.blue)
+                        Text("A + B")
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
                 }
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        beginAutosteerSetup(mode: "A+Heading")
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "point.topleft.down.to.point.bottomright.filled.curvepath")
+                            .foregroundStyle(.blue)
+                        Text("A + Heading")
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                }
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        startNewTrackImmediatelyFromQuickAction()
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "record.circle")
+                            .foregroundStyle(.blue)
+                        Text("Track Recording")
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                }
+
+                autosteerSectionHeading("Settings")
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        showAutosteerSettings = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "steeringwheel")
+                            .foregroundStyle(.blue)
+                        Text("Autosteer")
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                }
+
+                autosteerQuickActionPill {
+                    handleAutosteerQuickAction {
+                        showCruiseControlSheet = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
+                            .foregroundStyle(.blue)
+                        Text("Cruise Control")
+                    }
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                }
+                .padding(.bottom, 2)
             }
-            .padding(.bottom, 2)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .frame(maxWidth: maxWidth)
+        .frame(maxHeight: 420)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.98))
+                .fill(quickPopupFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
+                .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
+        .shadow(color: chromeShadow, radius: 20, y: 8)
     }
 
     private func autosteerSectionHeading(_ title: String) -> some View {
         HStack {
             Text(title)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(chromeSecondaryText)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
@@ -1870,7 +1847,7 @@ struct MapMainView: View {
     ) -> some View {
         Button(action: action) {
             label()
-                .foregroundStyle(.white.opacity(0.93))
+                .foregroundStyle(chromePrimaryText)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 46)
                 .multilineTextAlignment(.center)
@@ -1878,7 +1855,7 @@ struct MapMainView: View {
                 .padding(.vertical, 1)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(.white.opacity(0.08))
+                        .fill(quickPopupRowFill)
                 )
                 .overlay(
                     Capsule(style: .continuous)
@@ -2421,6 +2398,67 @@ struct MapMainView: View {
         colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.045)
     }
 
+    private var isAnyTopQuickCardPresented: Bool {
+        showCruiseControlQuickPopup || showCruiseControlSheet || showAutosteerQuickActions || topPillPickerSide != nil
+    }
+
+    private func dismissTopQuickCards() {
+        showCruiseControlQuickPopup = false
+        showCruiseControlSheet = false
+        showAutosteerQuickActions = false
+        topPillPickerSide = nil
+    }
+
+    @ViewBuilder
+    private func activeTopQuickCard(maxWidth: CGFloat) -> some View {
+        if showCruiseControlQuickPopup {
+            cruiseControlQuickPopup
+        } else if showCruiseControlSheet {
+            cruiseControlQuickCard
+        } else if showAutosteerQuickActions {
+            autosteerQuickActionsSheet(maxWidth: maxWidth)
+        } else if topPillPickerSide != nil {
+            topPillMetricPickerCard
+        }
+    }
+
+    private var topPillMetricPickerCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(topPillPickerTitle)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
+
+            ForEach(TopSidePillMetric.allCases) { metric in
+                Button(metric.menuTitle) {
+                    applyTopPillMetric(metric)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(chromePrimaryText)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(quickPopupRowFill)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+                )
+            }
+        }
+        .padding(14)
+        .frame(width: 280)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(quickPopupFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
+        )
+    }
+
     private var topPillRow: some View {
         HStack(spacing: 10) {
             Group {
@@ -2492,6 +2530,7 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    dismissTopQuickCards()
                     showCruiseControlSheet = true
                 }
         )
@@ -2571,6 +2610,7 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    dismissTopQuickCards()
                     topPillPickerSide = side
                 }
         )
@@ -2677,13 +2717,10 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    dismissTopQuickCards()
                     showCruiseControlQuickPopup = true
                 }
         )
-        .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
-            cruiseControlQuickPopup
-                .presentationCompactAdaptation(.popover)
-        }
     }
 
     private var cruiseControlQuickPopup: some View {
@@ -2975,6 +3012,7 @@ struct MapMainView: View {
         .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.65)
                 .onEnded { _ in
+                    dismissTopQuickCards()
                     didTriggerAutosteerLongPress = true
                     showAutosteerQuickActions = true
                 }
