@@ -767,15 +767,30 @@ struct AutosteerSettingsView: View {
         Form {
             Section {
                 Toggle(isOn: $autosteerEnabled) {
-                    Label("Enable Autosteer", systemImage: "steeringwheel")
-                        .foregroundStyle(.blue)
+                    HStack(spacing: 10) {
+                        Image(systemName: "steeringwheel")
+                            .foregroundStyle(.blue)
+                        Text("Enable Autosteer")
+                            .foregroundStyle(.white)
+                    }
                 }
                 HStack {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .foregroundStyle(.blue)
                     Text("GPS Signal")
                     Spacer()
                     Text(gpsStatusText)
                         .fontWeight(.semibold)
                         .foregroundStyle(gpsStatusColor)
+                }
+                HStack {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .foregroundStyle(.blue)
+                    Text("RTK")
+                    Spacer()
+                    Text("Connected")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.green)
                 }
             } header: {
                 Text("Autosteer")
@@ -784,6 +799,8 @@ struct AutosteerSettingsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
+                        Image(systemName: "ruler")
+                            .foregroundStyle(.blue)
                         Text("Working Width")
                         Spacer()
                         Text(UnitFormatting.formattedDistance(workingWidthM, decimalsIfLarge: 2))
@@ -812,22 +829,6 @@ struct AutosteerSettingsView: View {
                 }
             } header: {
                 Text("Implement Setup")
-            }
-
-            Section {
-                Picker("Track Type", selection: $trackModeRaw) {
-                    ForEach(TrackMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode.rawValue)
-                    }
-                }
-
-                Button("Start \(selectedTrackMode.rawValue) on Map") {
-                    setupModeRaw = selectedTrackMode.rawValue
-                    setupActive = true
-                    dismiss()
-                }
-            } header: {
-                Text("Track Options")
             }
 
             Section {
