@@ -6359,14 +6359,10 @@ private struct AppleMapsBottomPanelContainer: View {
         VStack(spacing: 0) {
             Capsule()
                 .fill(
-                    isTrackRecordingActive
-                    ? Color.red.opacity(colorScheme == .dark ? 0.85 : 0.75)
-                    : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
+                    colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25)
                 )
                 .shadow(
-                    color: isTrackRecordingActive
-                    ? Color.red.opacity(colorScheme == .dark ? 0.45 : 0.3)
-                    : (colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12)),
+                    color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12),
                     radius: 4
                 )
                 .frame(width: 34, height: 5)
@@ -6392,6 +6388,12 @@ private struct AppleMapsBottomPanelContainer: View {
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .strokeBorder(chromeStroke, lineWidth: 1)
+        )
+        .shadow(
+            color: isTrackRecordingActive
+            ? Color.red.opacity(colorScheme == .dark ? 0.28 : 0.22)
+            : .clear,
+            radius: 26
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
