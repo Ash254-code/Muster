@@ -97,6 +97,18 @@ struct MapMainView: View {
             case .tripDistance: return "Total kms on track / trip"
             }
         }
+
+        var menuIcon: String {
+            switch self {
+            case .weather: return "cloud.sun.fill"
+            case .wind: return "location.north.fill"
+            case .altitude: return "mountain.2.fill"
+            case .distanceToTarget: return "point.topleft.down.curvedto.point.bottomright.up"
+            case .etaAtTarget: return "clock.fill"
+            case .headingBearing: return "location.north.fill"
+            case .tripDistance: return "road.lanes"
+            }
+        }
     }
 
     private enum TopSidePillPosition {
@@ -1919,11 +1931,22 @@ struct MapMainView: View {
                     .foregroundStyle(.white.opacity(0.72))
 
                 ForEach(TopSidePillMetric.allCases) { metric in
-                    Button(metric.menuTitle) {
+                    Button {
                         applyTopPillMetric(metric)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: metric.menuIcon)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.blue)
+                                .frame(width: 18)
+
+                            Text(metric.menuTitle)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.95))
+
+                            Spacer(minLength: 0)
+                        }
                     }
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.95))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
