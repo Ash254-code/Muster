@@ -17,6 +17,7 @@ private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // B
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double 0...10
+private let kMapPositionSmoothingIntensityKey = "map_position_smoothing_intensity" // Double 0...1
 
 // Quick zoom preset keys
 private let kQuickZoom1MetersKey = "quick_zoom_1_m"    // Double
@@ -312,6 +313,7 @@ struct MapMainView: View {
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
     @AppStorage(kHeadsUpPitchDegreesKey) private var headsUpPitchDegrees: Double = 45
     @AppStorage(kHeadsUpUserVerticalOffsetKey) private var headsUpUserVerticalOffset: Double = 10
+    @AppStorage(kMapPositionSmoothingIntensityKey) private var mapPositionSmoothingIntensity: Double = 0.65
     @AppStorage("map_style") private var mapStyleRaw: String = "standard"
     @AppStorage(kSheepPinEnabledKey) private var sheepPinEnabled: Bool = true
     @AppStorage(kSheepPinIconKey) private var sheepPinIconRaw: String = "sheep"
@@ -2060,6 +2062,7 @@ struct MapMainView: View {
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
             useCrosshairUserMarker: isAutosteerTrackSetupActive,
+            positionSmoothingIntensity: mapPositionSmoothingIntensity,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
