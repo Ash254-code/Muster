@@ -180,118 +180,47 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("General") {
-                    NavigationLink {
-                        AppSettingsView()
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
+            ScrollView {
+                VStack(spacing: 12) {
+                    settingsSection("General") {
+                        settingsLink("Settings", systemImage: "gearshape") { AppSettingsView() }
+                        settingsLink("Autosteer", systemImage: "steeringwheel") { AutosteerSettingsView() }
+                        settingsLink("Cruise Control", systemImage: "speedometer") { CruiseControlSettingsView() }
+                        settingsLink("XRS Radio", systemImage: "dot.radiowaves.left.and.right") { BluetoothSettingsView() }
+                        settingsLink("TPMS", systemImage: "tirepressure") { TPMSDashboardHostView() }
+                        settingsLink("Group Tracking", systemImage: "person.2") { GroupTrackingSettingsView() }
                     }
 
-                    NavigationLink {
-                        AutosteerSettingsView()
-                    } label: {
-                        Label("Autosteer", systemImage: "steeringwheel")
+                    settingsSection("Map") {
+                        settingsLink("Map View", systemImage: "map") { MapSettingsView() }
+                        settingsLink("Rings", systemImage: "scope") { RingsSettingsView() }
+                        settingsLink("Top Pills", systemImage: "capsule") { TopPillsSettingsView() }
+                        settingsLink("Marker Templates", systemImage: "mappin.and.ellipse") {
+                            MarkerTemplatesSettingsView()
+                                .environmentObject(app)
+                        }
+                        settingsLink("Quick Drop Pin", systemImage: "mappin") { SheepPinSettingsView() }
+                        settingsLink("Advanced Map", systemImage: "map.fill") { AdvancedMapSettingsView() }
                     }
 
-                    NavigationLink {
-                        CruiseControlSettingsView()
-                    } label: {
-                        Label("Cruise Control", systemImage: "speedometer")
+                    settingsSection("Data") {
+                        settingsLink("Import", systemImage: "square.and.arrow.down") {
+                            ImportExportView(mode: .import)
+                                .environmentObject(app)
+                        }
+                        settingsLink("Export", systemImage: "square.and.arrow.up") {
+                            ImportExportView(mode: .export)
+                                .environmentObject(app)
+                        }
                     }
 
-                    NavigationLink {
-                        BluetoothSettingsView()
-                    } label: {
-                        Label("XRS Radio", systemImage: "dot.radiowaves.left.and.right")
-                    }
-
-                    NavigationLink {
-                        TPMSDashboardHostView()
-                    } label: {
-                        Label("TPMS", systemImage: "tirepressure")
-                    }
-
-                    NavigationLink {
-                        GroupTrackingSettingsView()
-                    } label: {
-                        Label("Group Tracking", systemImage: "person.2")
+                    settingsSection("Admin") {
+                        settingsLink("Map Tuning", systemImage: "slider.horizontal.3") { AdminMapTuningView() }
+                        settingsLink("XRS Radio Debug", systemImage: "waveform.path.ecg") { BLERadioDebugView() }
+                        settingsLink("Battery & Thermal", systemImage: "battery.75") { BatteryThermalSettingsView() }
                     }
                 }
-                Section("Map") {
-                    NavigationLink {
-                        MapSettingsView()
-                    } label: {
-                        Label("Map View", systemImage: "map")
-                    }
-
-                    NavigationLink {
-                        RingsSettingsView()
-                    } label: {
-                        Label("Rings", systemImage: "scope")
-                    }
-
-                    NavigationLink {
-                        TopPillsSettingsView()
-                    } label: {
-                        Label("Top Pills", systemImage: "capsule")
-                    }
-
-                    NavigationLink {
-                        MarkerTemplatesSettingsView()
-                            .environmentObject(app)
-                    } label: {
-                        Label("Marker Templates", systemImage: "mappin.and.ellipse")
-                    }
-
-                    NavigationLink {
-                        SheepPinSettingsView()
-                    } label: {
-                        Label("Quick Drop Pin", systemImage: "mappin")
-                    }
-
-                    NavigationLink {
-                        AdvancedMapSettingsView()
-                    } label: {
-                        Label("Advanced Map", systemImage: "map.fill")
-                    }
-                }
-
-                Section("Data") {
-                    NavigationLink {
-                        ImportExportView(mode: .import)
-                            .environmentObject(app)
-                    } label: {
-                        Label("Import", systemImage: "square.and.arrow.down")
-                    }
-
-                    NavigationLink {
-                        ImportExportView(mode: .export)
-                            .environmentObject(app)
-                    } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
-                    }
-                }
-
-                Section("Admin") {
-                    NavigationLink {
-                        AdminMapTuningView()
-                    } label: {
-                        Label("Map Tuning", systemImage: "slider.horizontal.3")
-                    }
-
-                    NavigationLink {
-                        BLERadioDebugView()
-                    } label: {
-                        Label("XRS Radio Debug", systemImage: "waveform.path.ecg")
-                    }
-
-                    NavigationLink {
-                        BatteryThermalSettingsView()
-                    } label: {
-                        Label("Battery & Thermal", systemImage: "battery.75")
-                    }
-                }
+                .padding(14)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -306,6 +235,42 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                VStack(spacing: 8) {
+                    content()
+                }
+            }
+        }
+    }
+
+    private func settingsLink<Destination: View>(
+        _ title: String,
+        systemImage: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
