@@ -360,6 +360,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var displayedUserAnnotationCoordinate: CLLocationCoordinate2D?
         private var targetUserAnnotationCoordinate: CLLocationCoordinate2D?
         private var filteredFollowCoordinate: CLLocationCoordinate2D?
+        private var lastUserAnnotationTickTime: CFTimeInterval = 0
         private var destinationLineCoordinateCache: CLLocationCoordinate2D?
 
         weak var longPressGesture: UILongPressGestureRecognizer?
@@ -548,6 +549,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 }
                 displayedUserAnnotationCoordinate = nil
                 targetUserAnnotationCoordinate = nil
+                lastUserAnnotationTickTime = 0
                 return
             }
 
@@ -559,6 +561,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 displayedUserAnnotationCoordinate = nil
                 targetUserAnnotationCoordinate = nil
                 filteredFollowCoordinate = nil
+                lastUserAnnotationTickTime = 0
                 return
             }
 
@@ -615,7 +618,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 }
             }
 
-            updateSmoothedUserAnnotation()
+            updateSmoothedUserAnnotation(deltaTime: 1.0 / 60.0)
         }
 
         func applyCameraModeIfNeeded(
@@ -705,13 +708,27 @@ struct MapViewRepresentable: UIViewRepresentable {
             let newCoord = userLocation.coordinate
             let preservedDistance = currentPreservedDistance(from: map)
             let pitch = resolvedPitchDegrees()
-            filteredFollowCoordinate = smoothedCoordinate(
-                from: filteredFollowCoordinate ?? newCoord,
-                to: newCoord,
-                minimumFactor: 0.22,
-                maximumFactor: 0.82,
-                fullSpeedDistanceMeters: 35
-            )
+            if let previousFiltered = filteredFollowCoordinate {
+                let a = CLLocation(latitude: previousFiltered.latitude, longitude: previousFiltered.longitude)
+                let b = CLLocation(latitude: newCoord.latitude, longitude: newCoord.longitude)
+                let distance = a.distance(from: b)
+
+                if distance < 1.4 {
+                    filteredFollowCoordinate = previousFiltered
+                } else if distance < 8 {
+                    filteredFollowCoordinate = smoothedCoordinate(
+                        from: previousFiltered,
+                        to: newCoord,
+                        minimumFactor: 0.18,
+                        maximumFactor: 0.35,
+                        fullSpeedDistanceMeters: 8
+                    )
+                } else {
+                    filteredFollowCoordinate = newCoord
+                }
+            } else {
+                filteredFollowCoordinate = newCoord
+            }
             let followCoord = filteredFollowCoordinate ?? newCoord
 
             if let currentDisplayed = displayedCenter {
@@ -1088,8 +1105,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func handleDisplayLink() {
             let now = CACurrentMediaTime()
             guard now >= suppressFollowCameraUntil else { return }
-
-            updateSmoothedUserAnnotation()
+            let markerDt = lastUserAnnotationTickTime == 0 ? (1.0 / 60.0) : min(0.05, now - lastUserAnnotationTickTime)
+            lastUserAnnotationTickTime = now
+            updateSmoothedUserAnnotation(deltaTime: markerDt)
 
             let shouldRun = parent.followUser || isAnimatingCameraTransition
             guard shouldRun else { return }
@@ -2267,17 +2285,22 @@ struct MapViewRepresentable: UIViewRepresentable {
             return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
-        private func updateSmoothedUserAnnotation() {
+        private func updateSmoothedUserAnnotation(deltaTime: CFTimeInterval) {
             guard let map = observedMap, let annotation = userLocationAnnotation else { return }
             guard let target = targetUserAnnotationCoordinate else { return }
 
             let current = displayedUserAnnotationCoordinate ?? annotation.coordinate
-            let next = smoothedCoordinate(
-                from: current,
-                to: target,
-                minimumFactor: 0.20,
-                maximumFactor: 0.90,
-                fullSpeedDistanceMeters: 24
+            let currentLocation = CLLocation(latitude: current.latitude, longitude: current.longitude)
+            let targetLocation = CLLocation(latitude: target.latitude, longitude: target.longitude)
+            let distance = currentLocation.distance(from: targetLocation)
+            guard distance >= 0.5 else { return }
+
+            let speedMetersPerSecond = min(90.0, max(10.0, distance * 3.5))
+            let stepMeters = max(0.4, speedMetersPerSecond * max(deltaTime, 1.0 / 120.0))
+            let progress = min(1.0, stepMeters / distance)
+            let next = CLLocationCoordinate2D(
+                latitude: current.latitude + (target.latitude - current.latitude) * progress,
+                longitude: current.longitude + (target.longitude - current.longitude) * progress
             )
 
             displayedUserAnnotationCoordinate = next
