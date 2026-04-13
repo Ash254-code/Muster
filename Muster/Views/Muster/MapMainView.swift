@@ -361,6 +361,7 @@ struct MapMainView: View {
     @State private var showAutosteerTrackSaveSheet = false
     @State private var showAutosteerReadinessSheet = false
     @State private var showCruiseControlSheet = false
+    @State private var showCruiseControlQuickPopup = false
     @State private var autosteerSaveFarm = ""
     @State private var autosteerSavePaddock = ""
     @State private var autosteerSaveTrackName = ""
@@ -2531,6 +2532,53 @@ struct MapMainView: View {
                 .fill(chromeFill)
         )
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+        .onLongPressGesture(minimumDuration: 0.45) {
+            showCruiseControlQuickPopup = true
+        }
+        .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+            cruiseControlQuickPopup
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var cruiseControlQuickPopup: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Cruise Control", isOn: $cruiseControlEnabled)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Set speed")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button {
+                        cruiseControlSpeedKPH = max(2, clampedCruiseControlSpeedKPH - 1)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .frame(minWidth: 120, alignment: .center)
+
+                    Button {
+                        cruiseControlSpeedKPH = min(100, clampedCruiseControlSpeedKPH + 1)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
+            }
+        }
+        .padding(14)
+        .frame(width: 280)
     }
 
     private var moveBanner: some View {
