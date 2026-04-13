@@ -4271,46 +4271,20 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         safeAreaBottom: CGFloat
     ) -> some View {
         let panelHeight = bottomPanelVisibleHeight(totalHeight: totalHeight)
-        let panelCornerRadius: CGFloat = {
-            switch panelDetent {
-            case .collapsed:
-                return panelHeight / 2
-            case .large:
-                return 24
-            }
-        }()
+        let panelCornerRadius = panelDetent == .collapsed ? panelHeight / 2 : 24
 
-        return VStack(spacing: 0) {
-            Capsule()
-                .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
-                .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
-                .frame(width: 34, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-                .frame(maxWidth: .infinity)
-
-            bottomQuickZoomRow
-
-            if panelDetent != .collapsed {
-                expandedPanelContent
-                    .padding(.bottom, safeAreaBottom)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: panelHeight, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .fill(chromeFill)
+        AppleMapsBottomPanelContainer(
+            panelHeight: panelHeight,
+            panelCornerRadius: panelCornerRadius,
+            isCollapsed: panelDetent == .collapsed,
+            safeAreaBottom: safeAreaBottom,
+            colorScheme: colorScheme,
+            chromeFill: chromeFill,
+            chromeStroke: chromeStroke,
+            chromeShadow: chromeShadow,
+            quickZoomRow: AnyView(bottomQuickZoomRow),
+            expandedContent: AnyView(expandedPanelContent)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 1)
-        )
-        .shadow(color: chromeShadow, radius: 18, y: 4)
-        .padding(.horizontal, 6)
-        .padding(.bottom, -16)
         .contentShape(Rectangle())
         .gesture(bottomPanelDragGesture)
     }
@@ -5961,6 +5935,53 @@ private struct SheetCloseButton: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .accessibilityLabel("Close")
+    }
+}
+
+private struct AppleMapsBottomPanelContainer: View {
+    let panelHeight: CGFloat
+    let panelCornerRadius: CGFloat
+    let isCollapsed: Bool
+    let safeAreaBottom: CGFloat
+    let colorScheme: ColorScheme
+    let chromeFill: Color
+    let chromeStroke: Color
+    let chromeShadow: Color
+    let quickZoomRow: AnyView
+    let expandedContent: AnyView
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
+                .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
+                .frame(width: 34, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity)
+
+            quickZoomRow
+
+            if !isCollapsed {
+                expandedContent
+                    .padding(.bottom, safeAreaBottom)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: panelHeight, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .fill(chromeFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .strokeBorder(chromeStroke, lineWidth: 1)
+        )
+        .shadow(color: chromeShadow, radius: 18, y: 4)
+        .padding(.horizontal, 6)
+        .padding(.bottom, -16)
     }
 }
 
