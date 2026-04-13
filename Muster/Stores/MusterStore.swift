@@ -499,6 +499,25 @@ final class MusterStore: ObservableObject, Codable {
         selectedMapSet != nil
     }
 
+    @discardableResult
+    private func ensureMapSetSelectedForRecording() -> Bool {
+        if let selectedMapSetID, mapSets.contains(where: { $0.id == selectedMapSetID }) {
+            return true
+        }
+
+        guard let fallbackMapSet = mapSets.max(by: { lhs, rhs in
+            let lhsLastUsed = lhs.lastUsedAt ?? lhs.createdAt
+            let rhsLastUsed = rhs.lastUsedAt ?? rhs.createdAt
+            return lhsLastUsed < rhsLastUsed
+        }) else {
+            selectedMapSetID = nil
+            return false
+        }
+
+        selectMapSet(fallbackMapSet.id)
+        return true
+    }
+
     func selectMapSet(_ mapSetID: UUID) {
         guard let index = mapSets.firstIndex(where: { $0.id == mapSetID }) else { return }
         selectedMapSetID = mapSetID
@@ -1487,7 +1506,7 @@ final class MusterStore: ObservableObject, Codable {
 
     @discardableResult
     func startSession(name: String) -> Bool {
-        guard canStartMusterOrTrack else { return false }
+        guard ensureMapSetSelectedForRecording() else { return false }
         if var current = activeSession, current.isActive {
             current.isActive = false
             current.endedAt = Date()
