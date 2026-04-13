@@ -32,6 +32,11 @@ struct MusteringApp: App {
                 .tint(.blue)
                 .preferredColorScheme(preferredScheme)
                 .task { await app.bootstrapIfNeeded() }
+                .onOpenURL { url in
+                    guard url.pathComponents.count >= 3, url.pathComponents[1] == "join" else { return }
+                    let token = url.pathComponents[2]
+                    Task { await app.cellularTracking.validateJoinToken(token) }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .homeScreenQuickActionTriggered)) { notification in
                     guard let rawValue = notification.userInfo?["action"] as? String,
                           let action = HomeScreenQuickAction(rawValue: rawValue) else { return }

@@ -4,28 +4,32 @@
 <dict>
 	<key>NSContactsUsageDescription</key>
 	<string>Muster uses your contacts so you can quickly invite people to group tracking.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Muster uses background location while an active cellular share session is running.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Muster uses your location to share your position with your tracking group.</string>
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.muster.quickaction.startNewTrack</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Start new track</string>
 			<key>UIApplicationShortcutItemIconType</key>
 			<string>UIApplicationShortcutIconTypePlay</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Start new track</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.muster.quickaction.startNewTrack</string>
 		</dict>
 		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.muster.quickaction.import</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Import</string>
 			<key>UIApplicationShortcutItemIconType</key>
 			<string>UIApplicationShortcutIconTypeAdd</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Import</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.muster.quickaction.import</string>
 		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
 	</array>
 </dict>
 </plist>
