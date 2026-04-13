@@ -20,110 +20,129 @@ struct MenuSheetView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Map Visibility") {
-                    Toggle(isOn: previousTracksVisibleBinding) {
-                        Label("Show Previous Tracks", systemImage: "eye")
-                    }
-
-                    if previousSessions.isEmpty == false {
-                        HStack(spacing: 12) {
-                            Button {
-                                app.muster.showAllPreviousSessionsOnMap()
-                            } label: {
-                                Label("Show All", systemImage: "eye")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button {
-                                app.muster.hideAllPreviousSessionsOnMap()
-                            } label: {
-                                Label("Hide All", systemImage: "eye.slash")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-
-                Section("Previous Tracks") {
-                    if previousSessions.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("No previous tracks")
-                                .font(.headline)
-
-                            Text("Start a new track and it will appear here.")
-                                .font(.subheadline)
+            ScrollView {
+                VStack(spacing: 12) {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Map Visibility")
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        ForEach(previousSessions) { session in
-                            HStack(spacing: 12) {
-                                Button {
-                                    app.muster.activeSessionID = session.id
-                                    dismiss()
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(session.name)
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
 
-                                        Text(
-                                            session.startedAt.formatted(
-                                                date: .abbreviated,
-                                                time: .shortened
-                                            )
-                                        )
+                            Toggle(isOn: previousTracksVisibleBinding) {
+                                Label("Show Previous Tracks", systemImage: "eye")
+                            }
+
+                            if previousSessions.isEmpty == false {
+                                HStack(spacing: 10) {
+                                    Button {
+                                        app.muster.showAllPreviousSessionsOnMap()
+                                    } label: {
+                                        Label("Show All", systemImage: "eye")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(GlassButtonStyle())
+
+                                    Button {
+                                        app.muster.hideAllPreviousSessionsOnMap()
+                                    } label: {
+                                        Label("Hide All", systemImage: "eye.slash")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(GlassButtonStyle())
+                                }
+                            }
+                        }
+                    }
+
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Previous Tracks")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            if previousSessions.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("No previous tracks")
+                                        .font(.headline)
+
+                                    Text("Start a new track and it will appear here.")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                            } else {
+                                ForEach(previousSessions) { session in
+                                    HStack(spacing: 10) {
+                                        Button {
+                                            app.muster.activeSessionID = session.id
+                                            dismiss()
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                Text(session.name)
+                                                    .font(.headline)
+                                                    .foregroundStyle(.primary)
 
-                                        if let detail = sessionDetailText(for: session) {
-                                            Text(detail)
-                                                .font(.caption)
+                                                Text(
+                                                    session.startedAt.formatted(
+                                                        date: .abbreviated,
+                                                        time: .shortened
+                                                    )
+                                                )
+                                                .font(.subheadline)
                                                 .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 2)
-                                }
-                                .buttonStyle(.plain)
 
-                                Button {
-                                    app.muster.toggleSessionVisibilityOnMap(sessionID: session.id)
-                                } label: {
-                                    Image(systemName: session.isVisibleOnMap ? "eye.fill" : "eye.slash.fill")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(
-                                            app.muster.showPreviousTracksOnMap
-                                            ? (session.isVisibleOnMap ? .blue : .secondary)
-                                            : .secondary
-                                        )
-                                        .frame(width: 34, height: 34)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(session.isVisibleOnMap ? "Hide track on map" : "Show track on map")
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button("Delete", role: .destructive) {
-                                    sessionPendingDeletion = session
+                                                if let detail = sessionDetailText(for: session) {
+                                                    Text(detail)
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        Button {
+                                            app.muster.toggleSessionVisibilityOnMap(sessionID: session.id)
+                                        } label: {
+                                            Image(systemName: session.isVisibleOnMap ? "eye.fill" : "eye.slash.fill")
+                                                .font(.system(size: 17, weight: .semibold))
+                                                .foregroundStyle(
+                                                    app.muster.showPreviousTracksOnMap
+                                                    ? (session.isVisibleOnMap ? .blue : .secondary)
+                                                    : .secondary
+                                                )
+                                                .frame(width: 34, height: 34)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(session.isVisibleOnMap ? "Hide track on map" : "Show track on map")
+
+                                        Button(role: .destructive) {
+                                            sessionPendingDeletion = session
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .foregroundStyle(.red)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Delete track")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 }
                             }
                         }
                     }
-                }
 
-                Section {
                     Button {
                         pendingTrackName = app.muster.makeSmartSessionName()
                         showNewTrackNamePrompt = true
                     } label: {
                         Label("New Track", systemImage: "plus.circle.fill")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(GlassButtonStyle())
                 }
+                .padding(14)
             }
             .navigationTitle("Previous Tracks")
             .navigationBarTitleDisplayMode(.inline)
