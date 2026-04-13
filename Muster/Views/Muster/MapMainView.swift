@@ -4148,7 +4148,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
         let collapsedHeight = 78.0
-        let largeHeight = max(520, totalHeight * 0.74)
+        let sanitizedTotalHeight = totalHeight.isFinite ? max(totalHeight, 0) : 0
+        let largeHeight = max(520, sanitizedTotalHeight * 0.74)
 
         switch panelDetent {
         case .collapsed:
@@ -4255,12 +4256,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         totalHeight: CGFloat,
         safeAreaBottom: CGFloat
     ) -> some View {
-        let panelHeight = bottomPanelVisibleHeight(totalHeight: totalHeight)
+        let panelHeight = max(bottomPanelVisibleHeight(totalHeight: totalHeight), 0)
+        let safeAreaInset = safeAreaBottom.isFinite ? max(safeAreaBottom, 0) : 0
 
         let panelCornerRadius: CGFloat
         switch panelDetent {
         case .collapsed:
-            panelCornerRadius = panelHeight / 2
+            panelCornerRadius = max(panelHeight / 2, 0)
         case .large:
             panelCornerRadius = 24
         }
@@ -4278,7 +4280,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 
             if panelDetent != .collapsed {
                 expandedPanelContent
-                    .padding(.bottom, safeAreaBottom)
+                    .padding(.bottom, safeAreaInset)
             }
 
             Spacer(minLength: 0)
