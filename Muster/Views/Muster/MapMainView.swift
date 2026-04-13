@@ -1577,7 +1577,7 @@ struct MapMainView: View {
                 .zIndex(10)
             }
             .overlay(alignment: .bottomTrailing) {
-                if !showMapLayerSheet {
+                if !showMapLayerSheet, panelDetent == .collapsed {
                     VStack(spacing: 10) {
                         if !followUser {
                             centerMapButton
@@ -1594,7 +1594,7 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                if !showMapLayerSheet {
+                if !showMapLayerSheet, panelDetent == .collapsed {
                     leftSideFloatingPills
                         .padding(.leading, 12)
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height))
@@ -1603,7 +1603,7 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if !showMapLayerSheet, autosteerEnabled {
+                if !showMapLayerSheet, autosteerEnabled, panelDetent == .collapsed {
                     autosteerGuidanceBar(autosteerGuidanceStatus)
                         .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
