@@ -4256,14 +4256,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         safeAreaBottom: CGFloat
     ) -> some View {
         let panelHeight = bottomPanelVisibleHeight(totalHeight: totalHeight)
-
-        let panelCornerRadius: CGFloat
-        switch panelDetent {
-        case .collapsed:
-            panelCornerRadius = panelHeight / 2
-        case .large:
-            panelCornerRadius = 24
-        }
+        let panelCornerRadius: CGFloat = {
+            switch panelDetent {
+            case .collapsed:
+                return panelHeight / 2
+            case .large:
+                return 24
+            }
+        }()
 
         return VStack(spacing: 0) {
             Capsule()
