@@ -2140,12 +2140,6 @@ struct MapViewRepresentable: UIViewRepresentable {
                 return "\(values[0]),\(values[1])"
             }.joined(separator: "|")
             let mapRect = map.visibleMapRect
-            let rectSignature = [
-                mapRect.origin.x.rounded(),
-                mapRect.origin.y.rounded(),
-                mapRect.size.width.rounded(),
-                mapRect.size.height.rounded()
-            ].map { String($0) }.joined(separator: ",")
             let effectiveLockedIndex = lockedLineIndex
                 ?? nearestLineIndex(
                     to: userCoordinate ?? map.centerCoordinate,
@@ -2154,7 +2148,10 @@ struct MapViewRepresentable: UIViewRepresentable {
                 )
             let lockedLineChanged = autosteerLockedLineIndex != effectiveLockedIndex
             autosteerLockedLineIndex = effectiveLockedIndex
-            let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())|\(rectSignature)|\(effectiveLockedIndex ?? 0)"
+            // Avoid tying the cache signature to camera/visible rect changes.
+            // Region updates are frequent while moving and were forcing full overlay
+            // rebuilds every refresh cycle.
+            let signature = "\(signatureCoordinates)|\(normalizedSpacing.rounded())|\(effectiveLockedIndex ?? 0)"
             // Keep guidance lines resilient: if MapKit drops overlays during style/region churn,
             // force a re-add even when the computed signature has not changed.
             guard signature != autosteerGuidanceSignature || autosteerGuidancePolylines.isEmpty else {
