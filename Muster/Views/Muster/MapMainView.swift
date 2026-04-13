@@ -2558,16 +2558,44 @@ struct MapMainView: View {
     private var cruiseControlQuickPopup: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $autosteerEnabled) {
-                Label("Autosteer", systemImage: "steeringwheel")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.blue)
+                HStack(spacing: 10) {
+                    Image(systemName: "steeringwheel")
+                        .foregroundStyle(.blue)
+                    Text("Autosteer")
+                        .foregroundStyle(.white)
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.white.opacity(0.08))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+            )
 
             Toggle(isOn: $cruiseControlEnabled) {
-                Label("Cruise Control", systemImage: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.blue)
+                HStack(spacing: 10) {
+                    Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
+                        .foregroundStyle(.blue)
+                    Text("Cruise Control")
+                        .foregroundStyle(.white)
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.white.opacity(0.08))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+            )
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Set speed")
@@ -2609,8 +2637,19 @@ struct MapMainView: View {
                         .foregroundStyle(.blue)
                     Text("New Track Recording")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
                     Spacer(minLength: 0)
                 }
+                .padding(.horizontal, 12)
+                .frame(height: 44)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(.white.opacity(0.08))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
         }
