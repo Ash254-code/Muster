@@ -2411,6 +2411,16 @@ struct MapMainView: View {
         colorScheme == .dark ? Color.black.opacity(0.22) : Color.black.opacity(0.10)
     }
 
+    private var quickPopupFill: Color {
+        colorScheme == .dark
+            ? Color.black.opacity(0.86)
+            : Color(uiColor: .systemBackground).opacity(0.94)
+    }
+
+    private var quickPopupRowFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.045)
+    }
+
     private var topPillRow: some View {
         HStack(spacing: 10) {
             Group {
@@ -2683,7 +2693,7 @@ struct MapMainView: View {
                     Image(systemName: "steeringwheel")
                         .foregroundStyle(.blue)
                     Text("Autosteer")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
                 }
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
@@ -2691,7 +2701,7 @@ struct MapMainView: View {
             .frame(height: 44)
             .background(
                 Capsule(style: .continuous)
-                    .fill(.white.opacity(0.08))
+                    .fill(quickPopupRowFill)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -2703,7 +2713,7 @@ struct MapMainView: View {
                     Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
                         .foregroundStyle(.blue)
                     Text("Cruise Control")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
                 }
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
@@ -2711,7 +2721,7 @@ struct MapMainView: View {
             .frame(height: 44)
             .background(
                 Capsule(style: .continuous)
-                    .fill(.white.opacity(0.08))
+                    .fill(quickPopupRowFill)
             )
             .overlay(
                 Capsule(style: .continuous)
@@ -2727,14 +2737,14 @@ struct MapMainView: View {
                         .foregroundStyle(.blue)
                     Text("New Track Recording")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 44)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(.white.opacity(0.08))
+                        .fill(quickPopupRowFill)
                 )
                 .overlay(
                     Capsule(style: .continuous)
@@ -2745,6 +2755,14 @@ struct MapMainView: View {
         }
         .padding(14)
         .frame(width: 280)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(quickPopupFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
+        )
         .tint(.blue)
     }
 
