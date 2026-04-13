@@ -2146,10 +2146,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         ) {
             let freezeGuidanceLines = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
             if freezeGuidanceLines {
-                if hasFrozenAutosteerGuidanceLines {
+                if hasFrozenAutosteerGuidanceLines && autosteerGuidancePolylines.isEmpty == false {
                     return
                 }
-                hasFrozenAutosteerGuidanceLines = true
             } else {
                 hasFrozenAutosteerGuidanceLines = false
             }
@@ -2204,6 +2203,9 @@ struct MapViewRepresentable: UIViewRepresentable {
             autosteerGuidancePolylines = lines
             let overlayLevel: MKOverlayLevel = freezeGuidanceLines ? .aboveLabels : .aboveRoads
             map.addOverlays(lines, level: overlayLevel)
+            if freezeGuidanceLines {
+                hasFrozenAutosteerGuidanceLines = true
+            }
         }
 
         private func blendedGuidanceCoordinate(
@@ -2249,8 +2251,8 @@ struct MapViewRepresentable: UIViewRepresentable {
             if parent.guidanceNoMapEnabled {
                 renderer.strokeColor = isLockedLine
                     ? UIColor.systemRed.withAlphaComponent(0.98)
-                    : UIColor.black.withAlphaComponent(0.68)
-                renderer.lineWidth = (isLockedLine ? 3.5 : 2.5) * strokeScale
+                    : UIColor.white.withAlphaComponent(0.72)
+                renderer.lineWidth = (isLockedLine ? 4.0 : 2.8) * strokeScale
             } else {
                 renderer.strokeColor = isLockedLine
                     ? UIColor.systemRed.withAlphaComponent(0.95)
