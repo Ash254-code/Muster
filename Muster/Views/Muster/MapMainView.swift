@@ -1421,6 +1421,7 @@ struct MapMainView: View {
 
                     Spacer()
                 }
+                .zIndex(35)
 
                 if let zoomDistancePopupText {
                     VStack {
