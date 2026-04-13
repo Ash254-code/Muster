@@ -4186,8 +4186,8 @@ struct MapMainView: View {
             let columns = 3
             let availableWidth = proxy.size.width - (outerPadding * 2) - (interItemSpacing * CGFloat(columns - 1))
             let cardWidth = floor(availableWidth / CGFloat(columns))
-            let topInset = proxy.safeAreaInsets.top
             let bottomInset = proxy.safeAreaInsets.bottom
+            let sheetHeight = min(proxy.size.height * 0.78, 740)
 
             VStack(spacing: 0) {
                 HStack {
@@ -4273,7 +4273,7 @@ struct MapMainView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, max(10, topInset + 4))
+            .padding(.top, 14)
             .padding(.bottom, max(12, bottomInset + 6))
             .background(
                 UnevenRoundedRectangle(
@@ -4292,6 +4292,8 @@ struct MapMainView: View {
                     .strokeBorder(chromeStroke, lineWidth: 1)
             )
             .shadow(color: chromeShadow, radius: 18, y: 8)
+            .frame(maxWidth: .infinity, maxHeight: sheetHeight, alignment: .top)
+            .frame(maxHeight: .infinity, alignment: .bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
