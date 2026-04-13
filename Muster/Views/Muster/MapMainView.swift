@@ -1547,6 +1547,7 @@ struct MapMainView: View {
                         maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
                     )
                         .padding(.horizontal, 18)
+                        .offset(y: -min(160, max(90, geo.size.height * 0.13)))
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
                 }
@@ -1876,7 +1877,11 @@ struct MapMainView: View {
                 .padding(.vertical, 1)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.16))
+                        .fill(.white.opacity(0.08))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
