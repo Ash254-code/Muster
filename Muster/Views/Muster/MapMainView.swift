@@ -2476,9 +2476,12 @@ struct MapMainView: View {
         }
         .shadow(color: chromeShadow, radius: 8, y: 3)
         .contentShape(Capsule(style: .continuous))
-        .onLongPressGesture(minimumDuration: 0.45) {
-            showCruiseControlQuickPopup = true
-        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
+                .onEnded { _ in
+                    showCruiseControlQuickPopup = true
+                }
+        )
         .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
             cruiseControlQuickPopup
                 .presentationCompactAdaptation(.popover)
@@ -2553,7 +2556,7 @@ struct MapMainView: View {
         )
         .shadow(color: chromeShadow, radius: 8, y: 3)
         .contentShape(Capsule(style: .continuous))
-        .highPriorityGesture(
+        .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
                     topPillPickerSide = side
@@ -2655,7 +2658,8 @@ struct MapMainView: View {
             }
         }
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-        .highPriorityGesture(
+        .contentShape(Capsule(style: .continuous))
+        .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
                     showCruiseControlQuickPopup = true
