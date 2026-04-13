@@ -620,11 +620,14 @@ struct MapMainView: View {
     }
 
     private var cruiseControlDisplaySpeedText: String {
-        String(format: "%.0f", clampedCruiseControlSpeedKPH)
+        let cruiseSpeedMPS = clampedCruiseControlSpeedKPH / 3.6
+        let (value, _) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: cruiseSpeedMPS)
+        return String(format: "%.0f", max(0, value))
     }
 
     private var cruiseControlDisplayUnitText: String {
-        "km/h"
+        let (_, unit) = UnitFormatting.speedValueAndUnit(fromMetersPerSecond: 0)
+        return unit.lowercased().contains("mph") ? "MPH" : "Km/hr"
     }
 
     private var cruiseControlSetSpeedText: String {
@@ -2738,6 +2741,8 @@ struct MapMainView: View {
 
     private var autosteerReadinessButton: some View {
         let fraction = Double(autosteerReadinessCount) / 4.0
+        let isFullyLocked = autosteerActive && autosteerReadinessCount == 4
+        let readinessRingColor: Color = autosteerReadinessCount == 4 ? .green : .orange
         return Button {
             if didTriggerAutosteerLongPress {
                 didTriggerAutosteerLongPress = false
@@ -2762,39 +2767,49 @@ struct MapMainView: View {
                     .frame(width: 64, height: 64)
 
                 Circle()
-                    .stroke(chromeStroke.opacity(0.8), lineWidth: 8)
+                    .stroke(chromeStroke.opacity(0.8), lineWidth: 2.5)
                     .frame(width: 58, height: 58)
 
                 Circle()
                     .trim(from: 0, to: fraction)
                     .stroke(
-                        autosteerGoReady ? .green : .orange,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        readinessRingColor,
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .frame(width: 66, height: 66)
 
                 VStack(spacing: 0) {
-                    if autosteerActive && autosteerGoReady {
+                    if isFullyLocked {
                         Image(systemName: "steeringwheel")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.green)
-                    } else {
-                        Text(autosteerActive ? "ON" : "GO")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
-                    }
-                    Text("\(autosteerReadinessCount)/4")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(chromeSecondaryText)
-
-                    if cruiseControlIsActive {
-                        Text(cruiseControlSetSpeedText)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                        Text(cruiseControlDisplaySpeedText)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.green)
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
+
+                        Text(cruiseControlDisplayUnitText)
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .foregroundStyle(chromeSecondaryText)
+                    } else {
+                        Text(autosteerActive ? "ON" : "GO")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
+                        Text("\(autosteerReadinessCount)/4")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(chromeSecondaryText)
+
+                        if cruiseControlIsActive {
+                            Text(cruiseControlSetSpeedText)
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(.green)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
                     }
                 }
             }
