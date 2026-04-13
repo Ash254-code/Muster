@@ -457,7 +457,21 @@ struct MapMainView: View {
     }
 
     private var shouldShowGuidanceOnlyViewport: Bool {
-        false
+        autosteerEnabled && autosteerActive && isAutosteerTrackSetupActive == false
+    }
+
+    /// Geometry cache rebuild signature (rare updates only).
+    /// Intentionally excludes GPS/heading/lightbar values.
+    private var autosteerGuidanceGeometrySignature: String {
+        let trackIdentity = "\(autosteerFarmName)|\(autosteerPaddockName)|\(autosteerTrackName)|\(autosteerTrackModeRaw)"
+        let setupPreviewCount = previewCoordinatesForPendingSetup().count
+        let selectedPreviewCount = selectedAutosteerTrackRecord?.previewCoordinates.count ?? 0
+        return "\(trackIdentity)|w:\(autosteerWorkingWidthM)|s:\(setupPreviewCount)|t:\(selectedPreviewCount)"
+    }
+
+    private var autosteerReferenceLineForCanvas: (CLLocationCoordinate2D, CLLocationCoordinate2D)? {
+        guard let coordinate = location.lastLocation?.coordinate else { return nil }
+        return autosteerReferenceLineCoordinates(userCoordinate: coordinate)
     }
 
     private var temporaryPreviewPointA: CLLocationCoordinate2D? {
@@ -1363,8 +1377,22 @@ struct MapMainView: View {
     private var mainContent: some View {
         GeometryReader { geo in
             ZStack {
-                mapLayer(totalHeight: geo.size.height)
+                if shouldShowGuidanceOnlyViewport {
+                    // Hard switch: autosteer guidance mode does not render MapKit at all.
+                    AutosteerGuidanceView(
+                        isActive: true,
+                        referenceLine: autosteerReferenceLineForCanvas,
+                        userCoordinate: location.lastLocation?.coordinate,
+                        headingDegrees: location.headingDegrees,
+                        workingWidthMeters: autosteerWorkingWidthM,
+                        lockedLineIndex: autosteerGuidanceStatus.nearestLineIndex,
+                        geometrySignature: autosteerGuidanceGeometrySignature
+                    )
                     .ignoresSafeArea()
+                } else {
+                    mapLayer(totalHeight: geo.size.height)
+                        .ignoresSafeArea()
+                }
 
                 if showArrivedBanner {
                     VStack {
@@ -1894,7 +1922,7 @@ struct MapMainView: View {
             autosteerUserCoordinate: autosteerEnabled ? location.lastLocation?.coordinate : nil,
             orientationRaw: $orientationRaw,
             mapStyleRaw: $mapStyleRaw,
-            guidanceNoMapEnabled: shouldShowGuidanceOnlyViewport,
+            guidanceNoMapEnabled: false,
             recenterNonce: $recenterNonce,
             fitRadiosNonce: $fitRadiosNonce,
             metersPerPoint: $metersPerPoint,
@@ -3775,10 +3803,15 @@ struct MapMainView: View {
         let projectedLineIndex = Int((predictedBaseDistanceM / autosteerWorkingWidthM).rounded())
         let chosenLineIndex: Int
         if autosteerGuidanceSeeded {
-            let distanceToLockedLine = abs(predictedBaseDistanceM - (Double(autosteerLockedGuidanceLineIndex) * autosteerWorkingWidthM))
+            // Hysteresis for lock stability:
+            // remain on the current lock unless a neighboring line is clearly closer.
+            let lockedDistance = abs(predictedBaseDistanceM - (Double(autosteerLockedGuidanceLineIndex) * autosteerWorkingWidthM))
+            let projectedDistance = abs(predictedBaseDistanceM - (Double(projectedLineIndex) * autosteerWorkingWidthM))
             let speedFactor = min(speedMPS / 12.0, 1.0)
-            let lockSwitchThreshold = (autosteerWorkingWidthM * 0.58) + (autosteerWorkingWidthM * 0.24 * speedFactor)
-            chosenLineIndex = distanceToLockedLine > lockSwitchThreshold ? projectedLineIndex : autosteerLockedGuidanceLineIndex
+            let switchMarginMeters = (autosteerWorkingWidthM * 0.12) + (autosteerWorkingWidthM * 0.08 * speedFactor)
+            let shouldSwitch = projectedLineIndex != autosteerLockedGuidanceLineIndex &&
+                projectedDistance + switchMarginMeters < lockedDistance
+            chosenLineIndex = shouldSwitch ? projectedLineIndex : autosteerLockedGuidanceLineIndex
         } else {
             chosenLineIndex = projectedLineIndex
         }
