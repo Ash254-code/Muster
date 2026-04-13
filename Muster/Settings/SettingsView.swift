@@ -762,7 +762,7 @@ struct AutosteerSettingsView: View {
                         Image(systemName: "steeringwheel")
                             .foregroundStyle(.blue)
                         Text("Enable Autosteer")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                     }
                 }
                 HStack {
