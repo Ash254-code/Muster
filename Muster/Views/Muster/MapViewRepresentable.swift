@@ -357,6 +357,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         private weak var observedMap: MKMapView?
         private var sheepPinFadeTimer: Timer?
         private var userLocationAnnotation: UserLocationAnnotation?
+        private var displayedUserAnnotationCoordinate: CLLocationCoordinate2D?
+        private var targetUserAnnotationCoordinate: CLLocationCoordinate2D?
+        private var filteredFollowCoordinate: CLLocationCoordinate2D?
         private var destinationLineCoordinateCache: CLLocationCoordinate2D?
 
         weak var longPressGesture: UILongPressGestureRecognizer?
@@ -543,6 +546,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                     map.removeAnnotation(existing)
                     userLocationAnnotation = nil
                 }
+                displayedUserAnnotationCoordinate = nil
+                targetUserAnnotationCoordinate = nil
                 return
             }
 
@@ -551,6 +556,9 @@ struct MapViewRepresentable: UIViewRepresentable {
                     map.removeAnnotation(existing)
                     userLocationAnnotation = nil
                 }
+                displayedUserAnnotationCoordinate = nil
+                targetUserAnnotationCoordinate = nil
+                filteredFollowCoordinate = nil
                 return
             }
 
@@ -559,16 +567,10 @@ struct MapViewRepresentable: UIViewRepresentable {
             let guidanceBlankMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
 
             if let existing = userLocationAnnotation {
-                let smoothing: (min: Double, max: Double, fullSpeedDistanceMeters: Double) = guidanceBlankMode
-                    ? (0.24, 0.72, 26)
-                    : (0.18, 0.58, 18)
-                existing.coordinate = smoothedCoordinate(
-                    from: existing.coordinate,
-                    to: userLocation.coordinate,
-                    minimumFactor: smoothing.min,
-                    maximumFactor: smoothing.max,
-                    fullSpeedDistanceMeters: smoothing.fullSpeedDistanceMeters
-                )
+                targetUserAnnotationCoordinate = userLocation.coordinate
+                if displayedUserAnnotationCoordinate == nil {
+                    displayedUserAnnotationCoordinate = existing.coordinate
+                }
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
                 existing.useCrosshair = parent.useCrosshairUserMarker
@@ -591,6 +593,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                     useCrosshair: parent.useCrosshairUserMarker
                 )
                 userLocationAnnotation = annotation
+                displayedUserAnnotationCoordinate = userLocation.coordinate
+                targetUserAnnotationCoordinate = userLocation.coordinate
                 map.addAnnotation(annotation)
 
                 DispatchQueue.main.async { [weak self, weak map] in
@@ -610,6 +614,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                     map.bringSubviewToFront(view)
                 }
             }
+
+            updateSmoothedUserAnnotation()
         }
 
         func applyCameraModeIfNeeded(
@@ -699,10 +705,18 @@ struct MapViewRepresentable: UIViewRepresentable {
             let newCoord = userLocation.coordinate
             let preservedDistance = currentPreservedDistance(from: map)
             let pitch = resolvedPitchDegrees()
+            filteredFollowCoordinate = smoothedCoordinate(
+                from: filteredFollowCoordinate ?? newCoord,
+                to: newCoord,
+                minimumFactor: 0.22,
+                maximumFactor: 0.82,
+                fullSpeedDistanceMeters: 35
+            )
+            let followCoord = filteredFollowCoordinate ?? newCoord
 
             if let currentDisplayed = displayedCenter {
                 let a = CLLocation(latitude: currentDisplayed.latitude, longitude: currentDisplayed.longitude)
-                let b = CLLocation(latitude: newCoord.latitude, longitude: newCoord.longitude)
+                let b = CLLocation(latitude: followCoord.latitude, longitude: followCoord.longitude)
                 let distance = a.distance(from: b)
 
                 if distance < 2.5 {
@@ -726,7 +740,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 : 0
 
             setCameraTargets(
-                center: newCoord,
+                center: followCoord,
                 heading: heading,
                 distance: preservedDistance,
                 pitch: pitch,
@@ -1074,6 +1088,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         private func handleDisplayLink() {
             let now = CACurrentMediaTime()
             guard now >= suppressFollowCameraUntil else { return }
+
+            updateSmoothedUserAnnotation()
 
             let shouldRun = parent.followUser || isAnimatingCameraTransition
             guard shouldRun else { return }
@@ -2249,6 +2265,28 @@ struct MapViewRepresentable: UIViewRepresentable {
             let latitude = current.latitude + (target.latitude - current.latitude) * alpha
             let longitude = current.longitude + (target.longitude - current.longitude) * alpha
             return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        }
+
+        private func updateSmoothedUserAnnotation() {
+            guard let map = observedMap, let annotation = userLocationAnnotation else { return }
+            guard let target = targetUserAnnotationCoordinate else { return }
+
+            let current = displayedUserAnnotationCoordinate ?? annotation.coordinate
+            let next = smoothedCoordinate(
+                from: current,
+                to: target,
+                minimumFactor: 0.20,
+                maximumFactor: 0.90,
+                fullSpeedDistanceMeters: 24
+            )
+
+            displayedUserAnnotationCoordinate = next
+            annotation.coordinate = next
+
+            if let view = map.view(for: annotation) as? UserLocationAnnotationView {
+                view.layer.zPosition = 10000
+                map.bringSubviewToFront(view)
+            }
         }
 
         private func visibleAutosteerLineRange(
