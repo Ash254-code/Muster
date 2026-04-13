@@ -6382,18 +6382,30 @@ private struct AppleMapsBottomPanelContainer: View {
         .frame(maxWidth: .infinity)
         .frame(height: panelHeight, alignment: .top)
         .background(
+            Group {
+                if isTrackRecordingActive {
+                    RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                        .stroke(Color.red.opacity(colorScheme == .dark ? 0.7 : 0.62), lineWidth: 1.5)
+                        .blur(radius: 0.8)
+                        .scaleEffect(1.01)
+                        .shadow(
+                            color: Color.red.opacity(colorScheme == .dark ? 0.45 : 0.35),
+                            radius: 14
+                        )
+                        .shadow(
+                            color: Color.red.opacity(colorScheme == .dark ? 0.28 : 0.22),
+                            radius: 24
+                        )
+                }
+            }
+        )
+        .background(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .fill(chromeFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .strokeBorder(chromeStroke, lineWidth: 1)
-        )
-        .shadow(
-            color: isTrackRecordingActive
-            ? Color.red.opacity(colorScheme == .dark ? 0.28 : 0.22)
-            : .clear,
-            radius: 26
         )
         .shadow(color: chromeShadow, radius: 18, y: 4)
         .padding(.horizontal, 6)
