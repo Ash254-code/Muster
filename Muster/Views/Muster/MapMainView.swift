@@ -1602,6 +1602,7 @@ struct MapMainView: View {
                         .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
                         .onLongPressGesture(minimumDuration: 0.45) {
+                            AppHaptics.longPressStrong()
                             presentAutosteerLightbarStepEditor()
                         }
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -2628,6 +2629,7 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     dismissTopPillPicker()
                     dismissAutosteerQuickActions()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
@@ -2711,6 +2713,7 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     dismissCruiseControlQuickActions()
                     dismissAutosteerQuickActions()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
@@ -2821,6 +2824,7 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     showCruiseControlQuickPopup = true
                 }
         )
@@ -3119,6 +3123,7 @@ struct MapMainView: View {
         .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.65)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     didTriggerAutosteerLongPress = true
                     dismissTopPillPicker()
                     dismissCruiseControlQuickActions()
@@ -3864,6 +3869,7 @@ struct MapMainView: View {
             .highPriorityGesture(
                 LongPressGesture(minimumDuration: 0.6)
                     .onEnded { _ in
+                        AppHaptics.longPressStrong()
                         panelDetent = .collapsed
                         showSettings = true
                     }
@@ -4778,6 +4784,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.4)
                             .onEnded { _ in
+                                AppHaptics.longPressStrong()
                                 showQuickZoomEditor = true
                             }
                     )
@@ -4857,6 +4864,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.35)
                                 .onEnded { _ in
+                                    AppHaptics.longPressStrong()
                                     handleSheepQuickDropLongPress(startY: buttonFrame.midY)
                                 }
                         )
@@ -4943,6 +4951,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.4)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     guard !xrsContacts.isEmpty else { return }
                     showRadioList = true
                 }
@@ -5594,6 +5603,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.6)
                 .onEnded { _ in
+                    AppHaptics.longPressStrong()
                     onLongPress?()
                 }
         )

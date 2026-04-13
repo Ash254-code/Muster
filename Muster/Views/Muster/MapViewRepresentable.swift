@@ -799,6 +799,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             switch gesture.state {
             case .began:
+                AppHaptics.longPressStrong()
                 suppressSelectionUntil = Date().addingTimeInterval(longPressSelectionSuppressDuration)
 
                 let point = gesture.location(in: map)
@@ -3490,6 +3491,7 @@ final class SessionMarkerAnnotationView: MKMarkerAnnotationView {
     @objc
     private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began else { return }
+        AppHaptics.longPressStrong()
         suppressTapTemporarily()
         guard let ann = annotation as? SessionMarkerAnnotation else { return }
         onLongPress?(ann.marker)
@@ -3606,6 +3608,7 @@ final class MapMarkerAnnotationView: MKAnnotationView {
     @objc
     private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began else { return }
+        AppHaptics.longPressStrong()
         suppressTapTemporarily()
         guard let ann = annotation as? MapMarkerAnnotation else { return }
         onLongPress?(ann.marker)
