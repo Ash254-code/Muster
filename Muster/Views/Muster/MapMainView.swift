@@ -1522,7 +1522,7 @@ struct MapMainView: View {
                         maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
                     )
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .frame(maxWidth: .infinity)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1531,7 +1531,7 @@ struct MapMainView: View {
                 if showCruiseControlQuickActions {
                     cruiseControlQuickActionsBubble
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1540,7 +1540,7 @@ struct MapMainView: View {
                 if let side = topPillPickerSide {
                     topPillMetricPickerBubble(side: side)
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity, alignment: side == .left ? .leading : .trailing)
+                        .frame(maxWidth: .infinity)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1715,7 +1715,7 @@ struct MapMainView: View {
     }
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
-        topSpeechBubble {
+        topSpeechBubble(pointerXOffset: 0) {
             VStack(spacing: 8) {
             HStack {
                 Button {
@@ -1840,7 +1840,7 @@ struct MapMainView: View {
     }
 
     private var cruiseControlQuickActionsBubble: some View {
-        topSpeechBubble {
+        topSpeechBubble(pointerXOffset: -96) {
             VStack(spacing: 10) {
                 HStack {
                     Text("Cruise Control")
@@ -1908,7 +1908,7 @@ struct MapMainView: View {
     }
 
     private func topPillMetricPickerBubble(side: TopSidePillPosition) -> some View {
-        topSpeechBubble {
+        topSpeechBubble(pointerXOffset: side == .left ? -90 : 90) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(side == .left ? "Left Pill" : "Right Pill")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -1936,11 +1936,15 @@ struct MapMainView: View {
         }
     }
 
-    private func topSpeechBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func topSpeechBubble<Content: View>(
+        pointerXOffset: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(spacing: 0) {
             Triangle()
                 .fill(.ultraThinMaterial.opacity(0.98))
                 .frame(width: 24, height: 12)
+                .offset(x: pointerXOffset)
                 .overlay(
                     Triangle()
                         .stroke(chromeStroke.opacity(0.7), lineWidth: 1)
