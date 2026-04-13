@@ -1770,7 +1770,7 @@ struct MapMainView: View {
                         Text(selectedAutosteerNameDisplay)
                         Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(chromeSecondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                             .padding(.top, 1)
@@ -1940,7 +1940,7 @@ struct MapMainView: View {
 
                             Text(metric.menuTitle)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.95))
+                                .foregroundStyle(chromePrimaryText)
 
                             Spacer(minLength: 0)
                         }
@@ -1996,7 +1996,7 @@ struct MapMainView: View {
     ) -> some View {
         Button(action: action) {
             label()
-                .foregroundStyle(.white.opacity(0.93))
+                .foregroundStyle(chromePrimaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: 46)
                 .multilineTextAlignment(.leading)
