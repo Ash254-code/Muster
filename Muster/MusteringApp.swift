@@ -29,6 +29,7 @@ struct MusteringApp: App {
             RootTabView()
                 .environmentObject(app)
                 .environmentObject(ble)
+                .tint(.blue)
                 .preferredColorScheme(preferredScheme)
                 .task { await app.bootstrapIfNeeded() }
                 .onReceive(NotificationCenter.default.publisher(for: .homeScreenQuickActionTriggered)) { notification in
