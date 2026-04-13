@@ -9,6 +9,10 @@ struct MusteringApp: App {
     @AppStorage("appearance_mode") private var appearanceMode: String = "system"
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        UISwitch.appearance().onTintColor = .systemBlue
+    }
+
     private var preferredScheme: ColorScheme? {
         switch appearanceMode {
         case "light":
