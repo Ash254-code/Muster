@@ -6,6 +6,7 @@ struct CurrentTrackView: View {
     let currentLocation: CLLocation?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     private var points: [TrackPoint] {
         session?.points ?? []
@@ -240,17 +241,25 @@ struct CurrentTrackView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                LinearGradient(
+                    colors: [
+                        Color(uiColor: .systemBackground),
+                        Color(uiColor: .secondarySystemBackground)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
                 if session == nil {
                     VStack(spacing: 14) {
                         Text("Current Track")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
 
                         Text("No active session.")
                             .font(.system(size: 17, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(.secondary)
                     }
                     .padding(24)
                 } else {
@@ -283,11 +292,11 @@ struct CurrentTrackView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Current Track")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 Text(session?.name.isEmpty == false ? session!.name : "Ride Summary")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -297,12 +306,16 @@ struct CurrentTrackView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(.white.opacity(0.22))
+                        .fill(.thinMaterial)
                         .frame(width: 48, height: 48)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.20 : 0.06), lineWidth: 1)
+                        )
 
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                 }
             }
             .buttonStyle(.plain)
@@ -310,17 +323,7 @@ struct CurrentTrackView: View {
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 12)
-        .background(
-            LinearGradient(
-                colors: [
-                    .black.opacity(0.95),
-                    .black.opacity(0.75),
-                    .black.opacity(0.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(.ultraThinMaterial)
     }
 
     private var titleBlock: some View {
@@ -384,21 +387,18 @@ struct CurrentTrackView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Not enough track data yet")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
 
             Text("Start moving and this page will fill with distance, speed, elevation, and ride summary data.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(.secondary)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.white.opacity(0.08))
-        )
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
         )
     }
 
@@ -409,19 +409,16 @@ struct CurrentTrackView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
 
             content()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.white.opacity(0.08))
-        )
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
         )
     }
 
@@ -429,7 +426,7 @@ struct CurrentTrackView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
 
             if values.count >= 2 {
                 ProfileChart(values: values)
@@ -441,22 +438,19 @@ struct CurrentTrackView: View {
                     Text("Finish")
                 }
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(.secondary)
             } else {
                 Text("Not enough data")
                     .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.white.opacity(0.05))
-        )
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
         )
     }
 
@@ -469,11 +463,11 @@ struct CurrentTrackView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.secondary)
 
                 Text(value)
                     .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -485,11 +479,11 @@ struct CurrentTrackView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(item.0)
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.72))
+                                .foregroundStyle(.secondary)
 
                             Text(item.1)
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.92))
+                                .foregroundStyle(.primary)
                                 .monospacedDigit()
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -497,13 +491,10 @@ struct CurrentTrackView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(.white.opacity(0.06))
-                        )
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+                                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
                         )
                     }
                 }
@@ -511,13 +502,10 @@ struct CurrentTrackView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.white.opacity(0.10))
-        )
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.18 : 0.08), lineWidth: 1)
         )
     }
 
@@ -525,11 +513,11 @@ struct CurrentTrackView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
 
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -537,13 +525,10 @@ struct CurrentTrackView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: 78, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.white.opacity(0.08))
-        )
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
         )
     }
 
