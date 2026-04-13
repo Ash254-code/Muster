@@ -5609,7 +5609,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         mapStyleRaw = "blank"
         orientationRaw = "headsUp"
         headsUpPitchDegrees = 80
-        postExactZoomRequest(200)
+        postExactZoomRequest(1000)
     }
 
     private func applyAutosteerTrackCreationMapView() {

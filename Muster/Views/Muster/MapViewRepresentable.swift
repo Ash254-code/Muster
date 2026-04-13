@@ -285,7 +285,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     private func applyMapStyle(_ map: MKMapView) {
         if guidanceNoMapEnabled {
-            map.mapType = .satelliteFlyover
+            map.mapType = .standard
             map.showsBuildings = false
             map.isPitchEnabled = true
             map.isRotateEnabled = true
@@ -336,6 +336,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var ringOverlays: [MKCircle] = []
         private var autosteerGuidancePolylines: [AutosteerGuidancePolyline] = []
         private var ringLabelAnnotations: [RingLabelAnnotation] = []
+        private var hasFrozenAutosteerGuidanceLines = false
 
         private var previousTrackSignature: String = ""
         private var importedTrackSignature: String = ""
@@ -554,9 +555,18 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             let shouldShowTriangle = (orientationRaw == "headsUp") && followUser
             let heading = resolvedHeading(for: userLocation)
+            let guidanceBlankMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
 
             if let existing = userLocationAnnotation {
-                existing.coordinate = userLocation.coordinate
+                if guidanceBlankMode {
+                    existing.coordinate = smoothedCoordinate(
+                        from: existing.coordinate,
+                        to: userLocation.coordinate,
+                        smoothingFactor: 0.24
+                    )
+                } else {
+                    existing.coordinate = userLocation.coordinate
+                }
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
                 existing.useCrosshair = parent.useCrosshairUserMarker
@@ -1610,6 +1620,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             xrsTrailSignature = ""
             ringsSignature = ""
             autosteerGuidanceSignature = ""
+            hasFrozenAutosteerGuidanceLines = false
         }
 
         private func isBreadcrumbAppendCompatible(points: [TrackPoint]) -> Bool {
@@ -2133,6 +2144,16 @@ struct MapViewRepresentable: UIViewRepresentable {
             lockedLineIndex: Int?,
             userLocation: CLLocation?
         ) {
+            let freezeGuidanceLines = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
+            if freezeGuidanceLines {
+                if hasFrozenAutosteerGuidanceLines {
+                    return
+                }
+                hasFrozenAutosteerGuidanceLines = true
+            } else {
+                hasFrozenAutosteerGuidanceLines = false
+            }
+
             let normalizedSpacing = max(1, spacingMeters)
             let userCoordinate = userLocation?.coordinate
             let signatureCoordinates = previewCoordinates.map { values in
@@ -2182,6 +2203,17 @@ struct MapViewRepresentable: UIViewRepresentable {
             )
             autosteerGuidancePolylines = lines
             map.addOverlays(lines, level: .aboveRoads)
+        }
+
+        private func smoothedCoordinate(
+            from current: CLLocationCoordinate2D,
+            to target: CLLocationCoordinate2D,
+            smoothingFactor: Double
+        ) -> CLLocationCoordinate2D {
+            let alpha = min(max(smoothingFactor, 0), 1)
+            let latitude = current.latitude + (target.latitude - current.latitude) * alpha
+            let longitude = current.longitude + (target.longitude - current.longitude) * alpha
+            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
         private func visibleAutosteerLineRange(
