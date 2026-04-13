@@ -1033,11 +1033,20 @@ struct CruiseControlSettingsView: View {
         Form {
             Section {
                 Toggle(isOn: $cruiseEnabled) {
-                    Label("Enable Cruise Control", systemImage: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
-                        .foregroundStyle(.blue)
+                    HStack(spacing: 8) {
+                        Image(systemName: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
+                            .foregroundStyle(.blue)
+                        Text("Enable Cruise Control")
+                            .foregroundStyle(.primary)
+                    }
                 }
                 HStack {
-                    Text("Target Speed")
+                    Label {
+                        Text("Target Speed")
+                    } icon: {
+                        Image(systemName: "speedometer")
+                            .foregroundStyle(.blue)
+                    }
                     Spacer()
                     Text(
                         isImperialSpeed
