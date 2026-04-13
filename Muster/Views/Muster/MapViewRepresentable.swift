@@ -2202,7 +2202,19 @@ struct MapViewRepresentable: UIViewRepresentable {
                 centeredAround: effectiveLockedIndex ?? 0
             )
             autosteerGuidancePolylines = lines
-            map.addOverlays(lines, level: .aboveRoads)
+            let overlayLevel: MKOverlayLevel = freezeGuidanceLines ? .aboveLabels : .aboveRoads
+            map.addOverlays(lines, level: overlayLevel)
+        }
+
+        private func smoothedCoordinate(
+            from current: CLLocationCoordinate2D,
+            to target: CLLocationCoordinate2D,
+            smoothingFactor: Double
+        ) -> CLLocationCoordinate2D {
+            let alpha = min(max(smoothingFactor, 0), 1)
+            let latitude = current.latitude + (target.latitude - current.latitude) * alpha
+            let longitude = current.longitude + (target.longitude - current.longitude) * alpha
+            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
         private func smoothedCoordinate(
