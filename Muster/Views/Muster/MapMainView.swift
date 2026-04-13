@@ -1505,14 +1505,10 @@ struct MapMainView: View {
 
                 if showMapLayerSheet {
                     VStack(spacing: 0) {
-                        Spacer()
-
                         mapLayerSheet
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.horizontal, 10)
-                            .padding(.bottom, geo.safeAreaInsets.bottom + 8)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .ignoresSafeArea()
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(20)
                 }
@@ -4179,11 +4175,13 @@ struct MapMainView: View {
 
     private var mapLayerSheet: some View {
         GeometryReader { proxy in
-            let outerPadding: CGFloat = 18
+            let outerPadding: CGFloat = 20
             let interItemSpacing: CGFloat = 10
             let columns = 3
             let availableWidth = proxy.size.width - (outerPadding * 2) - (interItemSpacing * CGFloat(columns - 1))
             let cardWidth = floor(availableWidth / CGFloat(columns))
+            let topInset = proxy.safeAreaInsets.top
+            let bottomInset = proxy.safeAreaInsets.bottom
 
             VStack(spacing: 0) {
                 HStack {
@@ -4269,17 +4267,31 @@ struct MapMainView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, max(10, topInset + 4))
+            .padding(.bottom, max(12, bottomInset + 6))
             .background(
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 30,
+                    topTrailingRadius: 30,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    style: .continuous
+                )
                     .fill(chromeFill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 30,
+                    topTrailingRadius: 30,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    style: .continuous
+                )
                     .strokeBorder(chromeStroke, lineWidth: 1)
             )
             .shadow(color: chromeShadow, radius: 18, y: 8)
         }
-        .frame(height: 660)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private func mapModeCard(_ option: MapModeOption, width: CGFloat) -> some View {
@@ -4332,11 +4344,11 @@ struct MapMainView: View {
                 VStack(spacing: 3) {
                     Text(option.title)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
 
                     Text(option.subtitle)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .foregroundStyle(chromeSecondaryText)
                         .lineLimit(1)
                 }
                 .frame(width: width)
@@ -4365,10 +4377,10 @@ struct MapMainView: View {
             VStack(spacing: 3) {
                 Text("Coming Soon")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(chromePrimaryText)
                 Text("No action yet")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(chromeSecondaryText)
             }
             .frame(width: width)
         }
@@ -4383,12 +4395,17 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.12, green: 0.17, blue: 0.24),
-                    Color(red: 0.08, green: 0.12, blue: 0.18)
+                    Color(red: 0.09, green: 0.17, blue: 0.23),
+                    Color(red: 0.07, green: 0.12, blue: 0.18)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.white.opacity(0.06))
+                .blur(radius: 10)
+                .padding(12)
 
             Circle()
                 .fill(Color.green.opacity(0.30))
@@ -4409,6 +4426,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 )
             }
             .stroke(Color.white.opacity(0.75), style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+
+            Path { path in
+                path.move(to: CGPoint(x: 10, y: 22))
+                path.addCurve(
+                    to: CGPoint(x: 112, y: 78),
+                    control1: CGPoint(x: 36, y: 0),
+                    control2: CGPoint(x: 90, y: 44)
+                )
+            }
+            .stroke(Color.white.opacity(0.20), style: StrokeStyle(lineWidth: 4, lineCap: .round))
 
             Circle()
                 .fill(.orange)
@@ -4447,6 +4474,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             }
             .stroke(Color.yellow.opacity(0.95), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [8, 7]))
 
+            Path { path in
+                path.move(to: CGPoint(x: 6, y: 30))
+                path.addCurve(
+                    to: CGPoint(x: 118, y: 64),
+                    control1: CGPoint(x: 30, y: 12),
+                    control2: CGPoint(x: 80, y: 86)
+                )
+            }
+            .stroke(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+
             Image(systemName: "car.fill")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(.green)
@@ -4479,6 +4516,16 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .frame(width: 86, height: 6)
                 .rotationEffect(.degrees(26))
 
+            Path { path in
+                path.move(to: CGPoint(x: 12, y: 20))
+                path.addCurve(
+                    to: CGPoint(x: 108, y: 74),
+                    control1: CGPoint(x: 36, y: 10),
+                    control2: CGPoint(x: 84, y: 62)
+                )
+            }
+            .stroke(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+
             Circle()
                 .fill(.orange)
                 .frame(width: 8, height: 8)
@@ -4489,8 +4536,8 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.50, green: 0.60, blue: 0.40),
-                    Color(red: 0.38, green: 0.48, blue: 0.31)
+                    Color(red: 0.46, green: 0.58, blue: 0.38),
+                    Color(red: 0.34, green: 0.47, blue: 0.29)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -4515,6 +4562,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 .fill(Color.white.opacity(0.28))
                 .frame(width: 90, height: 6)
                 .rotationEffect(.degrees(-24))
+
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black.opacity(0.16))
+                .frame(width: 52, height: 18)
+                .offset(x: 24, y: 24)
         }
 
     case .blank:
@@ -4536,6 +4588,10 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
 }
     private func anglePill(_ angle: Double) -> some View {
         let isSelected = Int(normalizedHeadsUpPitchDegrees.rounded()) == Int(angle.rounded())
+        let selectedFill = Color(red: 0.0, green: 0.48, blue: 1.0)
+        let idleFill = colorScheme == .dark ? Color.white.opacity(0.3) : Color(uiColor: .tertiarySystemFill)
+        let idleStroke = colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.10)
+        let idleText = colorScheme == .dark ? Color.white : Color(uiColor: .label)
 
         return Button {
             headsUpPitchDegrees = angle
@@ -4546,19 +4602,19 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         } label: {
             Text("\(Int(angle))")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(isSelected ? Color.white : idleText)
                 .frame(minWidth: 56)
                 .frame(height: 38)
                 .padding(.horizontal, 10)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color(red: 0.0, green: 0.48, blue: 1.0) : .white.opacity(0.3))
+                        .fill(isSelected ? selectedFill : idleFill)
                 )
                 .overlay(
                     Capsule(style: .continuous)
-                        .strokeBorder(isSelected ? Color(red: 0.35, green: 0.70, blue: 1.0) : .white.opacity(0.3), lineWidth: 1)
+                        .strokeBorder(isSelected ? Color(red: 0.35, green: 0.70, blue: 1.0) : idleStroke, lineWidth: 1)
                 )
-                .shadow(color: isSelected ? Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.35) : .clear, radius: 8, y: 2)
+                .shadow(color: isSelected ? selectedFill.opacity(0.35) : .clear, radius: 8, y: 2)
         }
         .buttonStyle(.plain)
     }
