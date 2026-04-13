@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>                    .font(.system(size: 18, weight: .semibold))
+				<string>            showAutosteerHeadingValidationWarning = true
 </string>
 				<key>leading</key>
-				<string>            } label: {
-                Image(systemName: isHeadsUp ? "safari.fill" : "location.north.line.fill")
+				<string>        guard let _ = validatedAutosteerHeadingValue() else {
+            autosteerHeadingValidationWarningMessage = "Heading must be between 0.0000 and 360.0000, with up to 4 decimal places."
 </string>
 				<key>trailing</key>
-				<string>                    .foregroundStyle(chromePrimaryText)
-                    .frame(width: 48, height: 48)
-            }
+				<string>            return false
+        }
+        return true
 </string>
 			</dict>
 			<key>type</key>
