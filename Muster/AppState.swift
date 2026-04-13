@@ -4,6 +4,29 @@ import AVFoundation
 import CoreLocation
 import UIKit
 
+let kHapticsEnabledKey = "haptics_enabled"
+let kHapticsStrengthKey = "haptics_strength"
+
+enum AppHaptics {
+    private static let defaults = UserDefaults.standard
+
+    static var isEnabled: Bool {
+        defaults.object(forKey: kHapticsEnabledKey) as? Bool ?? true
+    }
+
+    static var strength: CGFloat {
+        let stored = defaults.object(forKey: kHapticsStrengthKey) as? Double ?? 1.0
+        return CGFloat(min(max(stored, 0.1), 1.0))
+    }
+
+    static func longPressStrong() {
+        guard isEnabled else { return }
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.prepare()
+        generator.impactOccurred(intensity: strength)
+    }
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published var muster = MusterStore() {

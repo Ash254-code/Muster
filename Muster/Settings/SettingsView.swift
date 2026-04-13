@@ -715,9 +715,44 @@ private struct AppSettingsView: View {
             } label: {
                 Label("Media", systemImage: "speaker.wave.2")
             }
+
+            NavigationLink {
+                HapticSettingsView()
+            } label: {
+                Label("Haptic", systemImage: "iphone.radiowaves.left.and.right")
+            }
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct HapticSettingsView: View {
+    @AppStorage(kHapticsEnabledKey) private var hapticsEnabled: Bool = true
+    @AppStorage(kHapticsStrengthKey) private var hapticStrength: Double = 1.0
+
+    var body: some View {
+        Form {
+            Section("Haptic") {
+                Toggle("Enabled", isOn: $hapticsEnabled)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Strength")
+                        Spacer()
+                        Text("\(Int((min(max(hapticStrength, 0.1), 1.0) * 100).rounded()))%")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $hapticStrength, in: 0.1...1.0, step: 0.05)
+                        .disabled(!hapticsEnabled)
+                }
+            }
+        }
+        .navigationTitle("Haptic")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: hapticStrength) { _, newValue in
+            hapticStrength = min(max(newValue, 0.1), 1.0)
+        }
     }
 }
 
@@ -3462,6 +3497,7 @@ private struct AutosteerDatabaseView: View {
                     }
                 }
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                    AppHaptics.longPressStrong()
                     selectedFarm = farm
                     showFarmActions = true
                 })
@@ -3512,6 +3548,7 @@ private struct AutosteerDatabaseView: View {
                     }
                 }
                 .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                    AppHaptics.longPressStrong()
                     selectedFarm = farm
                     selectedPaddock = paddock
                     showPaddockActions = true
@@ -3571,6 +3608,7 @@ private struct AutosteerDatabaseView: View {
                     }
                 }
                     .simultaneousGesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
+                        AppHaptics.longPressStrong()
                         selectedFarm = farm
                         selectedPaddock = paddock
                         selectedTrack = track
