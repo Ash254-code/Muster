@@ -3204,17 +3204,22 @@ struct MapMainView: View {
 
     private func autosteerTrackSetupOverlay(maxWidth: CGFloat) -> some View {
         VStack(alignment: .center, spacing: 10) {
-            Text("Create New Track")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromeSecondaryText)
-                .frame(maxWidth: .infinity, alignment: .center)
+            ZStack {
+                Text("Create New Track")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromeSecondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
 
-            PillWrapLayout(spacing: 8, rowSpacing: 8) {
-                if autosteerSetupModeRaw == "A+B line" {
+                HStack {
+                    Spacer()
                     autosteerTrackPillButton("X") {
                         resetAutosteerSetupFlow()
                     }
+                }
+            }
 
+            PillWrapLayout(spacing: 8, rowSpacing: 8) {
+                if autosteerSetupModeRaw == "A+B line" {
                     autosteerTrackPillButton(autosteerPointA == nil ? "Mark A" : "Re-mark A") {
                         guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
                         autosteerPointA = coordinate
