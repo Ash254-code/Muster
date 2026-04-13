@@ -1766,13 +1766,13 @@ struct MapMainView: View {
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
-                    beginAutosteerSetup(mode: "Curve Track")
+                    startNewTrackImmediatelyFromQuickAction()
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "point.bottomleft.forward.to.point.topright.scurvepath.fill")
+                    Image(systemName: "record.circle")
                         .foregroundStyle(.blue)
-                    Text("Curve")
+                    Text("Track Recording")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
