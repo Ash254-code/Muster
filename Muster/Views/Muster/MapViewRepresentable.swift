@@ -345,6 +345,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var ringsSignature: String = ""
         private var autosteerGuidanceSignature: String = ""
         private var autosteerLockedLineIndex: Int?
+        private var wasAutosteerGuidanceFrozen = false
 
         private var hasTriggeredDestinationArrival = false
         private let destinationArrivalDistanceMeters: CLLocationDistance = 120
@@ -2145,6 +2146,12 @@ struct MapViewRepresentable: UIViewRepresentable {
             userLocation: CLLocation?
         ) {
             let freezeGuidanceLines = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
+            if freezeGuidanceLines != wasAutosteerGuidanceFrozen {
+                autosteerGuidanceSignature = ""
+                hasFrozenAutosteerGuidanceLines = false
+            }
+            wasAutosteerGuidanceFrozen = freezeGuidanceLines
+
             if freezeGuidanceLines {
                 if hasFrozenAutosteerGuidanceLines && autosteerGuidancePolylines.isEmpty == false {
                     return
