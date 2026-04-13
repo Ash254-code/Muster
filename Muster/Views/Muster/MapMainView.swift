@@ -2546,7 +2546,7 @@ struct MapMainView: View {
             }
         }
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-        .onLongPressGesture(minimumDuration: 0.45) {
+        .onTapGesture {
             showCruiseControlQuickPopup = true
         }
         .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
@@ -2556,43 +2556,59 @@ struct MapMainView: View {
     }
 
     private var cruiseControlQuickPopup: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Toggle("Cruise Control", isOn: $cruiseControlEnabled)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Set speed")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    Button {
-                        cruiseControlSpeedKPH = max(2, clampedCruiseControlSpeedKPH - 1)
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .frame(minWidth: 120, alignment: .center)
-
-                    Button {
-                        cruiseControlSpeedKPH = min(100, clampedCruiseControlSpeedKPH + 1)
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Button {
+                    showCruiseControlQuickPopup = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.blue)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(.blue.opacity(0.12)))
                 }
+                .buttonStyle(.plain)
 
-                Slider(value: $cruiseControlSpeedKPH, in: 2...100, step: 1)
+                Spacer()
             }
+
+            HStack(spacing: 10) {
+                Image(systemName: "steeringwheel")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.blue)
+                Toggle("Auto Steer", isOn: $autosteerEnabled)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .tint(.blue)
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: "speedometer")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.blue)
+                Toggle("Cruise Control", isOn: $cruiseControlEnabled)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .tint(.blue)
+            }
+
+            Button {
+                showCruiseControlQuickPopup = false
+                startNewTrackFlow()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "road.lanes")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.blue)
+                    Text("Start")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+            }
+            .buttonStyle(.plain)
         }
         .padding(14)
-        .frame(width: 280)
+        .frame(width: 300)
     }
 
     private var moveBanner: some View {
