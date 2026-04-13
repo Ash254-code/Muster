@@ -3,6 +3,7 @@ import SwiftUI
 struct TPMSDashboardView: View {
     @EnvironmentObject private var tpmsStore: TPMSStore
     @EnvironmentObject private var tpmsBluetooth: TPMSBluetoothManager
+    @Environment(\.colorScheme) private var colorScheme
 
     private enum VehicleMode: String, CaseIterable, Identifiable {
         case motorbike
@@ -121,7 +122,16 @@ struct TPMSDashboardView: View {
             }
             .padding(16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(uiColor: .systemBackground),
+                    Color(uiColor: .secondarySystemBackground)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .navigationTitle("TPMS")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -183,6 +193,10 @@ struct TPMSDashboardView: View {
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+        )
     }
 
     private func statPill(title: String, value: String, systemImage: String) -> some View {
@@ -224,6 +238,10 @@ struct TPMSDashboardView: View {
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+        )
     }
 
     private var carDashboardLayout: some View {
@@ -279,14 +297,9 @@ struct TPMSDashboardView: View {
         let isAlerting = tyre?.isAlerting ?? false
         let isConnected = tyre?.isConnected ?? false
 
-        let backgroundColor: Color = {
-            if !isConnected { return Color(.systemBackground).opacity(0.92) }
-            return isAlerting ? Color.red.opacity(0.14) : Color.green.opacity(0.14)
-        }()
-
         let borderColor: Color = {
-            if !isConnected { return Color.primary.opacity(0.08) }
-            return isAlerting ? Color.red.opacity(0.50) : Color.green.opacity(0.50)
+            if !isConnected { return .white.opacity(colorScheme == .dark ? 0.12 : 0.08) }
+            return isAlerting ? Color.red.opacity(0.38) : Color.green.opacity(0.32)
         }()
 
         let valueColor: Color = {
@@ -319,9 +332,13 @@ struct TPMSDashboardView: View {
         .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .background(
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(backgroundColor)
+                .fill(
+                    (isAlerting ? Color.red : (isConnected ? Color.green : .clear))
+                        .opacity(isConnected ? 0.08 : 0.0)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -364,12 +381,16 @@ struct TPMSDashboardView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+        )
     }
 
     private var pairedSensorsCard: some View {
@@ -401,12 +422,16 @@ struct TPMSDashboardView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+        )
     }
 
     private var demoControlsCard: some View {
@@ -453,6 +478,10 @@ struct TPMSDashboardView: View {
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+        )
     }
 
     private func demoButton(_ title: String, action: @escaping () -> Void) -> some View {
