@@ -111,9 +111,10 @@ struct AutosteerGuidanceRenderer {
         size: CGSize,
         cache: AutosteerGuidanceGeometryCache,
         projection: AutosteerProjection,
-        lockedLineIndex: Int?
+        lockedLineIndex: Int?,
+        backgroundColor: Color
     ) {
-        context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+        context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(backgroundColor))
 
         let activeIndex = lockedLineIndex ?? 0
         let indexRange = (activeIndex - leftRightLineCount)...(activeIndex + leftRightLineCount)
@@ -158,15 +159,21 @@ struct AutosteerGuidanceView: View {
     let lockedLineIndex: Int?
     let geometrySignature: String
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var geometryCache: AutosteerGuidanceGeometryCache?
     private let renderer = AutosteerGuidanceRenderer()
+    private var guidanceBackgroundColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.45, green: 0.56, blue: 0.34)
+            : Color(red: 0.71, green: 0.85, blue: 0.58)
+    }
 
     var body: some View {
         GeometryReader { geo in
             Canvas(opaque: true, rendersAsynchronously: true) { context, size in
                 guard let cache = geometryCache,
                       let userCoordinate else {
-                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(guidanceBackgroundColor))
                     return
                 }
 
@@ -185,10 +192,11 @@ struct AutosteerGuidanceView: View {
                     size: size,
                     cache: cache,
                     projection: projection,
-                    lockedLineIndex: lockedLineIndex
+                    lockedLineIndex: lockedLineIndex,
+                    backgroundColor: guidanceBackgroundColor
                 )
             }
-            .background(Color.black)
+            .background(guidanceBackgroundColor)
             .onAppear { rebuildGeometryCacheIfNeeded() }
             .onChange(of: geometrySignature) { _, _ in rebuildGeometryCacheIfNeeded() }
             .onChange(of: workingWidthMeters) { _, _ in rebuildGeometryCacheIfNeeded() }
