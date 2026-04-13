@@ -424,7 +424,7 @@ private struct CellularTrackingSettingsView: View {
             }
         }
         .sheet(isPresented: $showMessageComposer) {
-            MessageComposeView(recipients: smsRecipients, body: smsBody)
+            SMSComposeView(recipients: smsRecipients, body: smsBody)
         }
     }
 
@@ -437,26 +437,6 @@ private struct CellularTrackingSettingsView: View {
         }
         inviteName = ""
         invitePhoneNumber = ""
-    }
-
-    private func startSharingMyLocation() {
-        sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
-        app.cellularTracking.sendInvitation(name: selfMemberName, phoneNumber: selfMemberPhoneNumber)
-        if let meID = app.cellularTracking.members.first(where: { $0.phoneNumber == selfMemberPhoneNumber })?.id {
-            app.cellularTracking.respondToInvitation(
-                for: meID,
-                accepted: true,
-                duration: selectedShareDuration.interval
-            )
-        }
-        locationService.requestPermission()
-        locationService.start()
-        locationService.forceRefreshNow()
-    }
-
-    private func stopSharingMyLocation() {
-        sharingEndsAt = nil
-        locationService.stop()
     }
 
     private var inviteFromContactsSection: some View {
@@ -533,12 +513,11 @@ private struct CellularTrackingSettingsView: View {
                 ForEach(app.cellularTracking.members) { member in
                     SharedMemberRow(
                         member: member
-                    ) { accepted in
-                        app.cellularTracking.respondToInvitation(
-                            for: member.id,
-                            accepted: accepted,
-                            duration: accepted ? selectedShareDuration.interval : nil
-                        )
+                    ) {
+                        guard let inviteID = member.pendingInvite?.id else { return }
+                        Task {
+                            await app.cellularTracking.revokeInvite(inviteID)
+                        }
                     }
                 }
             }
@@ -551,26 +530,20 @@ private struct CellularTrackingSettingsView: View {
 
 private struct SharedMemberRow: View {
     let member: CellularTrackingMember
-    let onRespond: (Bool) -> Void
+    let onRevokeInvite: () -> Void
 
     private var statusText: String {
-        switch member.status {
-        case .live: return "Live"
-        case .offline: return "Offline"
-        case .expired: return "Expired"
-        case .pending: return "Pending"
-        case .rejected: return "Rejected"
-        }
+        if member.activeSession?.isActive == true { return "Live" }
+        if member.pendingInvite != nil { return "Pending" }
+        if let shareEndsAt = member.presence.shareEndsAt, shareEndsAt < Date() { return "Expired" }
+        return "Offline"
     }
 
     private var statusColor: Color {
-        switch member.status {
-        case .live: return .green
-        case .offline: return .orange
-        case .expired: return .red
-        case .pending: return .yellow
-        case .rejected: return .gray
-        }
+        if member.activeSession?.isActive == true { return .green }
+        if member.pendingInvite != nil { return .yellow }
+        if let shareEndsAt = member.presence.shareEndsAt, shareEndsAt < Date() { return .red }
+        return .orange
     }
 
     var body: some View {
@@ -588,19 +561,49 @@ private struct SharedMemberRow: View {
                     .foregroundStyle(statusColor)
             }
 
-            if member.invitationStatus == .pending {
-                HStack(spacing: 12) {
-                    Button("Accept") {
-                        onRespond(true)
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Reject") {
-                        onRespond(false)
-                    }
-                    .buttonStyle(.bordered)
+            if member.pendingInvite != nil {
+                Button("Revoke invite", role: .destructive) {
+                    onRevokeInvite()
                 }
+                .buttonStyle(.bordered)
             }
+        }
+    }
+}
+
+private struct SMSComposeView: UIViewControllerRepresentable {
+    let recipients: [String]
+    let body: String
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        guard MFMessageComposeViewController.canSendText() else {
+            let controller = UIViewController()
+            DispatchQueue.main.async { dismiss() }
+            return controller
+        }
+        let controller = MFMessageComposeViewController()
+        controller.messageComposeDelegate = context.coordinator
+        controller.recipients = recipients
+        controller.body = body
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(dismiss: dismiss)
+    }
+
+    final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
+        private let dismiss: DismissAction
+
+        init(dismiss: DismissAction) {
+            self.dismiss = dismiss
+        }
+
+        func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+            dismiss()
         }
     }
 }
