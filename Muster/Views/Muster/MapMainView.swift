@@ -2437,7 +2437,8 @@ struct MapMainView: View {
     }
 
     private var cruiseControlStatusPill: some View {
-        VStack(spacing: 2) {
+        Button(action: {}) {
+            VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(cruiseControlDisplaySpeedText)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -2458,24 +2459,26 @@ struct MapMainView: View {
                 .foregroundStyle(chromeSecondaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: topPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(chromeFill)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(chromeStroke, lineWidth: 2)
+            )
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(cruiseControlStatusRingColor, lineWidth: 2.5)
+            }
+            .shadow(color: chromeShadow, radius: 8, y: 3)
+            .contentShape(Capsule(style: .continuous))
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity)
-        .frame(height: topPillHeight)
-        .background(
-            Capsule(style: .continuous)
-                .fill(chromeFill)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 2)
-        )
-        .overlay {
-            Capsule(style: .continuous)
-                .strokeBorder(cruiseControlStatusRingColor, lineWidth: 2.5)
-        }
-        .shadow(color: chromeShadow, radius: 8, y: 3)
-        .contentShape(Capsule(style: .continuous))
+        .buttonStyle(.plain)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
@@ -2518,7 +2521,8 @@ struct MapMainView: View {
     private func topSidePill(metric: TopSidePillMetric, side: TopSidePillPosition) -> some View {
         let content = contentForTopSidePill(metric)
 
-        return VStack(spacing: 2) {
+        return Button(action: {}) {
+            VStack(spacing: 2) {
             HStack(spacing: 8) {
                 Image(systemName: content.systemImage)
                     .font(.system(size: metric == .headingBearing ? 12 : 17, weight: .semibold))
@@ -2542,20 +2546,22 @@ struct MapMainView: View {
                 .foregroundStyle(chromeSecondaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: topPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(chromeFill)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(chromeStroke, lineWidth: 2)
+            )
+            .shadow(color: chromeShadow, radius: 8, y: 3)
+            .contentShape(Capsule(style: .continuous))
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity)
-        .frame(height: topPillHeight)
-        .background(
-            Capsule(style: .continuous)
-                .fill(chromeFill)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(chromeStroke, lineWidth: 2)
-        )
-        .shadow(color: chromeShadow, radius: 8, y: 3)
-        .contentShape(Capsule(style: .continuous))
+        .buttonStyle(.plain)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
@@ -2632,7 +2638,8 @@ struct MapMainView: View {
     }
 
     private var topSpeedPill: some View {
-        VStack(spacing: 0) {
+        Button(action: {}) {
+            VStack(spacing: 0) {
             Text(speedNumberText)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(speedPillShouldHighlightMatch ? Color.blue : chromePrimaryText)
@@ -2643,22 +2650,24 @@ struct MapMainView: View {
             Text(speedUnitText)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(chromeSecondaryText)
-        }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity)
-        .frame(height: 54)
-        .background(
-            Capsule(style: .continuous)
-                .fill(chromeFill)
-        )
-        .overlay {
-            if hasSpeedPillRing {
-                Capsule(style: .continuous)
-                    .strokeBorder(speedPillRingColor, lineWidth: 2.5)
             }
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(chromeFill)
+            )
+            .overlay {
+                if hasSpeedPillRing {
+                    Capsule(style: .continuous)
+                        .strokeBorder(speedPillRingColor, lineWidth: 2.5)
+                }
+            }
+            .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+            .contentShape(Capsule(style: .continuous))
         }
-        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-        .contentShape(Capsule(style: .continuous))
+        .buttonStyle(.plain)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
