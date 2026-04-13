@@ -2517,23 +2517,23 @@ struct MapMainView: View {
     private var chromeFill: Color {
         colorScheme == .dark
             ? Color.black.opacity(0.94)
-            : Color(uiColor: .systemBackground).opacity(0.78)
+            : Color(uiColor: .secondarySystemBackground)
     }
 
     private var chromeStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.10)
+        colorScheme == .dark ? Color.white.opacity(0.28) : Color(uiColor: .separator).opacity(0.35)
     }
 
     private var chromePrimaryText: Color {
-        colorScheme == .dark ? Color.white : Color.black.opacity(0.9)
+        colorScheme == .dark ? Color.white : Color(uiColor: .label)
     }
 
     private var chromeSecondaryText: Color {
-        colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.58)
+        colorScheme == .dark ? Color.white.opacity(0.72) : Color(uiColor: .secondaryLabel)
     }
 
     private var chromeShadow: Color {
-        colorScheme == .dark ? Color.black.opacity(0.22) : Color.black.opacity(0.10)
+        colorScheme == .dark ? Color.black.opacity(0.22) : Color.black.opacity(0.08)
     }
 
     private var quickPopupFill: Color {
