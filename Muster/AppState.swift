@@ -599,6 +599,7 @@ final class CellularGroupTrackingStore: ObservableObject {
             members[index].activeSession?.isActive = false
             members[index].presence.shareEndsAt = Date()
         }
+        save()
     }
 
     func acceptInvite(token: String, participantName: String, duration: TimeInterval?) async -> CellularShareSession? {
@@ -668,6 +669,7 @@ final class CellularGroupTrackingStore: ObservableObject {
             for index in members.indices where members[index].pendingInvite?.id == inviteID {
                 members[index].pendingInvite = nil
             }
+            save()
         } catch {
             print("Failed to revoke invite \(inviteID): \(error.localizedDescription)")
         }
@@ -697,7 +699,19 @@ final class CellularGroupTrackingStore: ObservableObject {
             case .unavailable:
                 continue
             }
-            if let updatedAt = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp {
+            let updatedAt: Date?
+            switch member.presence.effectiveTransport {
+            case .cellular:
+                updatedAt = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp
+            case .xrs:
+                updatedAt = member.presence.xrsTimestamp ?? member.presence.cellularTimestamp
+            case .stale:
+                updatedAt = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp
+            case .unavailable:
+                updatedAt = nil
+            }
+
+            if let updatedAt {
                 mapped.append(
                     XRSRadioContact(
                         id: member.id,
