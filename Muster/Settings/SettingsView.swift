@@ -377,6 +377,10 @@ private struct CellularTrackingSettingsView: View {
     private var isContactQueryEmpty: Bool {
         contactQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+    private var canSendInvite: Bool {
+        !inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         Form {
@@ -388,118 +392,9 @@ private struct CellularTrackingSettingsView: View {
                 Text("Resolver policy: CELL when fresh (<=45s), then XRS fallback, then STALE if cellular is older than 45s but <=5 minutes.")
             }
 
-            Section {
-                Text("Invite from contacts or enter a name and phone number manually. Invites are created via backend before opening iOS Messages.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if contactSearch.authorizationStatus == .notDetermined {
-                    Button("Allow Contacts Access") {
-                        contactSearch.requestAccess()
-                    }
-                } else if contactSearch.authorizationStatus == .denied || contactSearch.authorizationStatus == .restricted {
-                    Text("Contacts access is unavailable. You can still invite manually.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Search contacts", text: $contactQuery)
-                            .textInputAutocapitalization(.words)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(.thinMaterial, in: Capsule())
-
-                    ForEach(contactSuggestions) { contact in
-                        Button {
-                            inviteName = contact.displayName
-                            invitePhoneNumber = contact.phoneNumber
-                            contactQuery = contact.displayName
-                        } label: {
-                            ContactSuggestionRow(contact: contact)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if isContactQueryEmpty {
-                        Text("Start typing to find contacts.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if contactSuggestions.isEmpty {
-                        Text("No matches yet. Keep typing a name or phone number.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Invite from contacts")
-            } footer: {
-                Text("Search above to quickly find a person, then review/edit details below before sending.")
-            }
-
-            Section {
-                TextField("Name", text: $inviteName)
-                    .textInputAutocapitalization(.words)
-                TextField("Phone number", text: $invitePhoneNumber)
-                    .keyboardType(.phonePad)
-
-                Button("Send invitation via text") {
-                    sendInvite()
-                }
-                .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } header: {
-                Text("Send invite")
-            }
-
-            Section {
-                if app.cellularTracking.members.isEmpty {
-                    Text("No invited members yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(app.cellularTracking.members) { member in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(member.name)
-                                    Text(member.phoneNumber)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(statusText(for: member))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(statusColor(for: member))
-                            }
-
-                            if member.invitationStatus == .pending {
-                                HStack(spacing: 12) {
-                                    Button("Accept") {
-                                        app.cellularTracking.respondToInvitation(
-                                            for: member.id,
-                                            accepted: true,
-                                            duration: selectedShareDuration.interval
-                                        )
-                                    }
-                                    .buttonStyle(.borderedProminent)
-
-                                    Button("Reject") {
-                                        app.cellularTracking.respondToInvitation(
-                                            for: member.id,
-                                            accepted: false,
-                                            duration: nil
-                                        )
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("Shared members")
-            }
+            inviteFromContactsSection
+            sendInviteSection
+            sharedMembersSection
         }
         .navigationTitle("Cellular")
         .navigationBarTitleDisplayMode(.inline)
@@ -544,44 +439,168 @@ private struct CellularTrackingSettingsView: View {
         invitePhoneNumber = ""
     }
 
-    private func transportBadge(_ transport: TrackingTransport) -> String {
-        switch transport {
-        case .cellular: return "CELL"
-        case .xrs: return "XRS"
-        case .stale: return "STALE"
-        case .unavailable: return "N/A"
+    private func startSharingMyLocation() {
+        sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
+        app.cellularTracking.sendInvitation(name: selfMemberName, phoneNumber: selfMemberPhoneNumber)
+        if let meID = app.cellularTracking.members.first(where: { $0.phoneNumber == selfMemberPhoneNumber })?.id {
+            app.cellularTracking.respondToInvitation(
+                for: meID,
+                accepted: true,
+                duration: selectedShareDuration.interval
+            )
+        }
+        locationService.requestPermission()
+        locationService.start()
+        locationService.forceRefreshNow()
+    }
+
+    private func stopSharingMyLocation() {
+        sharingEndsAt = nil
+        locationService.stop()
+    }
+
+    private var inviteFromContactsSection: some View {
+        Section {
+            if contactSearch.authorizationStatus == .notDetermined {
+                Button("Allow Contacts Access") {
+                    contactSearch.requestAccess()
+                }
+            } else if contactSearch.authorizationStatus == .denied || contactSearch.authorizationStatus == .restricted {
+                Text("Contacts access is unavailable. You can still invite manually.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search contacts", text: $contactQuery)
+                        .textInputAutocapitalization(.words)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(.thinMaterial, in: Capsule())
+
+                ForEach(contactSuggestions) { contact in
+                    Button {
+                        inviteName = contact.displayName
+                        invitePhoneNumber = contact.phoneNumber
+                        contactQuery = contact.displayName
+                    } label: {
+                        ContactSuggestionRow(contact: contact)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if isContactQueryEmpty {
+                    Text("Start typing to find contacts.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if contactSuggestions.isEmpty {
+                    Text("No matches yet. Keep typing a name or phone number.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Invite from contacts")
+        } footer: {
+            Text("Search above to quickly find a person, then review/edit details below before sending.")
         }
     }
 
-    private func lastUpdateText(for member: CellularTrackingMember) -> String {
-        if let date = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp {
-            return date.formatted(date: .omitted, time: .standard)
+    private var sendInviteSection: some View {
+        Section {
+            TextField("Name", text: $inviteName)
+                .textInputAutocapitalization(.words)
+            TextField("Phone number", text: $invitePhoneNumber)
+                .keyboardType(.phonePad)
+
+            Button("Send invitation via text") {
+                sendInvite()
+            }
+            .disabled(!canSendInvite)
+        } header: {
+            Text("Send invite")
         }
-        return "Never"
     }
+
+    private var sharedMembersSection: some View {
+        Section {
+            if app.cellularTracking.members.isEmpty {
+                Text("No invited members yet.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(app.cellularTracking.members) { member in
+                    SharedMemberRow(
+                        member: member
+                    ) { accepted in
+                        app.cellularTracking.respondToInvitation(
+                            for: member.id,
+                            accepted: accepted,
+                            duration: accepted ? selectedShareDuration.interval : nil
+                        )
+                    }
+                }
+            }
+        } header: {
+            Text("Shared members")
+        }
+    }
+
 }
 
-private struct MessageComposeView: UIViewControllerRepresentable {
-    let recipients: [String]
-    let body: String
+private struct SharedMemberRow: View {
+    let member: CellularTrackingMember
+    let onRespond: (Bool) -> Void
 
-    func makeUIViewController(context: Context) -> MFMessageComposeViewController {
-        let vc = MFMessageComposeViewController()
-        vc.messageComposeDelegate = context.coordinator
-        vc.recipients = recipients
-        vc.body = body
-        return vc
+    private var statusText: String {
+        switch member.status {
+        case .live: return "Live"
+        case .offline: return "Offline"
+        case .expired: return "Expired"
+        case .pending: return "Pending"
+        case .rejected: return "Rejected"
+        }
     }
 
-    func updateUIViewController(_ uiViewController: MFMessageComposeViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    private var statusColor: Color {
+        switch member.status {
+        case .live: return .green
+        case .offline: return .orange
+        case .expired: return .red
+        case .pending: return .yellow
+        case .rejected: return .gray
+        }
     }
 
-    final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
-        func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
-            controller.dismiss(animated: true)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(member.name)
+                    Text(member.phoneNumber)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(statusText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor)
+            }
+
+            if member.invitationStatus == .pending {
+                HStack(spacing: 12) {
+                    Button("Accept") {
+                        onRespond(true)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Reject") {
+                        onRespond(false)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
     }
 }
