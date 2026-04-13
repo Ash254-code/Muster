@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import AVFoundation
 import CoreLocation
+import UIKit
 
 @MainActor
 final class AppState: ObservableObject {
@@ -330,162 +331,216 @@ final class AppState: ObservableObject {
     }
 }
 
-struct CellularTrackingMember: Identifiable, Codable, Hashable {
-    enum InvitationStatus: String, Codable {
-        case pending
-        case accepted
-        case rejected
-        case expired
-    }
+enum TrackingTransport: String, Codable {
+    case cellular
+    case xrs
+    case stale
+    case unavailable
+}
 
-    var id: UUID
-    var name: String
+struct GroupTrackingInvite: Identifiable, Codable, Hashable {
+    var id: String
+    var inviterName: String
+    var groupName: String
+    var token: String
+    var joinURL: URL
+    var expiresAt: Date
     var phoneNumber: String
-    var isSharing: Bool
-    var invitationStatus: InvitationStatus
-    var sharingEndsAt: Date?
-    var lastCellularLatitude: Double?
-    var lastCellularLongitude: Double?
-    var lastCellularUpdate: Date?
-    var lastRadioLatitude: Double?
-    var lastRadioLongitude: Double?
-    var lastRadioUpdate: Date?
+    var inviteeName: String
+    var status: String
+}
 
-    enum Status {
-        case live
-        case offline
-        case expired
-        case pending
-        case rejected
-    }
+struct CellularShareSession: Identifiable, Codable, Hashable {
+    var id: String
+    var groupID: String
+    var participantID: String
+    var startedAt: Date
+    var endsAt: Date?
+    var isActive: Bool
+}
 
-    var lastCellularCoordinate: CLLocationCoordinate2D? {
-        guard let lastCellularLatitude, let lastCellularLongitude else { return nil }
-        return CLLocationCoordinate2D(latitude: lastCellularLatitude, longitude: lastCellularLongitude)
-    }
+struct CellularLocationPing: Codable, Hashable {
+    var participantID: String
+    var sessionID: String
+    var timestamp: Date
+    var latitude: Double
+    var longitude: Double
+    var speed: Double?
+    var course: Double?
+    var horizontalAccuracy: Double
+    var batteryLevel: Float?
+}
 
-    var lastRadioCoordinate: CLLocationCoordinate2D? {
-        guard let lastRadioLatitude, let lastRadioLongitude else { return nil }
-        return CLLocationCoordinate2D(latitude: lastRadioLatitude, longitude: lastRadioLongitude)
-    }
+struct ParticipantPresence: Identifiable, Codable, Hashable {
+    var id: String { participantID }
+    var participantID: String
+    var displayName: String
+    var cellularLocation: CLLocationCoordinate2D?
+    var cellularTimestamp: Date?
+    var xrsLocation: CLLocationCoordinate2D?
+    var xrsTimestamp: Date?
+    var effectiveLocation: CLLocationCoordinate2D?
+    var effectiveTransport: TrackingTransport
+    var isStale: Bool
+    var shareEndsAt: Date?
 
-    var status: Status {
-        if invitationStatus == .pending { return .pending }
-        if invitationStatus == .rejected { return .rejected }
-        guard isSharing else { return .expired }
-        if let sharingEndsAt, sharingEndsAt <= Date() { return .expired }
-        guard let lastCellularUpdate else {
-            return lastRadioUpdate == nil ? .offline : .expired
-        }
-        let age = Date().timeIntervalSince(lastCellularUpdate)
-        if age <= 120 { return .live }
-        if age <= 600 { return .offline }
-        return .expired
+    enum CodingKeys: String, CodingKey {
+        case participantID, displayName, cellularTimestamp, xrsTimestamp, effectiveTransport, isStale, shareEndsAt
+        case cellularLatitude, cellularLongitude, xrsLatitude, xrsLongitude, effectiveLatitude, effectiveLongitude
     }
 
     init(
-        id: UUID,
-        name: String,
-        phoneNumber: String,
-        isSharing: Bool,
-        invitationStatus: InvitationStatus,
-        sharingEndsAt: Date? = nil,
-        lastCellularLatitude: Double?,
-        lastCellularLongitude: Double?,
-        lastCellularUpdate: Date?,
-        lastRadioLatitude: Double?,
-        lastRadioLongitude: Double?,
-        lastRadioUpdate: Date?
+        participantID: String,
+        displayName: String,
+        cellularLocation: CLLocationCoordinate2D?,
+        cellularTimestamp: Date?,
+        xrsLocation: CLLocationCoordinate2D?,
+        xrsTimestamp: Date?,
+        effectiveLocation: CLLocationCoordinate2D?,
+        effectiveTransport: TrackingTransport,
+        isStale: Bool,
+        shareEndsAt: Date?
     ) {
-        self.id = id
-        self.name = name
-        self.phoneNumber = phoneNumber
-        self.isSharing = isSharing
-        self.invitationStatus = invitationStatus
-        self.sharingEndsAt = sharingEndsAt
-        self.lastCellularLatitude = lastCellularLatitude
-        self.lastCellularLongitude = lastCellularLongitude
-        self.lastCellularUpdate = lastCellularUpdate
-        self.lastRadioLatitude = lastRadioLatitude
-        self.lastRadioLongitude = lastRadioLongitude
-        self.lastRadioUpdate = lastRadioUpdate
+        self.participantID = participantID
+        self.displayName = displayName
+        self.cellularLocation = cellularLocation
+        self.cellularTimestamp = cellularTimestamp
+        self.xrsLocation = xrsLocation
+        self.xrsTimestamp = xrsTimestamp
+        self.effectiveLocation = effectiveLocation
+        self.effectiveTransport = effectiveTransport
+        self.isStale = isStale
+        self.shareEndsAt = shareEndsAt
     }
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        phoneNumber = try container.decode(String.self, forKey: .phoneNumber)
-        isSharing = try container.decode(Bool.self, forKey: .isSharing)
-        invitationStatus = try container.decodeIfPresent(InvitationStatus.self, forKey: .invitationStatus) ?? .accepted
-        sharingEndsAt = try container.decodeIfPresent(Date.self, forKey: .sharingEndsAt)
-        lastCellularLatitude = try container.decodeIfPresent(Double.self, forKey: .lastCellularLatitude)
-        lastCellularLongitude = try container.decodeIfPresent(Double.self, forKey: .lastCellularLongitude)
-        lastCellularUpdate = try container.decodeIfPresent(Date.self, forKey: .lastCellularUpdate)
-        lastRadioLatitude = try container.decodeIfPresent(Double.self, forKey: .lastRadioLatitude)
-        lastRadioLongitude = try container.decodeIfPresent(Double.self, forKey: .lastRadioLongitude)
-        lastRadioUpdate = try container.decodeIfPresent(Date.self, forKey: .lastRadioUpdate)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        participantID = try c.decode(String.self, forKey: .participantID)
+        displayName = try c.decode(String.self, forKey: .displayName)
+        cellularTimestamp = try c.decodeIfPresent(Date.self, forKey: .cellularTimestamp)
+        xrsTimestamp = try c.decodeIfPresent(Date.self, forKey: .xrsTimestamp)
+        effectiveTransport = try c.decode(TrackingTransport.self, forKey: .effectiveTransport)
+        isStale = try c.decode(Bool.self, forKey: .isStale)
+        shareEndsAt = try c.decodeIfPresent(Date.self, forKey: .shareEndsAt)
+
+        if let lat = try c.decodeIfPresent(Double.self, forKey: .cellularLatitude),
+           let lon = try c.decodeIfPresent(Double.self, forKey: .cellularLongitude) {
+            cellularLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        } else {
+            cellularLocation = nil
+        }
+        if let lat = try c.decodeIfPresent(Double.self, forKey: .xrsLatitude),
+           let lon = try c.decodeIfPresent(Double.self, forKey: .xrsLongitude) {
+            xrsLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        } else {
+            xrsLocation = nil
+        }
+        if let lat = try c.decodeIfPresent(Double.self, forKey: .effectiveLatitude),
+           let lon = try c.decodeIfPresent(Double.self, forKey: .effectiveLongitude) {
+            effectiveLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        } else {
+            effectiveLocation = nil
+        }
     }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(participantID, forKey: .participantID)
+        try c.encode(displayName, forKey: .displayName)
+        try c.encodeIfPresent(cellularTimestamp, forKey: .cellularTimestamp)
+        try c.encodeIfPresent(xrsTimestamp, forKey: .xrsTimestamp)
+        try c.encode(effectiveTransport, forKey: .effectiveTransport)
+        try c.encode(isStale, forKey: .isStale)
+        try c.encodeIfPresent(shareEndsAt, forKey: .shareEndsAt)
+        try c.encodeIfPresent(cellularLocation?.latitude, forKey: .cellularLatitude)
+        try c.encodeIfPresent(cellularLocation?.longitude, forKey: .cellularLongitude)
+        try c.encodeIfPresent(xrsLocation?.latitude, forKey: .xrsLatitude)
+        try c.encodeIfPresent(xrsLocation?.longitude, forKey: .xrsLongitude)
+        try c.encodeIfPresent(effectiveLocation?.latitude, forKey: .effectiveLatitude)
+        try c.encodeIfPresent(effectiveLocation?.longitude, forKey: .effectiveLongitude)
+    }
+}
+
+struct CellularTrackingMember: Identifiable, Codable, Hashable {
+    var id: UUID
+    var participantID: String
+    var name: String
+    var phoneNumber: String
+    var presence: ParticipantPresence
+    var activeSession: CellularShareSession?
+    var pendingInvite: GroupTrackingInvite?
 }
 
 @MainActor
 final class CellularGroupTrackingStore: ObservableObject {
     @Published private(set) var members: [CellularTrackingMember] = []
+    @Published private(set) var pendingInvites: [GroupTrackingInvite] = []
+    @Published private(set) var activeSessions: [CellularShareSession] = []
+    @Published var enableCellularTracking: Bool = false
+    @Published var useCellularWhenAvailable: Bool = true
+    @Published var fallbackToXRS: Bool = true
+    @Published private(set) var inboundInvite: GroupTrackingInvite?
+    @Published private(set) var inboundInviteValidationError: String?
 
     private let defaultsKey = "cellular_group_tracking_members_v1"
+    private let invitesKey = "cellular_group_tracking_invites_v1"
+    private let sessionsKey = "cellular_group_tracking_sessions_v1"
+    private let backend = CellularTrackingAPI()
+    private let resolver = EffectiveTransportResolver()
+    private var uploadQueue: [CellularLocationPing] = []
+    private var lastUploadFailure: Date?
+    private var lastUploadAt: Date?
 
     func load() {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return }
-        guard let decoded = try? JSONDecoder().decode([CellularTrackingMember].self, from: data) else { return }
-        members = decoded
+        if let decoded = try? JSONDecoder().decode([CellularTrackingMember].self, from: data) {
+            members = decoded
+        }
+        if let inviteData = UserDefaults.standard.data(forKey: invitesKey),
+           let decodedInvites = try? JSONDecoder().decode([GroupTrackingInvite].self, from: inviteData) {
+            pendingInvites = decodedInvites
+        }
+        if let sessionData = UserDefaults.standard.data(forKey: sessionsKey),
+           let decodedSessions = try? JSONDecoder().decode([CellularShareSession].self, from: sessionData) {
+            activeSessions = decodedSessions
+        }
     }
 
     func save() {
         guard let data = try? JSONEncoder().encode(members) else { return }
         UserDefaults.standard.set(data, forKey: defaultsKey)
+        UserDefaults.standard.set(try? JSONEncoder().encode(pendingInvites), forKey: invitesKey)
+        UserDefaults.standard.set(try? JSONEncoder().encode(activeSessions), forKey: sessionsKey)
     }
 
-    func sendInvitation(name: String, phoneNumber: String) {
+    func createInvite(name: String, phoneNumber: String) async -> GroupTrackingInvite? {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPhone = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, !trimmedPhone.isEmpty else { return }
+        guard !trimmedName.isEmpty, !trimmedPhone.isEmpty else { return nil }
 
-        if let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == normalizedPhone(trimmedPhone) }) {
-            members[index].name = trimmedName
-            members[index].phoneNumber = trimmedPhone
-            members[index].isSharing = false
-            members[index].invitationStatus = .pending
-            members[index].sharingEndsAt = nil
-            return
+        do {
+            let invite = try await backend.createInvite(name: trimmedName, phoneNumber: trimmedPhone)
+            pendingInvites.removeAll { $0.id == invite.id }
+            pendingInvites.append(invite)
+            upsertMemberFromInvite(invite)
+            save()
+            return invite
+        } catch {
+            print("Invite creation failed: \(error.localizedDescription)")
+            return nil
         }
-
-        members.append(
-            CellularTrackingMember(
-                id: UUID(),
-                name: trimmedName,
-                phoneNumber: trimmedPhone,
-                isSharing: false,
-                invitationStatus: .pending,
-                sharingEndsAt: nil,
-                lastCellularLatitude: nil,
-                lastCellularLongitude: nil,
-                lastCellularUpdate: nil,
-                lastRadioLatitude: nil,
-                lastRadioLongitude: nil,
-                lastRadioUpdate: nil
-            )
-        )
     }
 
-    func updateCellularLocation(for phoneNumber: String, latitude: Double, longitude: Double, at date: Date = Date()) {
+    func updateCellularLocation(for phoneNumber: String, latitude: Double, longitude: Double, at date: Date = Date(), xrsFallback: XRSRadioContact? = nil) {
         guard let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == normalizedPhone(phoneNumber) }) else { return }
-        members[index].lastCellularLatitude = latitude
-        members[index].lastCellularLongitude = longitude
-        members[index].lastCellularUpdate = date
-        members[index].isSharing = true
-        if members[index].invitationStatus == .pending {
-            members[index].invitationStatus = .accepted
+        members[index].presence.cellularLocation = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        members[index].presence.cellularTimestamp = date
+        if let xrsFallback {
+            members[index].presence.xrsLocation = CLLocationCoordinate2D(latitude: xrsFallback.lat, longitude: xrsFallback.lon)
+            members[index].presence.xrsTimestamp = xrsFallback.updatedAt
         }
+        // Resolver layer: prefer cellular when fresh, otherwise read existing XRS freshness.
+        members[index].presence = resolver.resolve(for: members[index].presence)
     }
 
     func updateRadioFallbackLocation(for name: String, latitude: Double, longitude: Double, at date: Date = Date()) {
@@ -496,68 +551,130 @@ final class CellularGroupTrackingStore: ObservableObject {
             return
         }
 
-        members[index].lastRadioLatitude = latitude
-        members[index].lastRadioLongitude = longitude
-        members[index].lastRadioUpdate = date
+        members[index].presence.xrsLocation = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        members[index].presence.xrsTimestamp = date
+        members[index].presence = resolver.resolve(for: members[index].presence)
     }
 
-    func setSharing(_ isSharing: Bool, for memberID: UUID) {
-        guard let index = members.firstIndex(where: { $0.id == memberID }) else { return }
-        members[index].isSharing = isSharing
-        if !isSharing {
-            members[index].invitationStatus = .expired
+    func stopShareSession(_ sessionID: String) async {
+        do {
+            try await backend.stopSession(sessionID: sessionID)
+        } catch {
+            print("Failed to stop backend session \(sessionID): \(error.localizedDescription)")
+        }
+        activeSessions.removeAll { $0.id == sessionID }
+        for index in members.indices where members[index].activeSession?.id == sessionID {
+            members[index].activeSession?.isActive = false
+            members[index].presence.shareEndsAt = Date()
         }
     }
 
-    func respondToInvitation(for memberID: UUID, accepted: Bool, duration: TimeInterval?) {
-        guard let index = members.firstIndex(where: { $0.id == memberID }) else { return }
-        members[index].invitationStatus = accepted ? .accepted : .rejected
-        members[index].isSharing = accepted
-        members[index].sharingEndsAt = accepted ? duration.map { Date().addingTimeInterval($0) } : nil
+    func acceptInvite(token: String, participantName: String, duration: TimeInterval?) async -> CellularShareSession? {
+        do {
+            _ = try await backend.acceptInvite(token: token, participantName: participantName)
+            let session = try await backend.startSession(token: token, duration: duration)
+            activeSessions.removeAll { $0.id == session.id }
+            activeSessions.append(session)
+            for index in members.indices where members[index].pendingInvite?.token == token {
+                members[index].activeSession = session
+                members[index].presence.shareEndsAt = session.endsAt
+            }
+            pendingInvites.removeAll { $0.token == token }
+            save()
+            return session
+        } catch {
+            inboundInviteValidationError = error.localizedDescription
+            return nil
+        }
     }
 
-    func expireSharesIfNeeded(now: Date = Date()) {
-        for index in members.indices {
-            guard members[index].isSharing, let sharingEndsAt = members[index].sharingEndsAt else { continue }
-            if sharingEndsAt <= now {
-                members[index].isSharing = false
-                members[index].invitationStatus = .expired
+    func validateJoinToken(_ token: String) async {
+        do {
+            inboundInvite = try await backend.validateJoinToken(token)
+            inboundInviteValidationError = nil
+        } catch {
+            inboundInvite = nil
+            inboundInviteValidationError = error.localizedDescription
+        }
+    }
+
+    func queueLocationUpload(location: CLLocation, participantID: String, sessionID: String) async {
+        let ping = CellularLocationPing(
+            participantID: participantID,
+            sessionID: sessionID,
+            timestamp: location.timestamp,
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            speed: location.speed >= 0 ? location.speed : nil,
+            course: location.course >= 0 ? location.course : nil,
+            horizontalAccuracy: location.horizontalAccuracy,
+            batteryLevel: UIDevice.current.batteryLevel >= 0 ? UIDevice.current.batteryLevel : nil
+        )
+        uploadQueue.append(ping)
+        await flushUploadQueueIfNeeded(force: false)
+    }
+
+    func flushUploadQueueIfNeeded(force: Bool) async {
+        let now = Date()
+        if !force, let lastUploadFailure, now.timeIntervalSince(lastUploadFailure) < 10 { return }
+        if !force, let lastUploadAt, now.timeIntervalSince(lastUploadAt) < 2 { return }
+        guard !uploadQueue.isEmpty else { return }
+        let batch = Array(uploadQueue.prefix(3))
+        do {
+            try await backend.uploadLocations(batch)
+            uploadQueue.removeFirst(min(3, uploadQueue.count))
+            lastUploadAt = now
+        } catch {
+            lastUploadFailure = now
+        }
+    }
+
+    func revokeInvite(_ inviteID: String) async {
+        do {
+            try await backend.revokeInvite(inviteID: inviteID)
+            pendingInvites.removeAll { $0.id == inviteID }
+            for index in members.indices where members[index].pendingInvite?.id == inviteID {
+                members[index].pendingInvite = nil
             }
+        } catch {
+            print("Failed to revoke invite \(inviteID): \(error.localizedDescription)")
         }
     }
 
     func mappedContactsWithRadioFallback(_ radioContacts: [XRSRadioContact]) -> [XRSRadioContact] {
         var mapped: [XRSRadioContact] = []
 
-        for member in members where member.isSharing {
-            let cellularAge = member.lastCellularUpdate.map { Date().timeIntervalSince($0) } ?? .greatestFiniteMagnitude
-            if cellularAge <= 600, let coordinate = member.lastCellularCoordinate, let updatedAt = member.lastCellularUpdate {
+        for index in members.indices {
+            if let radioMatch = radioContacts.first(where: { $0.name.caseInsensitiveCompare(members[index].name) == .orderedSame }) {
+                members[index].presence.xrsLocation = CLLocationCoordinate2D(latitude: radioMatch.lat, longitude: radioMatch.lon)
+                members[index].presence.xrsTimestamp = radioMatch.updatedAt
+            }
+            members[index].presence = resolver.resolve(for: members[index].presence)
+        }
+
+        for member in members {
+            guard let coordinate = member.presence.effectiveLocation else { continue }
+            let status: String
+            switch member.presence.effectiveTransport {
+            case .cellular:
+                status = "CELL"
+            case .xrs:
+                status = "XRS"
+            case .stale:
+                status = "STALE"
+            case .unavailable:
+                continue
+            }
+            if let updatedAt = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp {
                 mapped.append(
                     XRSRadioContact(
                         id: member.id,
                         name: member.name,
-                        status: "Cellular",
+                        status: status,
                         lat: coordinate.latitude,
                         lon: coordinate.longitude,
                         updatedAt: updatedAt,
-                        rawMessage: "CELLULAR"
-                    )
-                )
-                continue
-            }
-
-            if let radioMatch = radioContacts.first(where: { $0.name.caseInsensitiveCompare(member.name) == .orderedSame }) {
-                mapped.append(radioMatch)
-            } else if let radioCoordinate = member.lastRadioCoordinate, let radioDate = member.lastRadioUpdate {
-                mapped.append(
-                    XRSRadioContact(
-                        id: member.id,
-                        name: member.name,
-                        status: "Radio fallback",
-                        lat: radioCoordinate.latitude,
-                        lon: radioCoordinate.longitude,
-                        updatedAt: radioDate,
-                        rawMessage: "RADIO_FALLBACK"
+                        rawMessage: "TRANSPORT:\(status)"
                     )
                 )
             }
@@ -576,5 +693,154 @@ final class CellularGroupTrackingStore: ObservableObject {
 
     private func normalizedName(_ value: String) -> String {
         value.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func upsertMemberFromInvite(_ invite: GroupTrackingInvite) {
+        let phone = normalizedPhone(invite.phoneNumber)
+        if let index = members.firstIndex(where: { normalizedPhone($0.phoneNumber) == phone }) {
+            members[index].name = invite.inviteeName
+            members[index].pendingInvite = invite
+            return
+        }
+        let participantID = invite.id
+        let presence = ParticipantPresence(
+            participantID: participantID,
+            displayName: invite.inviteeName,
+            cellularLocation: nil,
+            cellularTimestamp: nil,
+            xrsLocation: nil,
+            xrsTimestamp: nil,
+            effectiveLocation: nil,
+            effectiveTransport: .unavailable,
+            isStale: false,
+            shareEndsAt: nil
+        )
+        members.append(
+            CellularTrackingMember(
+                id: UUID(),
+                participantID: participantID,
+                name: invite.inviteeName,
+                phoneNumber: invite.phoneNumber,
+                presence: presence,
+                activeSession: nil,
+                pendingInvite: invite
+            )
+        )
+    }
+}
+
+private struct EffectiveTransportResolver {
+    private let cellularFreshSeconds: TimeInterval = 45
+    private let cellularStaleUpperBoundSeconds: TimeInterval = 5 * 60
+
+    func resolve(for presence: ParticipantPresence, now: Date = Date()) -> ParticipantPresence {
+        var resolved = presence
+        let cellularAge = presence.cellularTimestamp.map { now.timeIntervalSince($0) } ?? .greatestFiniteMagnitude
+
+        // Resolver policy layer: prefers cellular (<=45s), otherwise falls back to current XRS source data.
+        if let cellular = presence.cellularLocation, cellularAge <= cellularFreshSeconds {
+            resolved.effectiveLocation = cellular
+            resolved.effectiveTransport = .cellular
+            resolved.isStale = false
+            return resolved
+        }
+
+        if let xrs = presence.xrsLocation, presence.xrsTimestamp != nil {
+            resolved.effectiveLocation = xrs
+            resolved.effectiveTransport = .xrs
+            resolved.isStale = false
+            return resolved
+        }
+
+        if let cellular = presence.cellularLocation, cellularAge <= cellularStaleUpperBoundSeconds {
+            resolved.effectiveLocation = cellular
+            resolved.effectiveTransport = .stale
+            resolved.isStale = true
+            return resolved
+        }
+
+        resolved.effectiveTransport = .unavailable
+        resolved.effectiveLocation = nil
+        resolved.isStale = true
+        return resolved
+    }
+}
+
+private actor CellularTrackingAPI {
+    private struct CreateInviteRequest: Encodable { let inviteeName: String; let phoneNumber: String }
+    private struct AcceptInviteRequest: Encodable { let participantName: String }
+    private struct StartSessionRequest: Encodable { let token: String; let durationSeconds: Double? }
+    private struct StopSessionRequest: Encodable { let sessionID: String }
+    private struct UploadRequest: Encodable { let pings: [CellularLocationPing] }
+
+    private let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+    private let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
+    private var baseURL: URL {
+        let value = UserDefaults.standard.string(forKey: "cellular_group_tracking_backend_base_url")
+            ?? "https://YOURDOMAIN.com"
+        return URL(string: value) ?? URL(string: "https://YOURDOMAIN.com")!
+    }
+
+    func createInvite(name: String, phoneNumber: String) async throws -> GroupTrackingInvite {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/invites"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(CreateInviteRequest(inviteeName: name, phoneNumber: phoneNumber))
+        let (data, _) = try await URLSession.shared.data(for: request)
+        return try decoder.decode(GroupTrackingInvite.self, from: data)
+    }
+
+    func validateJoinToken(_ token: String) async throws -> GroupTrackingInvite {
+        let (data, _) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("join/\(token)"))
+        return try decoder.decode(GroupTrackingInvite.self, from: data)
+    }
+
+    func acceptInvite(token: String, participantName: String) async throws -> String {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/invites/\(token)/accept"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(AcceptInviteRequest(participantName: participantName))
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let response = try decoder.decode([String: String].self, from: data)
+        return response["participantID"] ?? ""
+    }
+
+    func startSession(token: String, duration: TimeInterval?) async throws -> CellularShareSession {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/sessions/start"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(StartSessionRequest(token: token, durationSeconds: duration))
+        let (data, _) = try await URLSession.shared.data(for: request)
+        return try decoder.decode(CellularShareSession.self, from: data)
+    }
+
+    func stopSession(sessionID: String) async throws {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/sessions/stop"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(StopSessionRequest(sessionID: sessionID))
+        _ = try await URLSession.shared.data(for: request)
+    }
+
+    func uploadLocations(_ pings: [CellularLocationPing]) async throws {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/location"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(UploadRequest(pings: pings))
+        _ = try await URLSession.shared.data(for: request)
+    }
+
+    func revokeInvite(inviteID: String) async throws {
+        var request = URLRequest(url: baseURL.appendingPathComponent("group-tracking/invites/\(inviteID)/revoke"))
+        request.httpMethod = "POST"
+        _ = try await URLSession.shared.data(for: request)
     }
 }

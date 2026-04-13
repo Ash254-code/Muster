@@ -4,6 +4,7 @@ import Combine
 import MapKit
 import CoreLocation
 import Contacts
+import MessageUI
 
 #if canImport(UIKit)
 import UIKit
@@ -341,35 +342,34 @@ private struct GroupTrackingSettingsView: View {
 private struct CellularTrackingSettingsView: View {
     private enum ShareDurationOption: String, CaseIterable, Identifiable {
         case twelveHours = "12 hours"
+        case oneDay = "1 day"
         case twoDays = "2 days"
-        case oneWeek = "1 week"
-        case oneMonth = "1 month"
+        case untilStop = "Until I stop"
 
         var id: String { rawValue }
 
         var interval: TimeInterval {
             switch self {
             case .twelveHours: return 12 * 60 * 60
+            case .oneDay: return 24 * 60 * 60
             case .twoDays: return 2 * 24 * 60 * 60
-            case .oneWeek: return 7 * 24 * 60 * 60
-            case .oneMonth: return 30 * 24 * 60 * 60
+            case .untilStop: return 0
             }
         }
     }
 
     @EnvironmentObject private var app: AppState
-    @Environment(\.openURL) private var openURL
     @StateObject private var locationService = LocationService()
     @StateObject private var contactSearch = ContactSearchStore()
 
     @State private var inviteName = ""
     @State private var invitePhoneNumber = ""
     @State private var contactQuery = ""
-    @State private var isSharingMyLocation = false
-    @State private var selectedShareDuration: ShareDurationOption = .twoDays
-    @State private var sharingEndsAt: Date?
-    private let selfMemberName = "Me"
-    private let selfMemberPhoneNumber = "THIS_DEVICE"
+    @State private var selectedShareDuration: ShareDurationOption = .oneDay
+    @State private var showMessageComposer = false
+    @State private var smsRecipients: [String] = []
+    @State private var smsBody: String = ""
+    @State private var joinParticipantName: String = ""
 
     private var contactSuggestions: [ContactSuggestion] {
         Array(contactSearch.filteredContacts(matching: contactQuery).prefix(5))
@@ -378,27 +378,15 @@ private struct CellularTrackingSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Share My Location via cellular", isOn: $isSharingMyLocation)
-
-                Picker("Sharing duration", selection: $selectedShareDuration) {
-                    ForEach(ShareDurationOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-
-                if let sharingEndsAt, isSharingMyLocation {
-                    Text("Auto-off: \(sharingEndsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("My Location")
+                Toggle("Enable Cellular Group Tracking", isOn: $app.cellularTracking.enableCellularTracking)
+                Toggle("Use Cellular When Available", isOn: $app.cellularTracking.useCellularWhenAvailable)
+                Toggle("Fall Back to XRS When Cellular Unavailable", isOn: $app.cellularTracking.fallbackToXRS)
             } footer: {
-                Text("Cellular updates are used first. If they are stale, XRS Radio location is used as a fallback until cellular updates resume.")
+                Text("Resolver policy: CELL when fresh (<=45s), then XRS fallback, then STALE if cellular is older than 45s but <=5 minutes.")
             }
 
             Section {
-                Text("Invite from contacts or enter a name and phone number manually.")
+                Text("Invite from contacts or enter a name and phone number manually. Invites are created via backend before opening iOS Messages.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -435,147 +423,192 @@ private struct CellularTrackingSettingsView: View {
                 }
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
-                Text("Invite others")
+                Text("Invite Participants")
             }
 
             Section {
-                if app.cellularTracking.members.isEmpty {
-                    Text("No invited members yet.")
+                if app.cellularTracking.pendingInvites.isEmpty {
+                    Text("No pending invites.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(app.cellularTracking.members) { member in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(member.name)
-                                    Text(member.phoneNumber)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(statusText(for: member))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(statusColor(for: member))
+                    ForEach(app.cellularTracking.pendingInvites) { invite in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(invite.inviteeName)
+                            Text("Expires \(invite.expiresAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Revoke Invite") {
+                                Task { await app.cellularTracking.revokeInvite(invite.id) }
                             }
-
-                            if member.invitationStatus == .pending {
-                                HStack(spacing: 12) {
-                                    Button("Accept") {
-                                        app.cellularTracking.respondToInvitation(
-                                            for: member.id,
-                                            accepted: true,
-                                            duration: selectedShareDuration.interval
-                                        )
-                                    }
-                                    .buttonStyle(.borderedProminent)
-
-                                    Button("Reject") {
-                                        app.cellularTracking.respondToInvitation(
-                                            for: member.id,
-                                            accepted: false,
-                                            duration: nil
-                                        )
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-                            }
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
             } header: {
-                Text("Shared members")
+                Text("Pending Invites")
+            }
+
+            Section {
+                if app.cellularTracking.activeSessions.isEmpty {
+                    Text("No active cellular sessions.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(app.cellularTracking.activeSessions) { session in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Session \(session.id)")
+                                .font(.subheadline.weight(.semibold))
+                            if let endsAt = session.endsAt {
+                                Text("Ends: \(endsAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("Ends: Until stopped")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Button("Stop Sharing Early") {
+                                Task { await app.cellularTracking.stopShareSession(session.id) }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            } header: {
+                Text("Active Cellular Sessions")
+            }
+
+            Section {
+                ForEach(app.cellularTracking.members) { member in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(member.name)
+                            Text("Last update: \(lastUpdateText(for: member))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let ends = member.presence.shareEndsAt {
+                                Text("Share ends: \(ends.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Text(transportBadge(member.presence.effectiveTransport))
+                            .font(.caption.weight(.bold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(.secondarySystemFill), in: Capsule())
+                    }
+                }
+            } header: {
+                Text("Participant Presence")
+            }
+
+            if let invite = app.cellularTracking.inboundInvite {
+                Section {
+                    Text("Inviter: \(invite.inviterName)")
+                    Text("Group: \(invite.groupName)")
+                    TextField("Your name", text: $joinParticipantName)
+                    Picker("Share duration", selection: $selectedShareDuration) {
+                        ForEach(ShareDurationOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    Button("Join Group Tracking") {
+                        Task {
+                            _ = await app.cellularTracking.acceptInvite(
+                                token: invite.token,
+                                participantName: joinParticipantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Participant" : joinParticipantName,
+                                duration: selectedShareDuration == .untilStop ? nil : selectedShareDuration.interval
+                            )
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                } header: {
+                    Text("Join Group Tracking")
+                }
             }
         }
         .navigationTitle("Cellular")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             contactSearch.loadIfNeeded()
-            app.cellularTracking.expireSharesIfNeeded()
+            locationService.requestPermission()
+            if !app.cellularTracking.activeSessions.isEmpty {
+                locationService.start()
+            }
         }
-        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-            app.cellularTracking.expireSharesIfNeeded()
-            guard isSharingMyLocation, let sharingEndsAt, sharingEndsAt <= Date() else { return }
-            isSharingMyLocation = false
-        }
-        .onChange(of: isSharingMyLocation) { _, shouldShare in
-            if shouldShare {
-                startSharingMyLocation()
+        .onChange(of: app.cellularTracking.activeSessions.count) { _, count in
+            if count > 0 {
+                locationService.start()
+                locationService.forceRefreshNow()
             } else {
-                stopSharingMyLocation()
+                locationService.stop()
             }
         }
         .onChange(of: locationService.lastLocation) { _, location in
-            guard isSharingMyLocation, let location else { return }
-            app.cellularTracking.updateCellularLocation(
-                for: selfMemberPhoneNumber,
-                latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude
-            )
+            guard let location, let session = app.cellularTracking.activeSessions.first else { return }
+            Task {
+                await app.cellularTracking.queueLocationUpload(
+                    location: location,
+                    participantID: session.participantID,
+                    sessionID: session.id
+                )
+            }
+        }
+        .sheet(isPresented: $showMessageComposer) {
+            MessageComposeView(recipients: smsRecipients, body: smsBody)
         }
     }
 
     private func sendInvite() {
-        app.cellularTracking.sendInvitation(name: inviteName, phoneNumber: invitePhoneNumber)
-
-        let messageBody = "Join my Muster group tracking via cellular sharing."
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let recipients = invitePhoneNumber.filter(\.isNumber)
-
-        if let url = URL(string: "sms:\(recipients)&body=\(messageBody)") {
-            openURL(url)
+        Task {
+            guard let invite = await app.cellularTracking.createInvite(name: inviteName, phoneNumber: invitePhoneNumber) else { return }
+            smsRecipients = [invite.phoneNumber]
+            smsBody = "Join my Muster group tracking: \(invite.joinURL.absoluteString)"
+            showMessageComposer = true
         }
-
         inviteName = ""
         invitePhoneNumber = ""
     }
 
-    private func startSharingMyLocation() {
-        sharingEndsAt = Date().addingTimeInterval(selectedShareDuration.interval)
-        app.cellularTracking.sendInvitation(name: selfMemberName, phoneNumber: selfMemberPhoneNumber)
-        if let meID = app.cellularTracking.members.first(where: { $0.phoneNumber == selfMemberPhoneNumber })?.id {
-            app.cellularTracking.respondToInvitation(
-                for: meID,
-                accepted: true,
-                duration: selectedShareDuration.interval
-            )
-        }
-        locationService.requestPermission()
-        locationService.start()
-        locationService.forceRefreshNow()
-    }
-
-    private func stopSharingMyLocation() {
-        sharingEndsAt = nil
-        locationService.stop()
-    }
-
-    private func statusText(for member: CellularTrackingMember) -> String {
-        switch member.status {
-        case .live:
-            return "Live"
-        case .offline:
-            return "Offline"
-        case .expired:
-            return "Expired"
-        case .pending:
-            return "Pending"
-        case .rejected:
-            return "Rejected"
+    private func transportBadge(_ transport: TrackingTransport) -> String {
+        switch transport {
+        case .cellular: return "CELL"
+        case .xrs: return "XRS"
+        case .stale: return "STALE"
+        case .unavailable: return "N/A"
         }
     }
 
-    private func statusColor(for member: CellularTrackingMember) -> Color {
-        switch member.status {
-        case .live:
-            return .green
-        case .offline:
-            return .orange
-        case .expired:
-            return .red
-        case .pending:
-            return .yellow
-        case .rejected:
-            return .gray
+    private func lastUpdateText(for member: CellularTrackingMember) -> String {
+        if let date = member.presence.cellularTimestamp ?? member.presence.xrsTimestamp {
+            return date.formatted(date: .omitted, time: .standard)
+        }
+        return "Never"
+    }
+}
+
+private struct MessageComposeView: UIViewControllerRepresentable {
+    let recipients: [String]
+    let body: String
+
+    func makeUIViewController(context: Context) -> MFMessageComposeViewController {
+        let vc = MFMessageComposeViewController()
+        vc.messageComposeDelegate = context.coordinator
+        vc.recipients = recipients
+        vc.body = body
+        return vc
+    }
+
+    func updateUIViewController(_ uiViewController: MFMessageComposeViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
+        func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+            controller.dismiss(animated: true)
         }
     }
 }
