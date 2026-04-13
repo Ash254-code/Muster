@@ -4628,7 +4628,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
 
     private func floatingControlsBottomPadding(for totalHeight: CGFloat) -> CGFloat {
-        bottomPanelVisibleHeight(totalHeight: totalHeight) + 8
+        bottomPanelCollapsedVisibleHeight + 8
     }
 
     private func headsUpBottomObstructionHeight(for totalHeight: CGFloat) -> CGFloat {
@@ -4636,17 +4636,18 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
 
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
-        let collapsedHeight = 78.0
         let sanitizedTotalHeight = totalHeight.isFinite ? max(totalHeight, 0) : 0
         let largeHeight = max(520, sanitizedTotalHeight * 0.74)
 
         switch panelDetent {
         case .collapsed:
-            return collapsedHeight
+            return bottomPanelCollapsedVisibleHeight
         case .large:
             return largeHeight
         }
     }
+
+    private var bottomPanelCollapsedVisibleHeight: CGFloat { 78.0 }
 
     // MARK: - Bottom panel
 
