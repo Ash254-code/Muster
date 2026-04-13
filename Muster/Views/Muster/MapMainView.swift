@@ -1523,7 +1523,7 @@ struct MapMainView: View {
                     )
                         .padding(.horizontal, 12)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.top, topPillHeight + 10)
+                        .padding(.top, topPillHeight + 18)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
                 }
@@ -1532,7 +1532,7 @@ struct MapMainView: View {
                     cruiseControlQuickActionsBubble
                         .padding(.horizontal, 12)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.top, topPillHeight + 10)
+                        .padding(.top, topPillHeight + 18)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
                 }
@@ -1541,7 +1541,7 @@ struct MapMainView: View {
                     topPillMetricPickerBubble(side: side)
                         .padding(.horizontal, 12)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(.top, topPillHeight + 10)
+                        .padding(.top, topPillHeight + 18)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
                 }
@@ -1896,7 +1896,11 @@ struct MapMainView: View {
                 .foregroundStyle(chromePrimaryText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(quickPopupRowFill))
+                .background(Capsule(style: .continuous).fill(quickPopupRowFill))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+                )
             }
         }
     }
@@ -1921,7 +1925,11 @@ struct MapMainView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(quickPopupRowFill))
+                    .background(Capsule(style: .continuous).fill(quickPopupRowFill))
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
+                    )
                 }
             }
         }
@@ -1936,11 +1944,11 @@ struct MapMainView: View {
             .padding(.vertical, 12)
             .frame(width: maxWidth)
             .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(quickPopupFill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
@@ -1970,11 +1978,11 @@ struct MapMainView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 1)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    Capsule(style: .continuous)
                         .fill(quickPopupRowFill)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    Capsule(style: .continuous)
                         .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
                 )
         }
