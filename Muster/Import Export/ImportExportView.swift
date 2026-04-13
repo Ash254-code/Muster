@@ -1131,47 +1131,61 @@ private struct ExportTrackPickerView: View {
     let onExport: () -> Void
 
     var body: some View {
-        List {
-            if sessions.isEmpty {
-                ContentUnavailableView {
-                    Label("No Tracks Available", systemImage: "waveform.path.ecg")
-                } description: {
-                    Text("Record a track first to export.")
-                }
-            } else {
-                Section {
-                    ForEach(sessions) { session in
-                        Button {
-                            selectedSessionID = session.id
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(session.name.isEmpty ? "Muster Track" : session.name)
-                                        .foregroundStyle(.primary)
-
-                                    Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: selectedSessionID == session.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(
-                                        selectedSessionID == session.id
-                                            ? AnyShapeStyle(.tint)
-                                            : AnyShapeStyle(.tertiary)
-                                    )
-                            }
+        ScrollView {
+            VStack(spacing: 12) {
+                if sessions.isEmpty {
+                    GlassCard {
+                        ContentUnavailableView {
+                            Label("No Tracks Available", systemImage: "waveform.path.ecg")
+                        } description: {
+                            Text("Record a track first to export.")
                         }
-                        .buttonStyle(.plain)
                     }
-                } header: {
-                    Text("Tracks")
-                } footer: {
-                    Text("Select one track, then tap Export.")
+                } else {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Tracks")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            ForEach(sessions) { session in
+                                Button {
+                                    selectedSessionID = session.id
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(session.name.isEmpty ? "Muster Track" : session.name)
+                                                .foregroundStyle(.primary)
+
+                                            Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: selectedSessionID == session.id ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(
+                                                selectedSessionID == session.id
+                                                    ? AnyShapeStyle(.tint)
+                                                    : AnyShapeStyle(.tertiary)
+                                            )
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Text("Select one track, then tap Export.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            .padding(14)
         }
         .navigationTitle("Choose Track")
         .navigationBarTitleDisplayMode(.inline)
@@ -1179,7 +1193,7 @@ private struct ExportTrackPickerView: View {
             Button("Export") {
                 onExport()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(GlassButtonStyle())
             .disabled(selectedSessionID == nil)
             .padding(.horizontal)
             .padding(.top, 8)
@@ -1201,27 +1215,38 @@ private struct ImportedMapFileDetailView: View {
     }
 
     var body: some View {
-        List {
+        ScrollView {
+            VStack(spacing: 12) {
             if let file {
-                Section {
-                    LabeledContent("Name", value: file.displayTitle)
-                    LabeledContent("Format", value: file.format.title)
-                    LabeledContent("Category", value: file.assignedCategory.title)
-                    LabeledContent("Imported", value: file.importedAt.formatted(date: .abbreviated, time: .shortened))
-                } header: {
-                    Text("File")
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("File")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        detailRow("Name", value: file.displayTitle)
+                        detailRow("Format", value: file.format.title)
+                        detailRow("Category", value: file.assignedCategory.title)
+                        detailRow("Imported", value: file.importedAt.formatted(date: .abbreviated, time: .shortened))
+                    }
                 }
 
-                Section {
-                    LabeledContent("Boundaries", value: "\(file.boundaries.count)")
-                    LabeledContent("Markers", value: "\(file.markers.count)")
-                    LabeledContent("Tracks", value: "\(file.tracks.count)")
-                } header: {
-                    Text("Contents")
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Contents")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        detailRow("Boundaries", value: "\(file.boundaries.count)")
+                        detailRow("Markers", value: "\(file.markers.count)")
+                        detailRow("Tracks", value: "\(file.tracks.count)")
+                    }
                 }
 
                 if !file.boundaries.isEmpty {
-                    Section {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Boundaries")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         ForEach(file.boundaries) { boundary in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -1264,14 +1289,20 @@ private struct ImportedMapFileDetailView: View {
                                 )
                                 .labelsHidden()
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
-                    } header: {
-                        Text("Boundaries")
+                        }
                     }
                 }
 
                 if !file.markers.isEmpty {
-                    Section {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Markers")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         ForEach(file.markers) { marker in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -1306,14 +1337,20 @@ private struct ImportedMapFileDetailView: View {
                                 )
                                 .labelsHidden()
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
-                    } header: {
-                        Text("Markers")
+                        }
                     }
                 }
 
                 if !file.tracks.isEmpty {
-                    Section {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Tracks")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         ForEach(file.tracks) { track in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -1345,20 +1382,38 @@ private struct ImportedMapFileDetailView: View {
                                 )
                                 .labelsHidden()
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
-                    } header: {
-                        Text("Tracks")
+                        }
                     }
                 }
             } else {
-                Section {
+                GlassCard {
                     Text("File not found.")
                         .foregroundStyle(.secondary)
                 }
             }
+            }
+            .padding(14)
         }
         .navigationTitle("Imported File")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func detailRow(_ title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.primary)
+        }
+        .font(.subheadline)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func isMergedPropertyBoundary(_ boundary: ImportedBoundary) -> Bool {
