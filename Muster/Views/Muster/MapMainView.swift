@@ -344,6 +344,7 @@ struct MapMainView: View {
     @State private var showTPMSDashboard = false
     @State private var showAutosteerSettings = false
     @State private var showAutosteerQuickActions = false
+    @State private var showCruiseControlQuickActions = false
     @State private var showAutosteerTrackSelector = false
     @State private var showAutosteerLightbarStepEditor = false
     @State private var autosteerLightbarStepDraftCM: Double = 2
@@ -916,22 +917,8 @@ struct MapMainView: View {
         }
     }
 
-    private var topPillPickerPresented: Binding<Bool> {
-        Binding(
-            get: { topPillPickerSide != nil },
-            set: { if !$0 { topPillPickerSide = nil } }
-        )
-    }
-
-    private var topPillPickerTitle: String {
-        switch topPillPickerSide {
-        case .left:
-            return "Left Pill"
-        case .right:
-            return "Right Pill"
-        case nil:
-            return "Choose Pill"
-        }
+    private var showAnyTopPillQuickActions: Bool {
+        showAutosteerQuickActions || showCruiseControlQuickActions || topPillPickerSide != nil
     }
 
     private var selectedSheepCountValue: Int {
@@ -1250,23 +1237,6 @@ struct MapMainView: View {
 
     private var presentedMainContent: some View {
         dialogHostedMainContent
-            .confirmationDialog(
-                topPillPickerTitle,
-                isPresented: topPillPickerPresented,
-                titleVisibility: .visible
-            ) {
-                ForEach(TopSidePillMetric.allCases) { metric in
-                    Button(metric.menuTitle) {
-                        applyTopPillMetric(metric)
-                    }
-                }
-
-                Button("Cancel", role: .cancel) {
-                    topPillPickerSide = nil
-                }
-            } message: {
-                Text("Choose what this pill displays.")
-            }
             .alert("Edit Marker", isPresented: $showEditSessionMarkerAlert) {
                 editSessionMarkerAlertActions
             } message: {
@@ -1535,20 +1505,43 @@ struct MapMainView: View {
                     .zIndex(20)
                 }
 
-                if showAutosteerQuickActions {
+                if showAnyTopPillQuickActions {
                     Color.black.opacity(0.28)
                         .ignoresSafeArea()
                         .transition(.opacity)
                         .onTapGesture {
+                            dismissTopPillPicker()
+                            dismissCruiseControlQuickActions()
                             dismissAutosteerQuickActions()
                         }
                         .zIndex(24)
+                }
 
+                if showAutosteerQuickActions {
                     autosteerQuickActionsSheet(
                         maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
                     )
-                        .padding(.horizontal, 18)
-                        .offset(y: -min(160, max(90, geo.size.height * 0.13)))
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.top, topPillHeight + 10)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .zIndex(25)
+                }
+
+                if showCruiseControlQuickActions {
+                    cruiseControlQuickActionsBubble
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, topPillHeight + 10)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .zIndex(25)
+                }
+
+                if let side = topPillPickerSide {
+                    topPillMetricPickerBubble(side: side)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: side == .left ? .leading : .trailing)
+                        .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
                 }
@@ -1722,7 +1715,8 @@ struct MapMainView: View {
     }
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
-        VStack(spacing: 8) {
+        topSpeechBubble {
+            VStack(spacing: 8) {
             HStack {
                 Button {
                     dismissAutosteerQuickActions()
@@ -1839,17 +1833,130 @@ struct MapMainView: View {
             }
             .padding(.bottom, 2)
         }
+        }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .frame(maxWidth: maxWidth)
-        .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+    }
+
+    private var cruiseControlQuickActionsBubble: some View {
+        topSpeechBubble {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Cruise Control")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                    Spacer(minLength: 8)
+                    Button {
+                        dismissCruiseControlQuickActions()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(.white.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Toggle("Enabled", isOn: $cruiseControlEnabled)
+                    .toggleStyle(.switch)
+                    .tint(.blue)
+                    .foregroundStyle(.white.opacity(0.92))
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+
+                HStack(spacing: 8) {
+                    Button {
+                        cruiseControlSpeedKPH = max(2, clampedCruiseControlSpeedKPH - 1)
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white.opacity(0.22))
+
+                    Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity)
+
+                    Button {
+                        cruiseControlSpeedKPH = min(100, clampedCruiseControlSpeedKPH + 1)
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white.opacity(0.22))
+                }
+
+                Button("Open Full Settings") {
+                    dismissCruiseControlQuickActions()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        showCruiseControlSheet = true
+                    }
+                }
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Capsule(style: .continuous).fill(.white.opacity(0.12)))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(width: 250)
+        }
+    }
+
+    private func topPillMetricPickerBubble(side: TopSidePillPosition) -> some View {
+        topSpeechBubble {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(side == .left ? "Left Pill" : "Right Pill")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+
+                Text("Choose what this pill displays.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.72))
+
+                ForEach(TopSidePillMetric.allCases) { metric in
+                    Button(metric.menuTitle) {
+                        applyTopPillMetric(metric)
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Capsule(style: .continuous).fill(.white.opacity(0.10)))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(width: 240)
+        }
+    }
+
+    private func topSpeechBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            Triangle()
                 .fill(.ultraThinMaterial.opacity(0.98))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
-        )
+                .frame(width: 24, height: 12)
+                .overlay(
+                    Triangle()
+                        .stroke(chromeStroke.opacity(0.7), lineWidth: 1)
+                )
+                .padding(.bottom, -1)
+
+            content()
+                .background(
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(.ultraThinMaterial.opacity(0.98))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
+                )
+        }
         .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
     }
 
@@ -1894,8 +2001,22 @@ struct MapMainView: View {
         }
     }
 
+    private func dismissCruiseControlQuickActions() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            showCruiseControlQuickActions = false
+        }
+    }
+
+    private func dismissTopPillPicker() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            topPillPickerSide = nil
+        }
+    }
+
     private func handleAutosteerQuickAction(_ action: @escaping () -> Void) {
         dismissAutosteerQuickActions()
+        dismissCruiseControlQuickActions()
+        dismissTopPillPicker()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             action()
         }
@@ -2482,7 +2603,11 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
-                    showCruiseControlSheet = true
+                    dismissTopPillPicker()
+                    dismissAutosteerQuickActions()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        showCruiseControlQuickActions = true
+                    }
                 }
         )
     }
@@ -2561,7 +2686,11 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
-                    topPillPickerSide = side
+                    dismissCruiseControlQuickActions()
+                    dismissAutosteerQuickActions()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        topPillPickerSide = side
+                    }
                 }
         )
     }
@@ -2958,7 +3087,11 @@ struct MapMainView: View {
             LongPressGesture(minimumDuration: 0.65)
                 .onEnded { _ in
                     didTriggerAutosteerLongPress = true
-                    showAutosteerQuickActions = true
+                    dismissTopPillPicker()
+                    dismissCruiseControlQuickActions()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        showAutosteerQuickActions = true
+                    }
                 }
         )
         .sheet(isPresented: $showAutosteerReadinessSheet) {
@@ -6157,6 +6290,17 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private enum MapBottomPanelDetent {
         case collapsed
         case large
+    }
+}
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: 0))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
