@@ -2374,8 +2374,14 @@ struct MapMainView: View {
 
     private var topPillRow: some View {
         HStack(spacing: 10) {
-            topSidePill(metric: leftPillMetric, side: .left)
-                .frame(width: 108)
+            Group {
+                if cruiseControlEnabled {
+                    cruiseControlStatusPill
+                } else {
+                    topSidePill(metric: leftPillMetric, side: .left)
+                }
+            }
+            .frame(width: 108)
 
             topSpeedPill
                 .frame(maxWidth: .infinity)
@@ -2389,6 +2395,47 @@ struct MapMainView: View {
             }
             .frame(width: 108)
         }
+    }
+
+    private var cruiseControlStatusPill: some View {
+        Button {
+            showCruiseControlSheet = true
+        } label: {
+            VStack(spacing: 2) {
+                Text(cruiseControlSetSpeedText)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(chromePrimaryText)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text("Cruise Control")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(chromeSecondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: topPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(chromeFill)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(chromeStroke, lineWidth: 2)
+            )
+            .overlay {
+                if speedPillShouldHighlightMatch {
+                    Capsule(style: .continuous)
+                        .strokeBorder(.blue, lineWidth: 2.5)
+                }
+            }
+            .shadow(color: chromeShadow, radius: 8, y: 3)
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func topLeftZoomPill(zoomDistancePopupText: String) -> some View {
@@ -2817,7 +2864,7 @@ struct MapMainView: View {
     private var autosteerReadinessButton: some View {
         let fraction = Double(autosteerReadinessCount) / 4.0
         let isFullyLocked = autosteerActive && autosteerReadinessCount == 4
-        let readinessRingColor: Color = autosteerReadinessCount == 4 ? .green : .orange
+        let readinessRingColor: Color = autosteerReadinessCount == 4 ? .blue : .orange
         return Button {
             if didTriggerAutosteerLongPress {
                 didTriggerAutosteerLongPress = false
@@ -2837,31 +2884,30 @@ struct MapMainView: View {
             }
         } label: {
             ZStack {
-                Circle()
+                Capsule(style: .continuous)
                     .fill(chromeFill)
-                    .frame(width: 64, height: 64)
+                    .frame(height: topPillHeight)
 
-                Circle()
+                Capsule(style: .continuous)
                     .stroke(chromeStroke.opacity(0.8), lineWidth: 2.5)
-                    .frame(width: 58, height: 58)
+                    .frame(height: topPillHeight - 6)
 
-                Circle()
+                Capsule(style: .continuous)
                     .trim(from: 0, to: fraction)
                     .stroke(
                         readinessRingColor,
                         style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                     )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 66, height: 66)
+                    .frame(height: topPillHeight + 1)
 
                 VStack(spacing: 0) {
                     if isFullyLocked {
                         Image(systemName: "steeringwheel")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.blue)
                         Text(cruiseControlDisplaySpeedText)
                             .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.blue)
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -2872,7 +2918,7 @@ struct MapMainView: View {
                     } else {
                         Text(autosteerActive ? "ON" : "GO")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(autosteerActive ? .green : chromePrimaryText)
+                            .foregroundStyle(autosteerActive ? .blue : chromePrimaryText)
                         Text("\(autosteerReadinessCount)/4")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(chromeSecondaryText)
@@ -2880,7 +2926,7 @@ struct MapMainView: View {
                         if cruiseControlIsActive {
                             Text(cruiseControlSetSpeedText)
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.blue)
                                 .monospacedDigit()
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
