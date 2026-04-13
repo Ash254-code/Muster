@@ -1703,15 +1703,19 @@ struct MapMainView: View {
                 }
                 .buttonStyle(.plain)
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+
+                Text("Autosteer")
+                    .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+
+                Spacer(minLength: 8)
+
+                Color.clear
+                    .frame(width: 28, height: 28)
             }
 
-            Text("Autosteer")
-                .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .padding(.top, 2)
-
-            autosteerSectionHeading("Current Track - \(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
+            autosteerSectionHeading("Current Track")
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
                     refreshKnownFarms()
@@ -1721,7 +1725,16 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "road.lanes")
                         .foregroundStyle(.blue)
-                    Text(selectedAutosteerNameDisplay)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(selectedAutosteerNameDisplay)
+                        Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .padding(.top, 1)
+                    }
+                    Spacer(minLength: 0)
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1824,9 +1837,9 @@ struct MapMainView: View {
         Button(action: action) {
             label()
                 .foregroundStyle(.white.opacity(0.93))
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: 46)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 1)
                 .background(
