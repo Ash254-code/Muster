@@ -1766,7 +1766,7 @@ struct MapMainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "road.lanes")
                         .foregroundStyle(.blue)
-                    VStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(selectedAutosteerNameDisplay)
                         Text("\(selectedAutosteerFarmDisplay) > \(selectedAutosteerPaddockDisplay)")
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -1806,13 +1806,13 @@ struct MapMainView: View {
             }
             autosteerQuickActionPill {
                 handleAutosteerQuickAction {
-                    startNewTrackImmediatelyFromQuickAction()
+                    startCurveTrackRecordingFromQuickAction()
                 }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "record.circle")
                         .foregroundStyle(.blue)
-                    Text("Track Recording")
+                    Text("Curve Track")
                 }
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
@@ -1996,10 +1996,10 @@ struct MapMainView: View {
     ) -> some View {
         Button(action: action) {
             label()
-                .foregroundStyle(chromePrimaryText)
-                .frame(maxWidth: .infinity)
+                .foregroundStyle(.white.opacity(0.93))
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: 46)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 1)
                 .background(
@@ -5184,6 +5184,12 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func startNewTrackFlow() {
         pendingTrackName = app.muster.makeSmartSessionName()
         showNewTrackNamePrompt = true
+    }
+
+    private func startCurveTrackRecordingFromQuickAction() {
+        beginAutosteerSetup(mode: "Curve Track")
+        curveTrackRecording = true
+        curvePulse = true
     }
 
     private func startNewTrackImmediatelyFromQuickAction() {
