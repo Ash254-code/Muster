@@ -4351,6 +4351,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
             panelHeight: panelHeight,
             panelCornerRadius: panelCornerRadius,
             isCollapsed: panelDetent == .collapsed,
+            isTrackRecordingActive: activeSession?.isActive == true,
             safeAreaBottom: safeAreaBottom,
             colorScheme: colorScheme,
             chromeFill: chromeFill,
@@ -6016,6 +6017,7 @@ private struct AppleMapsBottomPanelContainer: View {
     let panelHeight: CGFloat
     let panelCornerRadius: CGFloat
     let isCollapsed: Bool
+    let isTrackRecordingActive: Bool
     let safeAreaBottom: CGFloat
     let colorScheme: ColorScheme
     let chromeFill: Color
@@ -6027,8 +6029,17 @@ private struct AppleMapsBottomPanelContainer: View {
     var body: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
-                .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
+                .fill(
+                    isTrackRecordingActive
+                    ? Color.red.opacity(colorScheme == .dark ? 0.85 : 0.75)
+                    : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
+                )
+                .shadow(
+                    color: isTrackRecordingActive
+                    ? Color.red.opacity(colorScheme == .dark ? 0.45 : 0.3)
+                    : (colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12)),
+                    radius: 4
+                )
                 .frame(width: 34, height: 5)
                 .padding(.top, 8)
                 .padding(.bottom, 8)
