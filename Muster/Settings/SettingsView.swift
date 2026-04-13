@@ -738,7 +738,10 @@ struct AutosteerSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enable Autosteer", isOn: $autosteerEnabled)
+                Toggle(isOn: $autosteerEnabled) {
+                    Label("Enable Autosteer", systemImage: "steeringwheel")
+                        .foregroundStyle(.blue)
+                }
                 HStack {
                     Text("GPS Signal")
                     Spacer()
@@ -1000,7 +1003,10 @@ struct CruiseControlSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enable Cruise Control", isOn: $cruiseEnabled)
+                Toggle(isOn: $cruiseEnabled) {
+                    Label("Enable Cruise Control", systemImage: "gauge.open.with.lines.needle.67percent.and.arrowtriangle.and.car")
+                        .foregroundStyle(.blue)
+                }
                 HStack {
                     Text("Target Speed")
                     Spacer()

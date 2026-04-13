@@ -1791,6 +1791,32 @@ struct MapMainView: View {
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
             }
             .padding(.bottom, 2)
+
+            Button {
+                handleAutosteerQuickAction {
+                    beginAutosteerSetup(mode: "Curve Track")
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "record.circle.fill")
+                        .foregroundStyle(.blue)
+                    Text("New Track Recording")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.95))
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 50)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(.white.opacity(0.1))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(chromeStroke.opacity(0.8), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
