@@ -559,7 +559,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
             if let existing = userLocationAnnotation {
                 if guidanceBlankMode {
-                    existing.coordinate = smoothedCoordinate(
+                    existing.coordinate = blendedGuidanceCoordinate(
                         from: existing.coordinate,
                         to: userLocation.coordinate,
                         smoothingFactor: 0.24
@@ -2206,7 +2206,7 @@ struct MapViewRepresentable: UIViewRepresentable {
             map.addOverlays(lines, level: overlayLevel)
         }
 
-        private func smoothedCoordinate(
+        private func blendedGuidanceCoordinate(
             from current: CLLocationCoordinate2D,
             to target: CLLocationCoordinate2D,
             smoothingFactor: Double
