@@ -1546,6 +1546,8 @@ struct MapMainView: View {
                             centerMapButton
                         }
 
+                        settingsControlButton
+
                         rightSideControlPill
                     }
                     .padding(.trailing, 12)
@@ -3603,6 +3605,29 @@ struct MapMainView: View {
             recenterOnUser()
         } label: {
             Image(systemName: "scope")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(chromePrimaryText)
+                .frame(width: 48, height: 48)
+                .background(
+                    Circle()
+                        .fill(chromeFill)
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(chromeStroke, lineWidth: 1)
+                )
+                .shadow(color: chromeShadow, radius: 10, y: 4)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+
+    private var settingsControlButton: some View {
+        Button {
+            panelDetent = .collapsed
+            showSettings = true
+        } label: {
+            Image(systemName: "gearshape")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(chromePrimaryText)
                 .frame(width: 48, height: 48)
