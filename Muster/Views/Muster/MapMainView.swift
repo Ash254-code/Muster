@@ -1715,7 +1715,7 @@ struct MapMainView: View {
     }
 
     private func autosteerQuickActionsSheet(maxWidth: CGFloat) -> some View {
-        topSpeechBubble(pointerXOffset: 0) {
+        topQuickActionCard(maxWidth: min(maxWidth, 340)) {
             VStack(spacing: 8) {
             HStack {
                 Button {
@@ -1723,11 +1723,11 @@ struct MapMainView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(chromePrimaryText)
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(.white.opacity(0.12))
+                                .fill(quickPopupRowFill)
                         )
                 }
                 .buttonStyle(.plain)
@@ -1736,7 +1736,7 @@ struct MapMainView: View {
 
                 Text("Autosteer")
                     .font(.system(size: 50 / 3, weight: .regular, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(chromePrimaryText)
 
                 Spacer(minLength: 8)
 
@@ -1834,27 +1834,24 @@ struct MapMainView: View {
             .padding(.bottom, 2)
         }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .frame(maxWidth: maxWidth)
     }
 
     private var cruiseControlQuickActionsBubble: some View {
-        topSpeechBubble(pointerXOffset: -96) {
+        topQuickActionCard(maxWidth: 320) {
             VStack(spacing: 10) {
                 HStack {
                     Text("Cruise Control")
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(chromePrimaryText)
                     Spacer(minLength: 8)
                     Button {
                         dismissCruiseControlQuickActions()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(chromePrimaryText)
                             .frame(width: 24, height: 24)
-                            .background(Circle().fill(.white.opacity(0.12)))
+                            .background(Circle().fill(quickPopupRowFill))
                     }
                     .buttonStyle(.plain)
                 }
@@ -1862,7 +1859,7 @@ struct MapMainView: View {
                 Toggle("Enabled", isOn: $cruiseControlEnabled)
                     .toggleStyle(.switch)
                     .tint(.blue)
-                    .foregroundStyle(.white.opacity(0.92))
+                    .foregroundStyle(chromePrimaryText)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
 
                 HStack(spacing: 8) {
@@ -1876,7 +1873,7 @@ struct MapMainView: View {
 
                     Text("\(Int(clampedCruiseControlSpeedKPH)) km/h")
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(chromePrimaryText)
                         .monospacedDigit()
                         .frame(maxWidth: .infinity)
 
@@ -1896,79 +1893,64 @@ struct MapMainView: View {
                     }
                 }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.95))
+                .foregroundStyle(chromePrimaryText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Capsule(style: .continuous).fill(.white.opacity(0.12)))
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(quickPopupRowFill))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(width: 250)
         }
     }
 
     private func topPillMetricPickerBubble(side: TopSidePillPosition) -> some View {
-        topSpeechBubble(pointerXOffset: side == .left ? -90 : 90) {
+        topQuickActionCard(maxWidth: 320) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(side == .left ? "Left Pill" : "Right Pill")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(chromePrimaryText)
 
                 Text("Choose what this pill displays.")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(chromeSecondaryText)
 
                 ForEach(TopSidePillMetric.allCases) { metric in
                     Button(metric.menuTitle) {
                         applyTopPillMetric(metric)
                     }
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.95))
+                    .foregroundStyle(chromePrimaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Capsule(style: .continuous).fill(.white.opacity(0.10)))
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(quickPopupRowFill))
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(width: 240)
         }
     }
 
-    private func topSpeechBubble<Content: View>(
-        pointerXOffset: CGFloat,
+    private func topQuickActionCard<Content: View>(
+        maxWidth: CGFloat = 320,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(spacing: 0) {
-            Triangle()
-                .fill(.ultraThinMaterial.opacity(0.98))
-                .frame(width: 24, height: 12)
-                .offset(x: pointerXOffset)
-                .overlay(
-                    Triangle()
-                        .stroke(chromeStroke.opacity(0.7), lineWidth: 1)
-                )
-                .padding(.bottom, -1)
-
-            content()
-                .background(
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .fill(.ultraThinMaterial.opacity(0.98))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(chromeStroke.opacity(0.7), lineWidth: 1)
-                )
-        }
-        .shadow(color: .black.opacity(0.35), radius: 20, y: 8)
+        content()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(width: maxWidth)
+            .background(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(quickPopupFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
     }
 
     private func autosteerSectionHeading(_ title: String) -> some View {
         HStack {
             Text(title)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(chromeSecondaryText)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
@@ -1981,18 +1963,18 @@ struct MapMainView: View {
     ) -> some View {
         Button(action: action) {
             label()
-                .foregroundStyle(.white.opacity(0.93))
+                .foregroundStyle(chromePrimaryText)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 46)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 1)
                 .background(
-                    Capsule(style: .continuous)
-                        .fill(.white.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(quickPopupRowFill)
                 )
                 .overlay(
-                    Capsule(style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
                 )
         }
