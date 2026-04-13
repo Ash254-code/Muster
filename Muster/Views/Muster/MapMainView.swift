@@ -2482,13 +2482,9 @@ struct MapMainView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 44)
                 .onEnded { _ in
-                    showCruiseControlQuickPopup = true
+                    showCruiseControlSheet = true
                 }
         )
-        .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
-            cruiseControlQuickPopup
-                .presentationCompactAdaptation(.popover)
-        }
     }
 
     private func topLeftZoomPill(zoomDistancePopupText: String) -> some View {
