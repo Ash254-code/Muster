@@ -459,6 +459,38 @@ struct ParticipantPresence: Identifiable, Codable, Hashable {
         try c.encodeIfPresent(effectiveLocation?.latitude, forKey: .effectiveLatitude)
         try c.encodeIfPresent(effectiveLocation?.longitude, forKey: .effectiveLongitude)
     }
+
+    static func == (lhs: ParticipantPresence, rhs: ParticipantPresence) -> Bool {
+        lhs.participantID == rhs.participantID &&
+        lhs.displayName == rhs.displayName &&
+        lhs.cellularTimestamp == rhs.cellularTimestamp &&
+        lhs.xrsTimestamp == rhs.xrsTimestamp &&
+        lhs.effectiveTransport == rhs.effectiveTransport &&
+        lhs.isStale == rhs.isStale &&
+        lhs.shareEndsAt == rhs.shareEndsAt &&
+        lhs.cellularLocation?.latitude == rhs.cellularLocation?.latitude &&
+        lhs.cellularLocation?.longitude == rhs.cellularLocation?.longitude &&
+        lhs.xrsLocation?.latitude == rhs.xrsLocation?.latitude &&
+        lhs.xrsLocation?.longitude == rhs.xrsLocation?.longitude &&
+        lhs.effectiveLocation?.latitude == rhs.effectiveLocation?.latitude &&
+        lhs.effectiveLocation?.longitude == rhs.effectiveLocation?.longitude
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(participantID)
+        hasher.combine(displayName)
+        hasher.combine(cellularTimestamp)
+        hasher.combine(xrsTimestamp)
+        hasher.combine(effectiveTransport)
+        hasher.combine(isStale)
+        hasher.combine(shareEndsAt)
+        hasher.combine(cellularLocation?.latitude)
+        hasher.combine(cellularLocation?.longitude)
+        hasher.combine(xrsLocation?.latitude)
+        hasher.combine(xrsLocation?.longitude)
+        hasher.combine(effectiveLocation?.latitude)
+        hasher.combine(effectiveLocation?.longitude)
+    }
 }
 
 struct CellularTrackingMember: Identifiable, Codable, Hashable {
