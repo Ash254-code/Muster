@@ -639,11 +639,16 @@ struct MapMainView: View {
         guard cruiseControlIsActive,
               let actualSpeedKPH = speedPillActualSpeedKPH else { return false }
 
-        return abs(actualSpeedKPH - clampedCruiseControlSpeedKPH) <= 1
+        return abs(actualSpeedKPH - clampedCruiseControlSpeedKPH) <= speedPillMatchToleranceKPH
+    }
+
+    private var speedPillMatchToleranceKPH: Double {
+        max(1, clampedCruiseControlSpeedKPH * 0.02)
     }
 
     private var speedPillRingColor: Color {
-        if cruiseControlIsActive { return .green }
+        if speedPillShouldHighlightMatch { return .green }
+        if cruiseControlIsActive { return .orange }
         if cruiseControlEnabled { return .orange }
         return .clear
     }
@@ -2531,6 +2536,12 @@ struct MapMainView: View {
             Capsule(style: .continuous)
                 .fill(chromeFill)
         )
+        .overlay {
+            if hasSpeedPillRing {
+                Capsule(style: .continuous)
+                    .strokeBorder(speedPillRingColor, lineWidth: 2.5)
+            }
+        }
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
         .onLongPressGesture(minimumDuration: 0.45) {
             showCruiseControlQuickPopup = true
