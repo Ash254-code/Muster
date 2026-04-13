@@ -650,9 +650,8 @@ struct MapMainView: View {
     }
 
     private var speedPillRingColor: Color {
-        if speedPillShouldHighlightMatch { return .green }
-        if cruiseControlIsActive { return .orange }
-        if cruiseControlEnabled { return .orange }
+        if speedPillShouldHighlightMatch { return .blue }
+        if cruiseControlEnabled { return chromeStroke }
         return .clear
     }
 
@@ -2390,12 +2389,20 @@ struct MapMainView: View {
             showCruiseControlSheet = true
         } label: {
             VStack(spacing: 2) {
-                Text(cruiseControlSetSpeedText)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(chromePrimaryText)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(cruiseControlDisplaySpeedText)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromePrimaryText)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(cruiseControlDisplayUnitText)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromeSecondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
 
                 Text("Cruise Control")
                     .font(.system(size: 9, weight: .semibold))
@@ -2570,7 +2577,7 @@ struct MapMainView: View {
         VStack(spacing: 0) {
             Text(speedNumberText)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(speedPillShouldHighlightMatch ? Color.green : chromePrimaryText)
+                .foregroundStyle(speedPillShouldHighlightMatch ? Color.blue : chromePrimaryText)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -2830,16 +2837,6 @@ struct MapMainView: View {
                         Image(systemName: "steeringwheel")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.blue)
-                        Text(cruiseControlDisplaySpeedText)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.blue)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-
-                        Text(cruiseControlDisplayUnitText)
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(chromeSecondaryText)
                     } else {
                         Text(autosteerActive ? "ON" : "GO")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -2847,15 +2844,6 @@ struct MapMainView: View {
                         Text("\(autosteerReadinessCount)/4")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(chromeSecondaryText)
-
-                        if cruiseControlIsActive {
-                            Text(cruiseControlSetSpeedText)
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(.blue)
-                                .monospacedDigit()
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
                     }
                 }
             }
