@@ -34,16 +34,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private func handleTap() {
+				<string>    private var tapGesture: UITapGestureRecognizer!
 </string>
 				<key>leading</key>
-				<string>
-    @objc
+				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
+
 </string>
 				<key>trailing</key>
-				<string>        guard Date() &gt;= suppressTapUntil else { return }
-        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
-        onTap?(ann.marker)
+				<string>    private var suppressTapUntil: Date = .distantPast
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
 </string>
 			</dict>
 			<key>title</key>
@@ -81,16 +81,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private func handleTap() {
+				<string>    private var tapGesture: UITapGestureRecognizer!
 </string>
 				<key>leading</key>
-				<string>
-    @objc
+				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
+
 </string>
 				<key>trailing</key>
-				<string>        guard Date() &gt;= suppressTapUntil else { return }
-        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
-        onTap?(ann.marker)
+				<string>    private var suppressTapUntil: Date = .distantPast
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
 </string>
 			</dict>
 			<key>title</key>
@@ -128,16 +128,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private func handleTap() {
+				<string>    private var tapGesture: UITapGestureRecognizer!
 </string>
 				<key>leading</key>
-				<string>
-    @objc
+				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
+
 </string>
 				<key>trailing</key>
-				<string>        guard Date() &gt;= suppressTapUntil else { return }
-        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
-        onTap?(ann.marker)
+				<string>    private var suppressTapUntil: Date = .distantPast
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
 </string>
 			</dict>
 			<key>title</key>
@@ -175,16 +175,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private func handleTap() {
+				<string>    private var tapGesture: UITapGestureRecognizer!
 </string>
 				<key>leading</key>
-				<string>
-    @objc
+				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
+
 </string>
 				<key>trailing</key>
-				<string>        guard Date() &gt;= suppressTapUntil else { return }
-        guard let ann = annotation as? ImportedMarkerAnnotation else { return }
-        onTap?(ann.marker)
+				<string>    private var suppressTapUntil: Date = .distantPast
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
 </string>
 			</dict>
 			<key>title</key>
