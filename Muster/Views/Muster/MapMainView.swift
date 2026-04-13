@@ -1522,7 +1522,7 @@ struct MapMainView: View {
                         maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width)
                     )
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1531,7 +1531,7 @@ struct MapMainView: View {
                 if showCruiseControlQuickActions {
                     cruiseControlQuickActionsBubble
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
@@ -1540,7 +1540,7 @@ struct MapMainView: View {
                 if let side = topPillPickerSide {
                     topPillMetricPickerBubble(side: side)
                         .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .padding(.top, topPillHeight + 10)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                         .zIndex(25)
