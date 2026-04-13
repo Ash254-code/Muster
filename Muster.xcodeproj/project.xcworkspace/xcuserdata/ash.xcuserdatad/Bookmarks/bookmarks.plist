@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>            } label: {
+				<string>                    .font(.system(size: 18, weight: .semibold))
 </string>
 				<key>leading</key>
-				<string>                    showMapLayerSheet.toggle()
-                }
+				<string>            } label: {
+                Image(systemName: isHeadsUp ? "safari.fill" : "location.north.line.fill")
 </string>
 				<key>trailing</key>
-				<string>                Image(systemName: "square.3.layers.3d")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(chromePrimaryText)
+				<string>                    .foregroundStyle(chromePrimaryText)
+                    .frame(width: 48, height: 48)
+            }
 </string>
 			</dict>
 			<key>type</key>

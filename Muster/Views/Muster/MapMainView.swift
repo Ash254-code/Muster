@@ -4270,54 +4270,49 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         totalHeight: CGFloat,
         safeAreaBottom: CGFloat
     ) -> some View {
-        if !totalHeight.isFinite || totalHeight <= 0 {
-            EmptyView()
-        } else {
-            let panelHeight = max(bottomPanelVisibleHeight(totalHeight: totalHeight), 0)
-            let safeAreaInset = safeAreaBottom.isFinite ? max(safeAreaBottom, 0) : 0
-
-            let panelCornerRadius: CGFloat
+        let panelHeight = bottomPanelVisibleHeight(totalHeight: totalHeight)
+        let panelCornerRadius: CGFloat = {
             switch panelDetent {
             case .collapsed:
-                panelCornerRadius = max(panelHeight / 2, 0)
+                return panelHeight / 2
             case .large:
-                panelCornerRadius = 24
+                return 24
+            }
+        }()
+
+        return VStack(spacing: 0) {
+            Capsule()
+                .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
+                .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
+                .frame(width: 34, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity)
+
+            bottomQuickZoomRow
+
+            if panelDetent != .collapsed {
+                expandedPanelContent
+                    .padding(.bottom, safeAreaBottom)
             }
 
-            VStack(spacing: 0) {
-                Capsule()
-                    .fill(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.25))
-                    .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.12), radius: 4)
-                    .frame(width: 34, height: 5)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                    .frame(maxWidth: .infinity)
-
-                bottomQuickZoomRow
-
-                if panelDetent != .collapsed {
-                    expandedPanelContent
-                        .padding(.bottom, safeAreaInset)
-                }
-
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: panelHeight, alignment: .top)
-            .background(
-                RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                    .fill(chromeFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                    .strokeBorder(chromeStroke, lineWidth: 1)
-            )
-            .shadow(color: chromeShadow, radius: 18, y: 4)
-            .padding(.horizontal, 6)
-            .padding(.bottom, -16)
-            .contentShape(Rectangle())
-            .gesture(bottomPanelDragGesture)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: panelHeight, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .fill(chromeFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .strokeBorder(chromeStroke, lineWidth: 1)
+        )
+        .shadow(color: chromeShadow, radius: 18, y: 4)
+        .padding(.horizontal, 6)
+        .padding(.bottom, -16)
+        .contentShape(Rectangle())
+        .gesture(bottomPanelDragGesture)
     }
     private var bottomQuickZoomRow: some View {
         HStack(spacing: 8) {
