@@ -2552,7 +2552,7 @@ struct MapMainView: View {
         )
         .shadow(color: chromeShadow, radius: 8, y: 3)
         .contentShape(Capsule(style: .continuous))
-        .onLongPressGesture {
+        .onLongPressGesture(minimumDuration: 0.45, maximumDistance: 44) {
             topPillPickerSide = side
         }
     }
@@ -2651,7 +2651,7 @@ struct MapMainView: View {
             }
         }
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-        .onLongPressGesture(minimumDuration: 0.45) {
+        .onLongPressGesture(minimumDuration: 0.45, maximumDistance: 44) {
             showCruiseControlQuickPopup = true
         }
         .popover(isPresented: $showCruiseControlQuickPopup, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
