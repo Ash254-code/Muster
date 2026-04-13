@@ -374,6 +374,9 @@ private struct CellularTrackingSettingsView: View {
     private var contactSuggestions: [ContactSuggestion] {
         Array(contactSearch.filteredContacts(matching: contactQuery).prefix(5))
     }
+    private var isContactQueryEmpty: Bool {
+        contactQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         Form {
@@ -398,10 +401,6 @@ private struct CellularTrackingSettingsView: View {
             }
 
             Section {
-                Text("Invite from contacts or enter a name and phone number manually.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 if contactSearch.authorizationStatus == .notDetermined {
                     Button("Allow Contacts Access") {
                         contactSearch.requestAccess()
@@ -411,20 +410,44 @@ private struct CellularTrackingSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    TextField("Search contacts", text: $contactQuery)
-                        .textInputAutocapitalization(.words)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search contacts", text: $contactQuery)
+                            .textInputAutocapitalization(.words)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.thinMaterial, in: Capsule())
 
                     ForEach(contactSuggestions) { contact in
                         Button {
                             inviteName = contact.displayName
                             invitePhoneNumber = contact.phoneNumber
+                            contactQuery = contact.displayName
                         } label: {
                             ContactSuggestionRow(contact: contact)
                         }
                         .buttonStyle(.plain)
                     }
-                }
 
+                    if isContactQueryEmpty {
+                        Text("Start typing to find contacts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if contactSuggestions.isEmpty {
+                        Text("No matches yet. Keep typing a name or phone number.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Invite from contacts")
+            } footer: {
+                Text("Search above to quickly find a person, then review/edit details below before sending.")
+            }
+
+            Section {
                 TextField("Name", text: $inviteName)
                     .textInputAutocapitalization(.words)
                 TextField("Phone number", text: $invitePhoneNumber)
@@ -435,7 +458,7 @@ private struct CellularTrackingSettingsView: View {
                 }
                 .disabled(inviteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invitePhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
-                Text("Invite others")
+                Text("Send invite")
             }
 
             Section {
@@ -655,7 +678,7 @@ private final class ContactSearchStore: ObservableObject {
 
     func filteredContacts(matching query: String) -> [ContactSuggestion] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return Array(contacts.prefix(5)) }
+        guard !trimmed.isEmpty else { return [] }
         return contacts.filter {
             $0.displayName.localizedCaseInsensitiveContains(trimmed) ||
             $0.phoneNumber.localizedCaseInsensitiveContains(trimmed)
