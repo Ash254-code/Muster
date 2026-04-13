@@ -3,8 +3,8 @@ import CoreLocation
 
 /// Persistent autosteer geometry built only when track/mode/width changes.
 /// This cache is intentionally independent from GPS ticks.
-struct AutosteerGuidanceGeometryCache: Equatable {
-    struct LocalLine: Equatable {
+struct AutosteerGuidanceGeometryCache {
+    struct LocalLine {
         let origin: CGPoint
         let direction: CGVector
         let normal: CGVector
