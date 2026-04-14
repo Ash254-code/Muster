@@ -1903,21 +1903,18 @@ struct MapMainView: View {
                     .tint(.white.opacity(0.22))
                 }
 
-                Button("Open Full Settings") {
-                    dismissCruiseControlQuickActions()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        showCruiseControlSheet = true
-                    }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Set speed adjustment")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromeSecondaryText)
+
+                    Slider(
+                        value: $cruiseControlSpeedKPH,
+                        in: 2...100,
+                        step: 1
+                    )
+                    .tint(.blue)
                 }
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(chromePrimaryText)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Capsule(style: .continuous).fill(quickPopupRowFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(chromeStroke.opacity(0.75), lineWidth: 1)
-                )
             }
         }
     }
