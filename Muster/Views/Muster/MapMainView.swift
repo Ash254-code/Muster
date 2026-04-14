@@ -1005,7 +1005,7 @@ struct MapMainView: View {
         observedMainContent
     }
 
-    private var sheetHostedMainContent: some View {
+    private var mainContentWithPrimarySheets: some View {
         mainContent
             .sheet(isPresented: $showSettings) {
                 settingsSheet
@@ -1013,11 +1013,7 @@ struct MapMainView: View {
             .sheet(isPresented: $showRingsSettings) {
                 ringsSettingsSheet
             }
-            .sheet(isPresented: $showMarkerSheet, onDismiss: {
-                pendingMarkerCoordinate = nil
-                markerSheetPointA = nil
-                markerSheetPointB = nil
-            }) {
+            .sheet(isPresented: $showMarkerSheet, onDismiss: handleMarkerSheetDismissed) {
                 markerSheet
             }
             .sheet(isPresented: $showRadioDebug) {
@@ -1043,6 +1039,10 @@ struct MapMainView: View {
                 MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
                     .environmentObject(app)
             }
+    }
+
+    private var sheetHostedMainContent: some View {
+        mainContentWithPrimarySheets
             .onChange(of: showMapSetsSheet) { _, isPresented in
                 handleMapSetsSheetChanged(isPresented)
             }
@@ -2302,6 +2302,12 @@ struct MapMainView: View {
     }
 
     // MARK: - Dialog actions
+
+    private func handleMarkerSheetDismissed() {
+        pendingMarkerCoordinate = nil
+        markerSheetPointA = nil
+        markerSheetPointB = nil
+    }
 
     private func handleMapSetsSheetChanged(_ isPresented: Bool) {
         guard isPresented == false else { return }
