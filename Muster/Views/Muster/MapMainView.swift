@@ -4863,13 +4863,17 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                     Circle()
                                         .strokeBorder(
                                             autosteerEnabled
-                                            ? (autosteerActive ? .green : (isSheepPinReady ? .blue : chromeStroke))
+                                            ? (autosteerActive ? .blue : (isSheepPinReady ? .blue : chromeStroke))
                                             : (isSheepPinReady ? .blue : chromeStroke),
                                             lineWidth: 1.5
                                         )
                                 )
                                 .shadow(color: chromeShadow, radius: 10, y: 4)
-                                .foregroundStyle(chromePrimaryText)
+                                .foregroundStyle(
+                                    autosteerEnabled && autosteerActive
+                                    ? .blue
+                                    : chromePrimaryText
+                                )
                                 .opacity(isSheepPinReady ? 1.0 : 0.45)
                                 .shadow(
                                     color: showSheepCountPopover ? .white.opacity(0.08) : .clear,
