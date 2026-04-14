@@ -24,6 +24,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     let userLocation: CLLocation?
     let userHeadingDegrees: Double?
     let useCrosshairUserMarker: Bool
+    let positionSmoothingIntensity: Double
 
     let ringCount: Int
     let ringSpacingMeters: Double
@@ -162,14 +163,6 @@ struct MapViewRepresentable: UIViewRepresentable {
             map: map,
             userLocation: userLocation
         )
-
-        if followUser, let loc = userLocation {
-            context.coordinator.updateFollowTarget(
-                map: map,
-                userLocation: loc,
-                orientationRaw: orientationRaw
-            )
-        }
 
         context.coordinator.applyRecenterIfNeeded(
             map: map,
@@ -358,6 +351,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         private var sheepPinFadeTimer: Timer?
         private var userLocationAnnotation: UserLocationAnnotation?
         private var destinationLineCoordinateCache: CLLocationCoordinate2D?
+        private var pendingUserLocationSample: CLLocation?
+        private var lastAppliedUserLocationSampleAt: CFTimeInterval = 0
+        private let userPositionUpdateInterval: CFTimeInterval = 0.5
 
         weak var longPressGesture: UILongPressGestureRecognizer?
 
@@ -551,23 +547,41 @@ struct MapViewRepresentable: UIViewRepresentable {
                     map.removeAnnotation(existing)
                     userLocationAnnotation = nil
                 }
+                pendingUserLocationSample = nil
                 return
             }
 
+            pendingUserLocationSample = userLocation
+
+            let now = CACurrentMediaTime()
+            let hasSampleWindowElapsed = lastAppliedUserLocationSampleAt == 0
+                || (now - lastAppliedUserLocationSampleAt) >= userPositionUpdateInterval
+            guard hasSampleWindowElapsed else {
+                refreshUserLocationAnnotationAppearance(
+                    map: map,
+                    orientationRaw: orientationRaw,
+                    followUser: followUser
+                )
+                return
+            }
+            lastAppliedUserLocationSampleAt = now
+
             let shouldShowTriangle = (orientationRaw == "headsUp") && followUser
-            let heading = resolvedHeading(for: userLocation)
+            let locationToApply = pendingUserLocationSample ?? userLocation
+            let heading = resolvedHeading(for: locationToApply)
             let guidanceBlankMode = parent.guidanceNoMapEnabled || parent.mapStyleRaw == "blank"
+            let smoothingFactor = annotationSmoothingFactor(guidanceBlankMode: guidanceBlankMode)
 
             if let existing = userLocationAnnotation {
-                if guidanceBlankMode {
-                    existing.coordinate = blendedGuidanceCoordinate(
-                        from: existing.coordinate,
-                        to: userLocation.coordinate,
-                        smoothingFactor: 0.24
-                    )
-                } else {
-                    existing.coordinate = userLocation.coordinate
-                }
+                let alpha = min(max(smoothingFactor, 0), 1)
+                let nextLatitude = existing.coordinate.latitude
+                    + (locationToApply.coordinate.latitude - existing.coordinate.latitude) * alpha
+                let nextLongitude = existing.coordinate.longitude
+                    + (locationToApply.coordinate.longitude - existing.coordinate.longitude) * alpha
+                existing.coordinate = CLLocationCoordinate2D(
+                    latitude: nextLatitude,
+                    longitude: nextLongitude
+                )
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
                 existing.useCrosshair = parent.useCrosshairUserMarker
@@ -584,7 +598,7 @@ struct MapViewRepresentable: UIViewRepresentable {
                 }
             } else {
                 let annotation = UserLocationAnnotation(
-                    coordinate: userLocation.coordinate,
+                    coordinate: locationToApply.coordinate,
                     isHeadsUp: shouldShowTriangle,
                     headingDegrees: heading,
                     useCrosshair: parent.useCrosshairUserMarker
@@ -609,6 +623,51 @@ struct MapViewRepresentable: UIViewRepresentable {
                     map.bringSubviewToFront(view)
                 }
             }
+
+            if followUser {
+                updateFollowTarget(
+                    map: map,
+                    userLocation: locationToApply,
+                    orientationRaw: orientationRaw
+                )
+            }
+        }
+
+        private func refreshUserLocationAnnotationAppearance(
+            map: MKMapView,
+            orientationRaw: String,
+            followUser: Bool
+        ) {
+            guard let existing = userLocationAnnotation else { return }
+
+            let shouldShowTriangle = (orientationRaw == "headsUp") && followUser
+            let heading = parent.userLocation.map(resolvedHeading(for:)) ?? existing.headingDegrees
+            existing.isHeadsUp = shouldShowTriangle
+            existing.headingDegrees = heading
+            existing.useCrosshair = parent.useCrosshairUserMarker
+
+            if let view = map.view(for: existing) as? UserLocationAnnotationView {
+                view.annotation = existing
+                view.configure(
+                    isHeadsUp: shouldShowTriangle,
+                    headingDegrees: heading,
+                    useCrosshair: parent.useCrosshairUserMarker
+                )
+                view.layer.zPosition = 10000
+                map.bringSubviewToFront(view)
+            }
+        }
+
+        private func annotationSmoothingFactor(guidanceBlankMode: Bool) -> Double {
+            let intensity = normalizedSmoothingIntensity()
+            if guidanceBlankMode {
+                return 0.18 + (0.26 * intensity)
+            }
+            return 0.12 + (0.20 * intensity)
+        }
+
+        private func normalizedSmoothingIntensity() -> Double {
+            min(max(parent.positionSmoothingIntensity, 0), 1)
         }
 
         func applyCameraModeIfNeeded(
@@ -1082,10 +1141,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             let dt = lastDisplayTickTime == 0 ? (1.0 / 60.0) : min(0.05, now - lastDisplayTickTime)
             lastDisplayTickTime = now
 
-            let positionAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 7.2 : 3.2))
-            let headingAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 6.2 : 2.2))
-            let distanceAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.0))
-            let pitchAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.5))
+            let intensityMultiplier = 0.6 + (normalizedSmoothingIntensity() * 1.8)
+            let positionAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 7.2 : 3.2) * intensityMultiplier)
+            let headingAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 6.2 : 2.2) * intensityMultiplier)
+            let distanceAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.0) * intensityMultiplier)
+            let pitchAlpha = min(1.0, dt * (isAnimatingCameraTransition ? 8.5 : 4.5) * intensityMultiplier)
 
             let newLat = displayedCenter.latitude + (targetCenter.latitude - displayedCenter.latitude) * positionAlpha
             let newLon = displayedCenter.longitude + (targetCenter.longitude - displayedCenter.longitude) * positionAlpha
@@ -2222,17 +2282,6 @@ struct MapViewRepresentable: UIViewRepresentable {
             if freezeGuidanceLines {
                 hasFrozenAutosteerGuidanceLines = true
             }
-        }
-
-        private func blendedGuidanceCoordinate(
-            from current: CLLocationCoordinate2D,
-            to target: CLLocationCoordinate2D,
-            smoothingFactor: Double
-        ) -> CLLocationCoordinate2D {
-            let alpha = min(max(smoothingFactor, 0), 1)
-            let latitude = current.latitude + (target.latitude - current.latitude) * alpha
-            let longitude = current.longitude + (target.longitude - current.longitude) * alpha
-            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
         private func smoothedCoordinate(

@@ -100,7 +100,7 @@ struct MusterView: View {
             .navigationTitle("Muster")
         }
         .confirmationDialog(
-            "Map Set Required",
+            app.muster.mapSets.isEmpty ? "No Map Sets Yet" : "Map Set Required",
             isPresented: $showMissingMapSetPrompt,
             titleVisibility: .visible
         ) {
@@ -108,13 +108,19 @@ struct MusterView: View {
                 startMapSetCreationFlowOnOpen = true
                 showMapSetsSheet = true
             }
-            Button("Select Map Set From List") {
-                startMapSetCreationFlowOnOpen = false
-                showMapSetsSheet = true
+            if app.muster.mapSets.isEmpty == false {
+                Button("Select Map Set From List") {
+                    startMapSetCreationFlowOnOpen = false
+                    showMapSetsSheet = true
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("New track can’t be started without a Map Set selected.")
+            Text(
+                app.muster.mapSets.isEmpty
+                ? "Create a map set before starting your first track."
+                : "New track can’t be started without a Map Set selected."
+            )
         }
         .sheet(isPresented: $showMapSetsSheet) {
             MapSetsSheetView(startInCreateFlow: startMapSetCreationFlowOnOpen)
