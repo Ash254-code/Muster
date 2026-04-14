@@ -3114,36 +3114,40 @@ struct MapMainView: View {
                 showAutosteerReadinessSheet = true
             }
         } label: {
-            ZStack {
+            VStack(spacing: 0) {
+                if isFullyLocked {
+                    Image(systemName: "steeringwheel")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.blue)
+                } else {
+                    Text(autosteerActive ? "ON" : "GO")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(autosteerActive ? .blue : chromePrimaryText)
+                    Text("\(autosteerReadinessCount)/4")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromeSecondaryText)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: topPillHeight)
+            .background(
                 Capsule(style: .continuous)
                     .fill(chromeFill)
+            )
+            .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(chromeStroke, lineWidth: 2)
+            )
+            .overlay {
                 Capsule(style: .continuous)
                     .trim(from: 0, to: fraction)
                     .stroke(
                         readinessRingColor,
                         style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                     )
-
-                VStack(spacing: 0) {
-                    if isFullyLocked {
-                        Image(systemName: "steeringwheel")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.blue)
-                    } else {
-                        Text(autosteerActive ? "ON" : "GO")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(autosteerActive ? .blue : chromePrimaryText)
-                        Text("\(autosteerReadinessCount)/4")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(chromeSecondaryText)
-                    }
-                }
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity)
-            .frame(height: topPillHeight)
+            .frame(width: 108, height: topPillHeight)
             .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
             .contentShape(Capsule(style: .continuous))
             .accessibilityLabel("Autosteer readiness")
