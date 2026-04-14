@@ -2945,13 +2945,24 @@ struct MapMainView: View {
         }
 
         if cruiseControlEnabled {
+            autosteerActive = true
             showCruiseControlSetSpeedPopup()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
 
     private func handleCruiseControlStatusPillTap() {
-        guard autosteerEnabled == false, cruiseControlEnabled else { return }
+        guard cruiseControlEnabled else { return }
+
+        if autosteerEnabled {
+            guard autosteerGoReady else {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showAutosteerReadinessSheet = true
+                return
+            }
+        }
+
+        autosteerActive = true
         showCruiseControlSetSpeedPopup()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
