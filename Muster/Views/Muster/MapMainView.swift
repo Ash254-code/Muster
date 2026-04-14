@@ -3233,7 +3233,11 @@ struct MapMainView: View {
                 }
             }
 
-            PillWrapLayout(spacing: 8, rowSpacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                autosteerTrackPillButton("Re-centre") {
+                    recenterOnUser()
+                }
+
                 if autosteerSetupModeRaw == "A+B line" {
                     autosteerTrackPillButton(autosteerPointA == nil ? "Mark A" : "Re-mark A") {
                         guard let coordinate = mapCenterCoordinate ?? location.lastLocation?.coordinate else { return }
@@ -3273,8 +3277,10 @@ struct MapMainView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
