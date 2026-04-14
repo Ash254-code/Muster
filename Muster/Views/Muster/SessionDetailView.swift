@@ -67,7 +67,7 @@ struct SessionDetailView: View {
             importedMarkers: app.muster.visibleImportedMarkers,
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
-            useCrosshairUserMarker: false,
+            useCrosshairUserMarker: false, positionSmoothingIntensity: <#Double#>,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
