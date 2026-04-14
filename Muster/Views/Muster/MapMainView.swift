@@ -3255,7 +3255,7 @@ struct MapMainView: View {
             }
 
             HStack(alignment: .center, spacing: 8) {
-                autosteerTrackIconPillButton(systemImage: "location.fill") {
+                autosteerTrackIconPillButton(systemImage: "scope") {
                     recenterOnUser()
                 }
 
