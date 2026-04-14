@@ -3289,6 +3289,9 @@ struct MapMainView: View {
         )
     
         .alert("Enter Heading", isPresented: $showAutosteerHeadingPrompt) {
+            Button("Set to current") {
+                setAutosteerHeadingToCurrent()
+            }
             TextField("Heading (e.g. 123.4567)", text: $autosteerHeadingInput)
                 .keyboardType(.decimalPad)
             Button("Cancel", role: .cancel) {}
@@ -3297,6 +3300,7 @@ struct MapMainView: View {
                     completeAutosteerSetupAndPromptForSave()
                 }
             }
+            .disabled(validatedAutosteerHeadingValue() == nil)
         } message: {
             Text("Enter heading to 4 decimal places.")
         }
@@ -3794,6 +3798,18 @@ struct MapMainView: View {
         guard let value = Double(trimmed), value.isFinite else { return nil }
         guard (0.0...360.0).contains(value) else { return nil }
         return value
+    }
+
+    private func setAutosteerHeadingToCurrent() {
+        guard let heading = location.headingDegrees else {
+            autosteerHeadingValidationWarningMessage = "Current heading is unavailable. Move the device and try again."
+            showAutosteerHeadingValidationWarning = true
+            return
+        }
+
+        let normalizedHeading = normalizeDegrees(heading)
+        autosteerHeadingInput = String(format: "%.4f", normalizedHeading)
+        completeAutosteerSetupAndPromptForSave()
     }
 
     private func isCurrentlySelectedAutosteerTrack(farmName: String, paddockName: String, trackName: String) -> Bool {
