@@ -548,6 +548,10 @@ struct MapMainView: View {
         autosteerSetupActive && autosteerSetupModeRaw != "none"
     }
 
+    private var isCurveTrackSetupActive: Bool {
+        isAutosteerTrackSetupActive && autosteerSetupModeRaw == "Curve Track"
+    }
+
     private var existingPaddocksForSelectedFarm: [String] {
         let farmName = autosteerSaveFarm.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let farm = knownFarms.first(where: { $0.name.caseInsensitiveCompare(farmName) == .orderedSame }) else {
@@ -627,6 +631,14 @@ struct MapMainView: View {
             let coords = trail.map(\.coordinate)
             return coords.count >= 2 ? coords : nil
         }
+    }
+
+    private var autosteerPreviewCoordinatesForMap: [[Double]] {
+        guard autosteerEnabled else { return [] }
+        if isAutosteerTrackSetupActive {
+            return previewCoordinatesForPendingSetup()
+        }
+        return selectedAutosteerTrackRecord?.previewCoordinates ?? []
     }
     private var leftPillMetric: TopSidePillMetric {
         TopSidePillMetric(rawValue: topLeftPillMetricRaw) ?? .weather
@@ -1632,7 +1644,7 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .center) {
-                if isAutosteerTrackSetupActive {
+                if isAutosteerTrackSetupActive && !isCurveTrackSetupActive {
                     Image(systemName: "plus")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.red)
@@ -2067,14 +2079,14 @@ struct MapMainView: View {
             importedMarkers: importedMarkers,
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
-            useCrosshairUserMarker: isAutosteerTrackSetupActive,
+            useCrosshairUserMarker: isAutosteerTrackSetupActive && !isCurveTrackSetupActive,
             positionSmoothingIntensity: mapPositionSmoothingIntensity,
             ringCount: ringsEnabled ? ringCount : 0,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,
             ringDistanceLabelsEnabled: ringDistanceLabelsEnabled,
-            autosteerTrackPreviewCoordinates: autosteerEnabled ? (selectedAutosteerTrackRecord?.previewCoordinates ?? []) : [],
+            autosteerTrackPreviewCoordinates: autosteerPreviewCoordinatesForMap,
             autosteerTrackSpacingMeters: autosteerEnabled ? autosteerWorkingWidthM : 0,
             autosteerLockedLineIndex: (autosteerEnabled && autosteerActive) ? autosteerGuidanceStatus.nearestLineIndex : nil,
             autosteerUserCoordinate: autosteerEnabled ? location.lastLocation?.coordinate : nil,
@@ -2291,7 +2303,7 @@ struct MapMainView: View {
 
     private func handleAutosteerSetupActiveChanged(_ isActive: Bool) {
         if isActive {
-            followUser = false
+            followUser = autosteerSetupModeRaw == "Curve Track"
         } else if autosteerEnabled {
             applyAutosteerMapLockIfNeeded()
         }
@@ -3753,10 +3765,12 @@ struct MapMainView: View {
     private func beginAutosteerSetup(mode: String) {
         autosteerSetupModeRaw = mode
         autosteerSetupActive = true
-        followUser = false
         curveRecordedCenters = []
         if mode == "A+B line" || mode == "A+Heading" {
+            followUser = false
             applyAutosteerTrackCreationMapView()
+        } else if mode == "Curve Track" {
+            applyCurveTrackCreationMapView()
         }
     }
 
@@ -6135,6 +6149,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         mapStyleRaw = "satellite"
         orientationRaw = "northUp"
         postExactZoomRequest(3000)
+    }
+
+    private func applyCurveTrackCreationMapView() {
+        mapStyleRaw = "satellite"
+        orientationRaw = "headsUp"
+        headsUpPitchDegrees = normalizedHeadsUpPitchValue(headsUpPitchDegrees)
+        followUser = true
+        postExactZoomRequest(1200)
     }
 
     private var zoomStepIncrementMeters: Double {
