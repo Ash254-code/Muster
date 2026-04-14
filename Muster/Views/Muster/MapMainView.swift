@@ -421,10 +421,16 @@ struct MapMainView: View {
     private var activeSheepTarget: MusterMarker? { app.muster.activeSheepTarget }
 
     private var isSheepPinReady: Bool {
+        if autosteerEnabled {
+            return autosteerGoReady
+        }
         location.lastLocation != nil
     }
 
     private var sheepPinButtonIcon: String {
+        if autosteerEnabled {
+            return "steeringwheel"
+        }
         switch sheepPinIconRaw {
         case "cattle": return "🐄"
         case "flag": return "🚩"
@@ -4835,8 +4841,14 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                         Button {
                             handleSheepQuickDropTap()
                         } label: {
-                            Text(sheepPinButtonIcon)
-                                .font(.system(size: 20))
+                            Group {
+                                if autosteerEnabled {
+                                    Image(systemName: sheepPinButtonIcon)
+                                } else {
+                                    Text(sheepPinButtonIcon)
+                                }
+                            }
+                                .font(.system(size: 20, weight: .semibold))
                                 .frame(width: 46, height: 46)
                                 .background(
                                     Circle()
@@ -4852,12 +4864,18 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                 .overlay(
                                     Circle()
                                         .strokeBorder(
-                                            isSheepPinReady ? .blue : chromeStroke,
+                                            autosteerEnabled
+                                            ? (autosteerActive ? .blue : (isSheepPinReady ? .blue : chromeStroke))
+                                            : (isSheepPinReady ? .blue : chromeStroke),
                                             lineWidth: 1.5
                                         )
                                 )
                                 .shadow(color: chromeShadow, radius: 10, y: 4)
-                                .foregroundStyle(chromePrimaryText)
+                                .foregroundStyle(
+                                    autosteerEnabled && autosteerActive
+                                    ? .blue
+                                    : chromePrimaryText
+                                )
                                 .opacity(isSheepPinReady ? 1.0 : 0.45)
                                 .shadow(
                                     color: showSheepCountPopover ? .white.opacity(0.08) : .clear,
@@ -4871,6 +4889,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.35)
                                 .onEnded { _ in
+                                    guard !autosteerEnabled else { return }
                                     AppHaptics.longPressStrong()
                                     handleSheepQuickDropLongPress(startY: buttonFrame.midY)
                                 }
@@ -4878,9 +4897,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                                 .onChanged { value in
+                                    guard !autosteerEnabled else { return }
                                     handleSheepScrubChanged(value: value, buttonFrame: buttonFrame)
                                 }
                                 .onEnded { _ in
+                                    guard !autosteerEnabled else { return }
                                     handleSheepScrubEnded()
                                 }
                         )
@@ -5801,6 +5822,21 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func handleSheepQuickDropTap() {
         if suppressNextSheepButtonTap {
             suppressNextSheepButtonTap = false
+            return
+        }
+
+        if autosteerEnabled {
+            guard autosteerGoReady else {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showAutosteerReadinessSheet = true
+                return
+            }
+
+            autosteerActive = true
+            if cruiseControlEnabled {
+                showCruiseControlSetSpeedPopup()
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             return
         }
 
