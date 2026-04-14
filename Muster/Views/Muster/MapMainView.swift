@@ -3202,6 +3202,27 @@ struct MapMainView: View {
             .buttonStyle(.plain)
     }
 
+    private func autosteerTrackIconPillButton(
+        systemImage: String,
+        foreground: Color? = nil,
+        fill: Color? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        let foregroundColor = foreground ?? chromePrimaryText
+        let fillColor = fill ?? chromeFill
+
+        return Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(foregroundColor)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(minWidth: 42, minHeight: 40)
+                .background(Capsule().fill(fillColor))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func handleAutosteerReadinessStepTap(_ step: AutosteerReadinessStep) {
         showAutosteerReadinessSheet = false
 
@@ -3234,7 +3255,7 @@ struct MapMainView: View {
             }
 
             HStack(alignment: .center, spacing: 8) {
-                autosteerTrackPillButton("Re-centre") {
+                autosteerTrackIconPillButton(systemImage: "location.fill") {
                     recenterOnUser()
                 }
 
