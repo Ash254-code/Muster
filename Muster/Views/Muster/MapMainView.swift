@@ -1579,7 +1579,7 @@ struct MapMainView: View {
                 .zIndex(10)
             }
             .overlay(alignment: .bottomTrailing) {
-                if !showMapLayerSheet {
+                if !showMapLayerSheet, panelDetent == .collapsed {
                     VStack(spacing: 10) {
                         if !followUser {
                             centerMapButton
@@ -1596,7 +1596,7 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                if !showMapLayerSheet {
+                if !showMapLayerSheet, panelDetent == .collapsed {
                     leftSideFloatingPills
                         .padding(.leading, 12)
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height))
@@ -1605,7 +1605,7 @@ struct MapMainView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if !showMapLayerSheet, autosteerEnabled {
+                if !showMapLayerSheet, autosteerEnabled, panelDetent == .collapsed {
                     autosteerGuidanceBar(autosteerGuidanceStatus)
                         .frame(maxWidth: autosteerGuidanceBarMaxWidth(for: geo.size.width))
                         .padding(.bottom, floatingControlsBottomPadding(for: geo.size.height) + 2)
@@ -4631,7 +4631,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
 
     private func floatingControlsBottomPadding(for totalHeight: CGFloat) -> CGFloat {
-        bottomPanelVisibleHeight(totalHeight: totalHeight) + 8
+        bottomPanelCollapsedVisibleHeight + 8
     }
 
     private func headsUpBottomObstructionHeight(for totalHeight: CGFloat) -> CGFloat {
@@ -4639,17 +4639,18 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     }
 
     private func bottomPanelVisibleHeight(totalHeight: CGFloat) -> CGFloat {
-        let collapsedHeight = 78.0
         let sanitizedTotalHeight = totalHeight.isFinite ? max(totalHeight, 0) : 0
         let largeHeight = max(520, sanitizedTotalHeight * 0.74)
 
         switch panelDetent {
         case .collapsed:
-            return collapsedHeight
+            return bottomPanelCollapsedVisibleHeight
         case .large:
             return largeHeight
         }
     }
+
+    private var bottomPanelCollapsedVisibleHeight: CGFloat { 78.0 }
 
     // MARK: - Bottom panel
 
