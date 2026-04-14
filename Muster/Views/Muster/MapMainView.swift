@@ -4903,7 +4903,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                     .strokeBorder(chromeStroke, lineWidth: 1)
             )
 
-            if sheepPinEnabled {
+            if sheepPinEnabled || autosteerEnabled {
                 sheepScrubButton
                     .frame(width: 64, height: 46)
                     .zIndex(1)
@@ -4925,6 +4925,21 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                 private var sheepScrubButton: some View {
                     GeometryReader { geo in
                         let buttonFrame = geo.frame(in: .global)
+                        let autosteerButtonRingColor: Color = {
+                            guard autosteerEnabled else {
+                                return isSheepPinReady ? .blue : chromeStroke
+                            }
+                            if autosteerActive { return .blue }
+                            if autosteerGoReady { return .orange }
+                            return .black
+                        }()
+                        let autosteerButtonForegroundColor: Color = {
+                            guard autosteerEnabled else { return chromePrimaryText }
+                            if autosteerActive { return .blue }
+                            if autosteerGoReady { return .orange }
+                            return .black
+                        }()
+                        let sheepButtonEnabled = autosteerEnabled || isSheepPinReady
 
                         Button {
                             handleSheepQuickDropTap()
@@ -4952,19 +4967,13 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                 .overlay(
                                     Circle()
                                         .strokeBorder(
-                                            autosteerEnabled
-                                            ? (autosteerActive ? .blue : (isSheepPinReady ? .blue : chromeStroke))
-                                            : (isSheepPinReady ? .blue : chromeStroke),
+                                            autosteerButtonRingColor,
                                             lineWidth: 1.5
                                         )
                                 )
                                 .shadow(color: chromeShadow, radius: 10, y: 4)
-                                .foregroundStyle(
-                                    autosteerEnabled && autosteerActive
-                                    ? .blue
-                                    : chromePrimaryText
-                                )
-                                .opacity(isSheepPinReady ? 1.0 : 0.45)
+                                .foregroundStyle(autosteerButtonForegroundColor)
+                                .opacity(sheepButtonEnabled ? 1.0 : 0.45)
                                 .shadow(
                                     color: showSheepCountPopover ? .white.opacity(0.08) : .clear,
                                     radius: 8,
@@ -4973,7 +4982,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
                                 .scaleEffect(showSheepCountPopover ? 1.08 : 1.0)
                         }
                         .buttonStyle(.plain)
-                        .disabled(!isSheepPinReady)
+                        .disabled(!sheepButtonEnabled)
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 0.35)
                                 .onEnded { _ in
