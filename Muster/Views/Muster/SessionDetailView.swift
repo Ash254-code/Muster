@@ -9,6 +9,7 @@ private let kRingColorKey = "rings_color"              // String
 private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
+private let kMapPositionSmoothingIntensityKey = "map_position_smoothing_intensity" // Double 0...1
 
 struct SessionDetailView: View {
     @EnvironmentObject private var app: AppState
@@ -34,6 +35,7 @@ struct SessionDetailView: View {
     @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
+    @AppStorage(kMapPositionSmoothingIntensityKey) private var mapPositionSmoothingIntensity: Double = 0.65
 
     // Trigger to force recenter in MKMapView
     @State private var recenterNonce: Int = 0
@@ -67,7 +69,8 @@ struct SessionDetailView: View {
             importedMarkers: app.muster.visibleImportedMarkers,
             userLocation: location.lastLocation,
             userHeadingDegrees: location.headingDegrees,
-            useCrosshairUserMarker: false, positionSmoothingIntensity: <#Double#>,
+            useCrosshairUserMarker: false,
+            positionSmoothingIntensity: mapPositionSmoothingIntensity,
             ringCount: ringCount,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
