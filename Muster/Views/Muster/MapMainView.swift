@@ -1329,6 +1329,7 @@ struct MapMainView: View {
             .onChange(of: location.lastLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
 
+                appendCurveTrackCoordinateIfNeeded(loc.coordinate)
                 updateAutosteerGuidanceFilter(using: loc)
                 evaluateFenceApproachWarning(using: loc)
 
@@ -2297,13 +2298,17 @@ struct MapMainView: View {
     }
 
     private func handleMapCenterCoordinateChanged(_ newCenter: CLLocationCoordinate2D?) {
-        guard curveTrackRecording, let center = newCenter else { return }
+        appendCurveTrackCoordinateIfNeeded(newCenter)
+    }
+
+    private func appendCurveTrackCoordinateIfNeeded(_ coordinate: CLLocationCoordinate2D?) {
+        guard curveTrackRecording, let coordinate else { return }
         if let last = curveRecordedCenters.last {
             let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
-            let nextLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
+            let nextLoc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
             if nextLoc.distance(from: lastLoc) < 2 { return }
         }
-        curveRecordedCenters.append(center)
+        curveRecordedCenters.append(coordinate)
     }
 
     private func handleArrivedAtDestination() {
@@ -3645,6 +3650,7 @@ struct MapMainView: View {
             if curveTrackRecording == false {
                 completeAutosteerSetupAndPromptForSave()
             } else {
+                appendCurveTrackCoordinateIfNeeded(coordinate)
                 curvePulse = true
             }
         default:
@@ -5330,6 +5336,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
     private func startCurveTrackRecordingFromQuickAction() {
         beginAutosteerSetup(mode: "Curve Track")
         curveTrackRecording = true
+        appendCurveTrackCoordinateIfNeeded(location.lastLocation?.coordinate)
         curvePulse = true
     }
 
