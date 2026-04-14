@@ -573,10 +573,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             let smoothingFactor = annotationSmoothingFactor(guidanceBlankMode: guidanceBlankMode)
 
             if let existing = userLocationAnnotation {
-                existing.coordinate = blendedGuidanceCoordinate(
-                    from: existing.coordinate,
-                    to: locationToApply.coordinate,
-                    smoothingFactor: smoothingFactor
+                let alpha = min(max(smoothingFactor, 0), 1)
+                let nextLatitude = existing.coordinate.latitude
+                    + (locationToApply.coordinate.latitude - existing.coordinate.latitude) * alpha
+                let nextLongitude = existing.coordinate.longitude
+                    + (locationToApply.coordinate.longitude - existing.coordinate.longitude) * alpha
+                existing.coordinate = CLLocationCoordinate2D(
+                    latitude: nextLatitude,
+                    longitude: nextLongitude
                 )
                 existing.isHeadsUp = shouldShowTriangle
                 existing.headingDegrees = heading
@@ -2278,17 +2282,6 @@ struct MapViewRepresentable: UIViewRepresentable {
             if freezeGuidanceLines {
                 hasFrozenAutosteerGuidanceLines = true
             }
-        }
-
-        private func blendedGuidanceCoordinate(
-            from current: CLLocationCoordinate2D,
-            to target: CLLocationCoordinate2D,
-            smoothingFactor: Double
-        ) -> CLLocationCoordinate2D {
-            let alpha = min(max(smoothingFactor, 0), 1)
-            let latitude = current.latitude + (target.latitude - current.latitude) * alpha
-            let longitude = current.longitude + (target.longitude - current.longitude) * alpha
-            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
         private func smoothedCoordinate(
