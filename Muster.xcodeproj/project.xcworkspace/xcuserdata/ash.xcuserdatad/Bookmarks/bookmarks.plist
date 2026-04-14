@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>                        let trimmed = newFarmNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+				<string>                    Section("Track") {
 </string>
 				<key>leading</key>
 				<string>                    }
-                    Button("Save") {
+
 </string>
 				<key>trailing</key>
-				<string>                        guard trimmed.isEmpty == false else { return }
-                        autosteerSaveFarm = trimmed
-                        selectedFarmOption = trimmed
+				<string>                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(trackQuickPickOptions, id: \.self) { option in
 </string>
 			</dict>
 			<key>type</key>
