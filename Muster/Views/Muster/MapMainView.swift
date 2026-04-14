@@ -44,6 +44,7 @@ private let kAutosteerTrackNameKey = "autosteer_track_name" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
 private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
+private let kAutosteerDefaultZoomMetersKey = "autosteer_default_zoom_m" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -343,6 +344,7 @@ struct MapMainView: View {
     @AppStorage(kAutosteerTrackNameKey) private var autosteerTrackName: String = ""
     @AppStorage(kAutosteerLookAheadKey) private var autosteerLookAheadM: Double = 12
     @AppStorage(kAutosteerLightbarStepCMKey) private var autosteerLightbarStepCM: Double = 2
+    @AppStorage(kAutosteerDefaultZoomMetersKey) private var autosteerDefaultZoomM: Double = 1000
     @AppStorage(kAutosteerSetupModeKey) private var autosteerSetupModeRaw: String = "none"
     @AppStorage(kAutosteerSetupActiveKey) private var autosteerSetupActive: Bool = false
     @AppStorage(kCruiseControlEnabledKey) private var cruiseControlEnabled: Bool = false
@@ -6142,7 +6144,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         mapStyleRaw = "blank"
         orientationRaw = "headsUp"
         headsUpPitchDegrees = 80
-        postExactZoomRequest(1000)
+        postExactZoomRequest(normalizedAutosteerDefaultZoom(autosteerDefaultZoomM))
     }
 
     private func applyAutosteerTrackCreationMapView() {
@@ -6175,6 +6177,7 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         quickZoom1M = normalizedQuickZoomValue(quickZoom1M)
         quickZoom2M = normalizedQuickZoomValue(quickZoom2M)
         quickZoom3M = normalizedQuickZoomValue(quickZoom3M)
+        autosteerDefaultZoomM = normalizedAutosteerDefaultZoom(autosteerDefaultZoomM)
     }
 
     private func syncSelectedQuickZoomIfNeeded() {
@@ -6192,6 +6195,11 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         let allowed: [Double] = [0, 45, 80]
         if allowed.contains(value) { return value }
         return allowed.min(by: { abs($0 - value) < abs($1 - value) }) ?? 45
+    }
+
+    private func normalizedAutosteerDefaultZoom(_ value: Double) -> Double {
+        let clamped = min(max(value, 100), 10_000)
+        return (clamped / 100).rounded() * 100
     }
 
     private func normalizeHeadsUpPitchSetting() {

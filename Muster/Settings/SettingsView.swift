@@ -73,6 +73,7 @@ private let kAutosteerTrackModeKey = "autosteer_track_mode" // String
 private let kAutosteerAggressivenessKey = "autosteer_aggressiveness" // Double 0...1
 private let kAutosteerLookAheadKey = "autosteer_look_ahead_m" // Double
 private let kAutosteerLightbarStepCMKey = "autosteer_lightbar_step_cm" // Double
+private let kAutosteerDefaultZoomMetersKey = "autosteer_default_zoom_m" // Double
 private let kAutosteerSetupModeKey = "autosteer_setup_mode" // String
 private let kAutosteerSetupActiveKey = "autosteer_setup_active" // Bool
 private let kCruiseControlEnabledKey = "cruise_control_enabled" // Bool
@@ -776,6 +777,7 @@ struct AutosteerSettingsView: View {
     @AppStorage(kAutosteerAggressivenessKey) private var aggressiveness: Double = 0.5
     @AppStorage(kAutosteerLookAheadKey) private var lookAheadM: Double = 12
     @AppStorage(kAutosteerLightbarStepCMKey) private var lightbarStepCM: Double = 2
+    @AppStorage(kAutosteerDefaultZoomMetersKey) private var defaultGuidanceZoomM: Double = 1000
     private var gpsStatusText: String {
         if location.lastLocation != nil { return "Connected" }
         if location.lastError != nil { return "Unavailable" }
@@ -899,6 +901,20 @@ struct AutosteerSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Default Guidance Zoom")
+                        Spacer()
+                        Text(UnitFormatting.formattedDistance(defaultGuidanceZoomM, decimalsIfLarge: 0))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $defaultGuidanceZoomM, in: 100...10_000, step: 100)
+                    Text("Applied when autosteer engages in Heads Up mode at 80° camera angle.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("Tuning")
             }
@@ -916,6 +932,13 @@ struct AutosteerSettingsView: View {
                 return
             }
             syncWorkingWidthText()
+        }
+        .onChange(of: defaultGuidanceZoomM) { _, newValue in
+            let clamped = min(max(newValue, 100), 10_000)
+            let rounded = (clamped / 100).rounded() * 100
+            if rounded != defaultGuidanceZoomM {
+                defaultGuidanceZoomM = rounded
+            }
         }
         .task {
             location.requestPermission()
