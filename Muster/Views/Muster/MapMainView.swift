@@ -14,6 +14,7 @@ private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
 private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
+private let kRingsEnabledKey = "rings_enabled"         // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double 0...10
@@ -310,6 +311,7 @@ struct MapMainView: View {
     @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
     @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
+    @AppStorage(kRingsEnabledKey) private var ringsEnabled: Bool = true
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
     @AppStorage(kHeadsUpPitchDegreesKey) private var headsUpPitchDegrees: Double = 45
     @AppStorage(kHeadsUpUserVerticalOffsetKey) private var headsUpUserVerticalOffset: Double = 10
@@ -2060,7 +2062,7 @@ struct MapMainView: View {
             userHeadingDegrees: location.headingDegrees,
             useCrosshairUserMarker: isAutosteerTrackSetupActive,
             positionSmoothingIntensity: mapPositionSmoothingIntensity,
-            ringCount: ringCount,
+            ringCount: ringsEnabled ? ringCount : 0,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,

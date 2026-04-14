@@ -16,6 +16,7 @@ private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
 private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
+private let kRingsEnabledKey = "rings_enabled"         // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kHeadsUpPitchDegreesKey = "heads_up_pitch_degrees" // Double
 private let kHeadsUpUserVerticalOffsetKey = "heads_up_user_vertical_offset" // Double: 0...10
@@ -2281,6 +2282,7 @@ struct RingsSettingsView: View {
     @AppStorage(kRingColorKey) private var ringColorRaw: String = RingColorOption.blue.rawValue
     @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
+    @AppStorage(kRingsEnabledKey) private var ringsEnabled: Bool = true
 
     private let countOptions = Array(1...10)
     private let spacingOptions: [Double] = Array(stride(from: 250, through: 2500, by: 250))
@@ -2288,6 +2290,8 @@ struct RingsSettingsView: View {
     var body: some View {
         Form {
             Section {
+                Toggle("Display rings", isOn: $ringsEnabled)
+
                 Picker("Number of rings", selection: $ringCount) {
                     ForEach(countOptions, id: \.self) { n in
                         Text("\(n)").tag(n)
@@ -2319,10 +2323,14 @@ struct RingsSettingsView: View {
                 Toggle("Distance labels", isOn: $ringDistanceLabelsEnabled)
 
                 let ringsSummary =
-                    "Showing \(ringCount) rings at \(UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1)) intervals in \(ringColorRaw.capitalized) " +
-                    "at \(String(format: "%.2f", ringThicknessScale))x thickness" +
-                    (ringDistanceLabelsEnabled ? " with" : " without") +
-                    " distance labels."
+                    ringsEnabled
+                    ? (
+                        "Showing \(ringCount) rings at \(UnitFormatting.formattedDistance(ringSpacingM, decimalsIfLarge: 1)) intervals in \(ringColorRaw.capitalized) " +
+                        "at \(String(format: "%.2f", ringThicknessScale))x thickness" +
+                        (ringDistanceLabelsEnabled ? " with" : " without") +
+                        " distance labels."
+                    )
+                    : "Rings are hidden."
 
                 Text(ringsSummary)
                     .font(.footnote)

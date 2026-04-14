@@ -8,6 +8,7 @@ private let kRingSpacingKey = "rings_spacing_m"        // Double
 private let kRingColorKey = "rings_color"              // String
 private let kRingThicknessScaleKey = "rings_thickness_scale" // Double (0.5...2.0)
 private let kRingDistanceLabelsEnabledKey = "rings_distance_labels_enabled" // Bool
+private let kRingsEnabledKey = "rings_enabled"         // Bool
 private let kMapOrientationKey = "map_orientation"     // String: "headsUp" | "northUp"
 private let kMapPositionSmoothingIntensityKey = "map_position_smoothing_intensity" // Double 0...1
 
@@ -34,6 +35,7 @@ struct SessionDetailView: View {
     @AppStorage(kRingColorKey) private var ringColorRaw: String = "blue"
     @AppStorage(kRingThicknessScaleKey) private var ringThicknessScale: Double = 1.0
     @AppStorage(kRingDistanceLabelsEnabledKey) private var ringDistanceLabelsEnabled: Bool = true
+    @AppStorage(kRingsEnabledKey) private var ringsEnabled: Bool = true
     @AppStorage(kMapOrientationKey) private var orientationRaw: String = "headsUp"
     @AppStorage(kMapPositionSmoothingIntensityKey) private var mapPositionSmoothingIntensity: Double = 0.65
 
@@ -71,7 +73,7 @@ struct SessionDetailView: View {
             userHeadingDegrees: location.headingDegrees,
             useCrosshairUserMarker: false,
             positionSmoothingIntensity: mapPositionSmoothingIntensity,
-            ringCount: ringCount,
+            ringCount: ringsEnabled ? ringCount : 0,
             ringSpacingMeters: ringSpacingM,
             ringColorRaw: ringColorRaw,
             ringThicknessScale: ringThicknessScale,
