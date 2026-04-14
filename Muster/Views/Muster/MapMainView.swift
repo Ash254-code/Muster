@@ -424,7 +424,7 @@ struct MapMainView: View {
         if autosteerEnabled {
             return autosteerGoReady
         }
-        location.lastLocation != nil
+        return location.lastLocation != nil
     }
 
     private var sheepPinButtonIcon: String {

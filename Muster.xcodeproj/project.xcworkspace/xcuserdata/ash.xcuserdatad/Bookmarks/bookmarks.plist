@@ -34,16 +34,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private var tapGesture: UITapGestureRecognizer!
+				<string>        titleBackground.isHidden = title.isEmpty
 </string>
 				<key>leading</key>
-				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
-
+				<string>        let title = marker.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        titleLabel.text = title
 </string>
 				<key>trailing</key>
-				<string>    private var suppressTapUntil: Date = .distantPast
+				<string>    }
 
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+    func suppressTapTemporarily() {
 </string>
 			</dict>
 			<key>title</key>
@@ -81,16 +81,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private var tapGesture: UITapGestureRecognizer!
+				<string>        titleBackground.isHidden = title.isEmpty
 </string>
 				<key>leading</key>
-				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
-
+				<string>        let title = marker.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        titleLabel.text = title
 </string>
 				<key>trailing</key>
-				<string>    private var suppressTapUntil: Date = .distantPast
+				<string>    }
 
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+    func suppressTapTemporarily() {
 </string>
 			</dict>
 			<key>title</key>
@@ -128,16 +128,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private var tapGesture: UITapGestureRecognizer!
+				<string>        titleBackground.isHidden = title.isEmpty
 </string>
 				<key>leading</key>
-				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
-
+				<string>        let title = marker.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        titleLabel.text = title
 </string>
 				<key>trailing</key>
-				<string>    private var suppressTapUntil: Date = .distantPast
+				<string>    }
 
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+    func suppressTapTemporarily() {
 </string>
 			</dict>
 			<key>title</key>
@@ -175,16 +175,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>    private var tapGesture: UITapGestureRecognizer!
+				<string>        titleBackground.isHidden = title.isEmpty
 </string>
 				<key>leading</key>
-				<string>    var onTap: ((ImportedMarker) -&gt; Void)?
-
+				<string>        let title = marker.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        titleLabel.text = title
 </string>
 				<key>trailing</key>
-				<string>    private var suppressTapUntil: Date = .distantPast
+				<string>    }
 
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+    func suppressTapTemporarily() {
 </string>
 			</dict>
 			<key>title</key>
@@ -222,16 +222,16 @@
 			<key>text-context</key>
 			<dict>
 				<key>focused</key>
-				<string>                    Button("Cancel", role: .cancel) {
+				<string>                        let trimmed = newFarmNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
 </string>
 				<key>leading</key>
-				<string>                .alert("Add Paddock", isPresented: $showAddPaddockPrompt) {
-                    TextField("Paddock name", text: $newPaddockNameInput)
+				<string>                    }
+                    Button("Save") {
 </string>
 				<key>trailing</key>
-				<string>                        newPaddockNameInput = ""
-                    }
-                    Button("Save") {
+				<string>                        guard trimmed.isEmpty == false else { return }
+                        autosteerSaveFarm = trimmed
+                        selectedFarmOption = trimmed
 </string>
 			</dict>
 			<key>type</key>
