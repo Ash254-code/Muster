@@ -146,7 +146,7 @@ struct AutosteerGuidanceRenderer {
         }
 
         let vehiclePath = Path(ellipseIn: CGRect(x: projection.vehicleScreenPoint.x - 6, y: projection.vehicleScreenPoint.y - 6, width: 12, height: 12))
-        context.fill(vehiclePath, with: .color(.yellow))
+        context.fill(vehiclePath, with: .color(.blue))
     }
 }
 
