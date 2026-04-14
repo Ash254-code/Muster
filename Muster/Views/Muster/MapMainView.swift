@@ -1075,6 +1075,11 @@ struct MapMainView: View {
                     }
                 }
             }
+            .onChange(of: autosteerActive) { _, isActive in
+                guard isActive else { return }
+                guard autosteerEnabled, isAutosteerTrackSetupActive == false else { return }
+                applyAutosteerMapLockIfNeeded()
+            }
             .onChange(of: mapStyleRaw) { _, newStyle in
                 if autosteerEnabled, autosteerSetupActive == false, newStyle != "blank" {
                     mapStyleRaw = "blank"
