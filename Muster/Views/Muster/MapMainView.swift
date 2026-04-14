@@ -286,6 +286,8 @@ struct MapMainView: View {
 
     @State private var showEditSessionMarkerAlert = false
     @State private var showEditMapMarkerAlert = false
+    @State private var showCruiseControlSetSpeedWarning = false
+    @State private var cruiseControlSetSpeedWarningMessage = ""
 
     @State private var topPillPickerSide: TopSidePillPosition? = nil
 
@@ -1302,6 +1304,11 @@ struct MapMainView: View {
             } message: {
                 Text("Update the marker name.")
             }
+            .alert("Cruise Control", isPresented: $showCruiseControlSetSpeedWarning) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(cruiseControlSetSpeedWarningMessage)
+            }
     }
 
     private var lifecycleMainContent: some View {
@@ -1909,11 +1916,24 @@ struct MapMainView: View {
                     .buttonStyle(.plain)
                 }
 
-                Toggle("Enabled", isOn: $cruiseControlEnabled)
-                    .toggleStyle(.switch)
-                    .tint(.blue)
-                    .foregroundStyle(chromePrimaryText)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                Button {
+                    setCruiseSpeedToCurrentSpeed()
+                } label: {
+                    Text("Set to current")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(chromePrimaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(quickPopupRowFill)
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(Color.blue.opacity(0.65), lineWidth: 1.25)
+                        )
+                }
+                .buttonStyle(.plain)
 
                 HStack(spacing: 8) {
                     Button {
@@ -5508,6 +5528,27 @@ private func previewThumbnail(for option: MapModeOption) -> some View {
         cruiseSpeedPopupHideWorkItem = hideWorkItem
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: hideWorkItem)
+    }
+
+    private func setCruiseSpeedToCurrentSpeed() {
+        guard let speedMPS = location.lastLocation?.speed, speedMPS >= 0 else {
+            cruiseControlSetSpeedWarningMessage = "Current speed is unavailable. Move forward and try again."
+            showCruiseControlSetSpeedWarning = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
+
+        let speedKPH = speedMPS * 3.6
+        guard speedKPH >= 2 else {
+            cruiseControlSetSpeedWarningMessage = "Current speed is too low to set cruise control."
+            showCruiseControlSetSpeedWarning = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
+
+        cruiseControlSpeedKPH = min(100, speedKPH.rounded())
+        showCruiseControlSetSpeedPopup()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     private var leftSideFloatingPills: some View {
