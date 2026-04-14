@@ -2598,7 +2598,7 @@ struct MapMainView: View {
     }
 
     private var cruiseControlStatusPill: some View {
-        Button(action: {}) {
+        Button(action: handleCruiseControlStatusPillTap) {
             VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(cruiseControlDisplaySpeedText)
@@ -2805,7 +2805,7 @@ struct MapMainView: View {
     }
 
     private var topSpeedPill: some View {
-        Button(action: {}) {
+        Button(action: handleTopSpeedPillTap) {
             VStack(spacing: 0) {
             Text(speedNumberText)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -2926,6 +2926,34 @@ struct MapMainView: View {
                 .strokeBorder(chromeStroke.opacity(0.85), lineWidth: 1)
         )
         .tint(.blue)
+    }
+
+    private func handleTopSpeedPillTap() {
+        if autosteerEnabled {
+            guard autosteerGoReady else {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                showAutosteerReadinessSheet = true
+                return
+            }
+
+            autosteerActive = true
+            if cruiseControlEnabled {
+                showCruiseControlSetSpeedPopup()
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            return
+        }
+
+        if cruiseControlEnabled {
+            showCruiseControlSetSpeedPopup()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+
+    private func handleCruiseControlStatusPillTap() {
+        guard autosteerEnabled == false, cruiseControlEnabled else { return }
+        showCruiseControlSetSpeedPopup()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     private var moveBanner: some View {
