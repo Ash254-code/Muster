@@ -990,14 +990,16 @@ struct MapViewRepresentable: UIViewRepresentable {
             spacingM: Double,
             colorRaw: String,
             thicknessScale: Double,
-            labelsEnabled: Bool
+            labelsEnabled: Bool,
+            mapHeadingDegrees: CLLocationDirection
         ) -> String {
             guard let centerLocation else { return "nil" }
             let lat = String(format: "%.6f", centerLocation.coordinate.latitude)
             let lon = String(format: "%.6f", centerLocation.coordinate.longitude)
             let spacing = String(format: "%.1f", spacingM)
             let thickness = String(format: "%.2f", thicknessScale)
-            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)|thickness:\(thickness)|labels:\(labelsEnabled)"
+            let heading = String(format: "%.1f", normalizeHeading(mapHeadingDegrees))
+            return "\(lat),\(lon)|\(ringCount)|\(spacing)|\(colorRaw)|thickness:\(thickness)|labels:\(labelsEnabled)|heading:\(heading)"
         }
 
         private func annotationView(at point: CGPoint, in map: MKMapView) -> MKAnnotationView? {
@@ -2161,7 +2163,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                 spacingM: spacingM,
                 colorRaw: colorRaw,
                 thicknessScale: thicknessScale,
-                labelsEnabled: labelsEnabled
+                labelsEnabled: labelsEnabled,
+                mapHeadingDegrees: map.camera.heading
             )
             guard newSignature != ringsSignature else { return }
             ringsSignature = newSignature
@@ -2192,10 +2195,11 @@ struct MapViewRepresentable: UIViewRepresentable {
                 newRings.append(circle)
 
                 if labelsEnabled {
+                    let onScreenLabelAngle = 330.0 // 11 o'clock on the phone screen.
                     let labelCoordinate = offsetCoordinate(
                         center.coordinate,
                         meters: radiusMeters,
-                        bearingDegrees: 330
+                        bearingDegrees: normalizeHeading(map.camera.heading + onScreenLabelAngle)
                     )
                     newLabels.append(
                         RingLabelAnnotation(
@@ -2846,6 +2850,16 @@ struct MapViewRepresentable: UIViewRepresentable {
             if !parent.followUser && !isAnimatingCameraTransition {
                 syncCameraStateFromMap(mapView)
             }
+
+            updateRings(
+                map: mapView,
+                centerLocation: parent.userLocation,
+                ringCount: parent.ringCount,
+                spacingM: parent.ringSpacingMeters,
+                colorRaw: parent.ringColorRaw,
+                thicknessScale: parent.ringThicknessScale,
+                labelsEnabled: parent.ringDistanceLabelsEnabled
+            )
 
             keepUserLocationViewOnTop(in: mapView)
         }
